@@ -12,37 +12,54 @@ restant déployable en **mono-tenant self-host** via Docker.
 
 ## Démarrage rapide (environnement de test local, Docker)
 
-Prérequis : **Docker** et **Docker Compose**.
+Prérequis : **Docker Desktop** (avec le moteur démarré). Une seule commande — le conteneur
+`app` prépare tout automatiquement (`.env`, dépendances, clé, migrations, données de démo).
 
 ```bash
-# 1. Configuration
-cp .env.example .env
-
-# 2. Construction et démarrage des conteneurs
-docker compose up -d --build
-
-# 3. Dépendances (dans le conteneur app)
-docker compose exec app composer install
-docker compose exec app php artisan key:generate
-
-# 4. Base de données + données de démonstration
-docker compose exec app php artisan migrate --seed
-
-# 5. Front (le service `vite` compile automatiquement en dev)
+docker compose up --build
 ```
 
-L'application est disponible sur **http://localhost:8080**.
+Attends dans les logs la ligne :
 
-### Créer le premier administrateur plateforme (aucun mot de passe par défaut)
-
-```bash
-docker compose exec app php artisan vulcain:create-platform-admin
+```
+✅ Vulcain est prêt : http://demo.localhost:8080
 ```
 
-Le mot de passe est saisi de façon masquée (jamais dans le code, les logs ou l'historique
-du terminal).
+puis ouvre un **sous-domaine d'organisation** dans le navigateur :
+
+| URL | Espace |
+|---|---|
+| http://demo.localhost:8080 | Organisation de démo « CIS Démonstration » |
+| http://caserne-nord.localhost:8080 | Organisation de démo « CIS Nord » |
+| http://localhost:8080 | Domaine central (espace plateforme) |
+
+> Les navigateurs (Edge, Chrome, Firefox) résolvent automatiquement `*.localhost` vers
+> `127.0.0.1` : aucune configuration de `hosts` n'est nécessaire.
+
+Pour lancer en arrière-plan : `docker compose up -d --build` (puis `docker compose logs -f app`).
+Pour tout arrêter : `docker compose down` (ajouter `-v` pour effacer aussi la base).
+
+### Windows 11 (Docker Desktop)
+
+- Installe **Docker Desktop** avec le backend **WSL2** (proposé par défaut) et laisse-le démarrer.
+- Ouvre **PowerShell** ou **Git Bash** dans le dossier du projet et lance `docker compose up --build`.
+- La première construction télécharge les images (quelques minutes) ; les suivantes sont quasi
+  instantanées.
+- Aucune conversion de fins de ligne à craindre : le dépôt force `LF` (`.gitattributes`).
+
+### Premier administrateur (à venir)
+
+La commande sécurisée de création du premier administrateur (`php artisan vulcain:create-admin`,
+mot de passe saisi masqué, jamais dans les logs) sera ajoutée avec le module d'authentification
+(Phase 1.2). À ce stade, seules les **organisations** de démonstration existent.
 
 ---
+
+### Rechargement à chaud du front (optionnel)
+
+Le service `assets` construit le front une fois au démarrage — suffisant pour tester
+l'application. Pour du rechargement à chaud pendant le développement de l'interface, utilise
+le flux **sans Docker** ci-dessous (`npm run dev` sur la machine hôte).
 
 ## Développement sans Docker
 

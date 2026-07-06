@@ -9,3 +9,7 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Toujours des fins de ligne LF pour les scripts shell (Docker sous Windows)
+*.sh text eol=lf
+docker/php/entrypoint.sh text eol=lf

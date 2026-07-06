@@ -17,6 +17,8 @@ services:
         condition: service_started
     environment:
       - APP_ENV=${APP_ENV:-local}
+      # Ce conteneur pilote la préparation (composer, clé, migrations, seed).
+      - VULCAIN_BOOTSTRAP=1
     networks:
       - vulcain
 
@@ -71,13 +73,13 @@ services:
     networks:
       - vulcain
 
-  # Serveur de dev front (Vite) — HMR pour Vue/Tailwind
-  vite:
+  # Construction des assets front (Vue + Tailwind), puis sortie.
+  # Robuste et sans configuration côté Windows. Pour le rechargement à chaud
+  # pendant le développement front, voir le README (npm run dev, optionnel).
+  assets:
     image: node:22-alpine
     working_dir: /var/www/html
-    command: sh -c "npm install && npm run dev -- --host"
-    ports:
-      - "${VITE_PORT:-5173}:5173"
+    command: sh -c "npm install && npm run build"
     volumes:
       - ./:/var/www/html
     networks:
