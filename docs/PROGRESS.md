@@ -24,8 +24,14 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
 ## Décisions techniques
 - Voir `docs/architecture.md` §8.
 
+## Décisions validées (2026-07-06)
+- Frontend : Inertia + Vue 3 + Tailwind.
+- Isolation : base partagée + `organisation_id`.
+- SaaS : structure abonnements/quotas + espace exploitant ; paiement (Stripe) reporté.
+- Accès : sous-domaine par organisation + self-host Docker mono-tenant.
+
 ## Problèmes connus
-- Décisions structurantes en attente de validation (pile, isolation tenant, périmètre SaaS).
+- Aucun. En attente du feu vert pour démarrer la Phase 0.
 
 ## Prochaine étape
 - Après confirmation : **Phase 0 — Initialisation du projet**, puis **Phase 1 — fondation

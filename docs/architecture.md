@@ -281,9 +281,17 @@ Séparation stricte demandée par le cahier : **présentation** (Vue/Blade) / **
 
 ---
 
-## 9. En attente de confirmation
+## 9. Décisions validées (2026-07-06)
+
+Les choix structurants ont été arbitrés par le porteur du projet :
+
+| Décision | Choix retenu |
+|---|---|
+| Frontend | **Inertia.js + Vue 3 + Tailwind CSS** |
+| Isolation multi‑tenant | **Base partagée + `organisation_id`** (migration base‑par‑client possible plus tard) |
+| Périmètre SaaS | **Structure plans/abonnements/quotas + espace exploitant prêts, intégration de paiement (Stripe) reportée** |
+| Accès & déploiement | **Sous‑domaine par organisation** (`caserne.vulcain.app`) + **mode self‑host mono‑tenant** via Docker |
 
 Conformément au cahier des charges, **aucun développement, aucune migration, aucune table**
-n'est réalisé à ce stade. Les points ouverts nécessitant ta décision sont posés séparément
-(pile technique, modèle d'isolation, périmètre du SaaS : facturation et self‑host, résolution
-de tenant par sous‑domaine). Le développement démarrera **après ta confirmation**.
+n'est réalisé à ce stade. Le développement (Phase 0 puis Phase 1) démarrera **après le
+feu vert explicite** du porteur du projet.
