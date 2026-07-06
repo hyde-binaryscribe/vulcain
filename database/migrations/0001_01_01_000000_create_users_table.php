@@ -13,12 +13,17 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            // Cloisonnement multi-tenant : chaque utilisateur appartient à une organisation.
+            $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+
+            // L'e-mail est unique au sein d'une organisation (pas globalement).
+            $table->unique(['organisation_id', 'email']);
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

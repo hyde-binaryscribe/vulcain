@@ -4,7 +4,22 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
 - **Phase 0 — Socle projet** : terminée.
-- Prochaine : **Phase 1.1 — fondation multi-tenant**.
+- **Phase 1.1 — Fondation multi-tenant** : terminée.
+- Prochaine : **Phase 1.2 — Authentification**.
+
+## Phase 1.1 — Multi-tenant (terminée)
+- Table centrale `organisations` (slug = sous-domaine, statut, settings JSON, soft delete).
+- `users` cloisonné : colonne `organisation_id`, e-mail unique **par organisation**.
+- `TenantContext` (singleton) + `OrganisationScope` (scope global) + trait `BelongsToOrganisation`
+  (remplit `organisation_id` à la création, jamais en mass assignment).
+- Middleware `ResolveTenant` : résolution par sous-domaine (404 inconnue, 403 suspendue),
+  domaine central = espace plateforme.
+- Garde-fou anti-fuite : lecture d'un modèle cloisonné sans contexte en HTTP → exception.
+- Partage Inertia de l'organisation courante + utilisateur (données minimales).
+- **Tests (9, tous verts)** : cloisonnement des lectures, blocage IDOR inter-tenant,
+  remplissage auto de `organisation_id`, exception hors contexte, modes `runFor`/`runCrossTenant`,
+  résolution par sous-domaine (OK / 404 / 403 / central).
+- Vérif HTTP live : central 200, tenants connus 200, sous-domaine inconnu 404.
 
 ## Fonctionnalités terminées
 - Analyse complète du cahier des charges (36 sections) + architecture SaaS (Mission 1).

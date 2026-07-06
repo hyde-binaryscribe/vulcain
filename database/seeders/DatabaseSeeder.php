@@ -2,24 +2,27 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Organisation;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Données de démonstration.
+     *
+     * Deux organisations clientes cloisonnées. Les utilisateurs, rôles et
+     * données métier seront ajoutés au fil des phases suivantes (auth, RBAC…).
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        Organisation::query()->firstOrCreate(
+            ['slug' => 'demo'],
+            ['name' => 'CIS Démonstration', 'status' => Organisation::STATUS_ACTIVE]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        Organisation::query()->firstOrCreate(
+            ['slug' => 'caserne-nord'],
+            ['name' => 'CIS Nord', 'status' => Organisation::STATUS_ACTIVE]
+        );
     }
 }
