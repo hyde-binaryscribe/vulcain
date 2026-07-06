@@ -1,0 +1,91 @@
+# Vulcain — environnement de développement / test local
+# Lancement : cp .env.example .env && docker compose up -d --build
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    networks:
+      - vulcain
+
+  web:
+    image: nginx:1.27-alpine
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - vulcain
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-vulcain}
+      POSTGRES_USER: ${DB_USERNAME:-vulcain}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-vulcain}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vulcain
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - vulcain
+
+  # Worker de file d'attente (notifications, e-mails, génération PDF)
+  queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    command: php artisan queue:work --tries=3 --timeout=90
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - vulcain
+
+  # Serveur de dev front (Vite) — HMR pour Vue/Tailwind
+  vite:
+    image: node:22-alpine
+    working_dir: /var/www/html
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - vulcain
+
+volumes:
+  db-data:
+
+networks:
+  vulcain:
+    driver: bridge

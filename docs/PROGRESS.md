@@ -3,23 +3,33 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Mission 1 — Analyse & architecture** (livrable : `docs/architecture.md`).
-- Statut : **terminée, en attente de confirmation** avant de démarrer le développement.
+- **Phase 0 — Socle projet** : terminée.
+- Prochaine : **Phase 1.1 — fondation multi-tenant**.
 
 ## Fonctionnalités terminées
-- Analyse complète du cahier des charges (36 sections).
-- Proposition d'architecture adaptée au modèle **SaaS distribuable**.
+- Analyse complète du cahier des charges (36 sections) + architecture SaaS (Mission 1).
+- **Phase 0 — Socle** :
+  - Laravel 13.18 (PHP 8.3), skeleton opérationnel.
+  - Front **Inertia + Vue 3 + Tailwind** : build OK (755 modules), page d'accueil rendue via HTTP 200.
+  - **Argon2id** configuré et vérifié comme algorithme de hachage par défaut.
+  - Stack **Docker** (Nginx + PHP-FPM 8.3 + PostgreSQL 16 + Redis + worker de file + Vite).
+  - CI GitHub Actions (composer, npm build, migrations PostgreSQL, Pint, tests).
+  - `.env.example` durci (Argon, cookies, sessions en base, hôtes Docker), README d'installation.
 
-## Fichiers créés
-- `docs/architecture.md` — analyse, architecture, stratégies, plan de développement.
-- `docs/PROGRESS.md` — ce fichier.
-- `.gitignore`.
+## Fichiers créés (Phase 0, principaux)
+- `docker/php/Dockerfile`, `docker/php/php.ini`, `docker/nginx/default.conf`, `docker-compose.yml`.
+- `.github/workflows/ci.yml`, `README.md`.
+- `config/hashing.php` (Argon2id), `bootstrap/app.php` (middleware Inertia).
+- `resources/js/app.js`, `resources/js/Pages/Welcome.vue`, `resources/views/app.blade.php`, `vite.config.js`.
+- `app/Http/Middleware/HandleInertiaRequests.php`, `routes/web.php`.
 
 ## Migrations exécutées
-- Aucune (interdit à ce stade par la mission 1).
+- Migrations Laravel de base (users, cache, jobs, sessions) — vérifiées localement (SQLite).
+- Aucune table métier encore créée (elles arrivent en Phase 1).
 
 ## Tests ajoutés / résultats
-- Aucun (le développement n'a pas commencé).
+- Vérifications manuelles Phase 0 : build front OK, boot HTTP 200, Argon2id opérationnel.
+- Tests automatisés : à compléter dès la Phase 1 (multi-tenant, auth, RBAC).
 
 ## Décisions techniques
 - Voir `docs/architecture.md` §8.
