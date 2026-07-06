@@ -1,0 +1,28 @@
+# Dependencies
+/vendor
+/node_modules
+
+# Environment & secrets (jamais dans Git)
+.env
+.env.*
+!.env.example
+
+# Build
+/public/build
+/public/hot
+/public/storage
+*.log
+
+# Laravel
+/storage/*.key
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/bootstrap/cache/*
+
+# OS / IDE
+.DS_Store
+.idea
+.vscode
+*.swp
