@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Protocol\ProtocolItemState;
 use App\Domain\Protocol\ProtocolScope;
+use App\Domain\Protocol\ProtocolSerialState;
 use App\Domain\Protocol\ProtocolSnapshot;
 use App\Models\Protocol;
 use App\Models\ProtocolItem;
@@ -11,6 +12,7 @@ use App\Models\ProtocolTemplate;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -105,12 +107,17 @@ class ProtocolController extends Controller
                     'material_name' => $i->material_name,
                     'reference' => $i->reference,
                     'tracking_mode' => $i->tracking_mode,
+                    'serial_number' => $i->serial_number,
                     'expected_qty' => $i->expected_qty,
                     'observed_qty' => $i->observed_qty,
-                    'state' => $i->state?->value,
+                    'last_known_expiry' => $i->last_known_expiry?->toDateString(),
+                    'observed_expiry' => $i->observed_expiry?->toDateString(),
+                    'expiry_required' => $i->expiry_required,
+                    'state' => $i->state,
                     'observation' => $i->observation,
                     'checked' => $i->checked,
                     'photo_required' => $i->photo_required,
+                    'photo_url' => $i->photo_path ? Storage::disk('public')->url($i->photo_path) : null,
                     'row_version' => $i->row_version,
                 ])->values(),
             ])->values();
@@ -133,6 +140,7 @@ class ProtocolController extends Controller
             'groups' => $groups,
             'progress' => ['checked' => $checked, 'total' => $total],
             'states' => ProtocolItemState::options(),
+            'serialStates' => ProtocolSerialState::options(),
             'status' => session('status'),
         ]);
     }
@@ -143,19 +151,37 @@ class ProtocolController extends Controller
 
         $protocolItem = $protocol->items()->findOrFail($item);
 
+        $stateRule = $protocolItem->isSerial()
+            ? Rule::enum(ProtocolSerialState::class)
+            : Rule::enum(ProtocolItemState::class);
+
         $validated = $request->validate([
             'observed_qty' => ['nullable', 'integer', 'min:0'],
-            'state' => ['nullable', Rule::enum(ProtocolItemState::class)],
+            'observed_expiry' => ['nullable', 'date'],
+            'state' => ['nullable', $stateRule],
             'observation' => ['nullable', 'string', 'max:2000'],
+            'photo' => ['nullable', 'image', 'max:5120'],
         ]);
 
-        $protocolItem->update([
+        $changes = [
             'observed_qty' => $validated['observed_qty'] ?? null,
             'state' => $validated['state'] ?? null,
             'observation' => $validated['observation'] ?? null,
             'checked' => true,
             'row_version' => $protocolItem->row_version + 1,
-        ]);
+        ];
+
+        // Péremption relevée (consommable uniquement).
+        if ($protocolItem->isLot()) {
+            $changes['observed_expiry'] = $validated['observed_expiry'] ?? null;
+        }
+
+        // Photo facultative (anomalie série) — stockée sur le disque public.
+        if ($request->hasFile('photo')) {
+            $changes['photo_path'] = $request->file('photo')->store('protocol-photos', 'public');
+        }
+
+        $protocolItem->update($changes);
 
         return back(303)->with('status', 'Enregistré.');
     }

@@ -49,16 +49,23 @@ return new class extends Migration
             $table->string('material_name');
             $table->string('reference')->nullable();
             $table->string('location_name')->nullable();
-            $table->string('tracking_mode')->default('quantity');
+            $table->string('tracking_mode')->default('quantity'); // quantity | serial | lot
             $table->unsignedInteger('expected_qty')->default(0);
             $table->boolean('photo_required')->default(false);
             $table->unsignedInteger('display_order')->default(0);
 
+            // Instantané spécifique à la nature du matériel.
+            $table->string('serial_number')->nullable();   // exemplaire série attendu à cet endroit
+            $table->date('last_known_expiry')->nullable();  // consommable : péremption connue (repère)
+            $table->boolean('expiry_required')->default(false); // consommable : péremption à saisir ?
+
             // Saisie du contrôle.
             $table->unsignedInteger('observed_qty')->nullable();
-            $table->string('state')->nullable();       // conforme | manquant | hs | a_remplacer
+            $table->date('observed_expiry')->nullable();   // consommable : péremption la plus proche relevée
+            $table->string('state')->nullable();           // selon la nature (conforme… ou present/absent/anomalie)
             $table->text('observation')->nullable();
-            $table->boolean('checked')->default(false); // contrôlé ?
+            $table->string('photo_path')->nullable();       // photo facultative (anomalie série)
+            $table->boolean('checked')->default(false);     // contrôlé ?
 
             // Verrouillage optimiste (autosave / accès concurrents).
             $table->unsignedInteger('row_version')->default(0);

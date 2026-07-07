@@ -9,6 +9,21 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Lot B4 — Exécution différenciée matériel / consommable / quantité (terminé)
+- Le snapshot éclate chaque matériel selon sa nature :
+  - **série** : une ligne PAR n° de série attendu → états **Présent / Absent / Présent
+    avec anomalie** (enum `ProtocolSerialState`) + **photo facultative** en cas d'anomalie
+    (stockée sur le disque public, `storage:link` ajouté à l'entrypoint) ;
+  - **consommable** : compter + **péremption la plus proche** à saisir, **dernière date
+    connue en repère** (bouton de report rapide). L'exigence de péremption suit le réglage
+    B2 : toujours en fixe, en mobile seulement si l'organisation la suit ;
+  - **quantité** : +/- + états (inchangé).
+- Champs `protocol_items` : `serial_number`, `last_known_expiry`, `expiry_required`,
+  `observed_expiry`, `photo_path`. Écran tactile réécrit avec 3 types de cartes.
+- Validation d'exécution branchée sur la nature (états série vs conforme/manquant…).
+- **Tests (+2 = 91 au total, verts)** : éclatement série 1 ligne/n° série, exigence de
+  péremption suivant le réglage mobile.
+
 ## Lot B3 — Cible de protocole par périmètre + exclusions (terminé)
 - Un modèle de protocole ne cure plus le matériel à la main : il définit une **cible**
   = un **véhicule** (tout le matériel embarqué) OU un **emplacement** (+ « inclure les

@@ -21,6 +21,9 @@ if [ "$VULCAIN_BOOTSTRAP" = "1" ]; then
     # 3. Droits d'écriture (bind mount)
     chmod -R ug+rw storage bootstrap/cache 2>/dev/null || true
 
+    # 3 bis. Lien symbolique public/storage → storage/app/public (photos de protocole).
+    php artisan storage:link 2>/dev/null || true
+
     # 4. Clé applicative
     if ! grep -q '^APP_KEY=base64:' .env; then
         echo "🔑 Génération de la clé applicative"

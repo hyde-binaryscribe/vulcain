@@ -56,13 +56,21 @@ class ProtocolScope
 
         $excluded = $template->excluded_material_ids ?? [];
 
+        $locationLoad = [
+            'location:id,name,kind,parent_id,vehicle_id',
+            'location.vehicle:id,name',
+            'location.parent:id,name,parent_id,vehicle_id',
+        ];
+
         return Material::query()
             ->whereIn('location_id', $locationIds)
             ->when($excluded !== [], fn ($q) => $q->whereNotIn('id', $excluded))
             ->with([
-                'location:id,name,parent_id,vehicle_id',
-                'location.vehicle:id,name',
-                'location.parent:id,name,parent_id,vehicle_id',
+                ...$locationLoad,
+                // Exemplaires série (une ligne de contrôle par n° de série) et lots
+                // consommables (péremption la plus proche connue).
+                'items' => fn ($q) => $q->with($locationLoad)->orderBy('serial_number'),
+                'lots:id,material_id,quantity,expiry_date',
             ])
             ->orderBy('location_id')
             ->orderBy('name')

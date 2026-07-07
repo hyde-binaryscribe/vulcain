@@ -124,8 +124,64 @@ class ProtocolRealizationTest extends TestCase
 
         $item->refresh();
         $this->assertSame(3, $item->observed_qty);
-        $this->assertSame('manquant', $item->state->value);
+        $this->assertSame('manquant', $item->state);
         $this->assertTrue($item->checked);
+    }
+
+    public function test_serial_material_expands_to_one_row_per_unit(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$template] = $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $location = Location::create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'kind' => 'mobile', 'name' => 'Cellule']);
+            $dsa = Material::factory()->create(['organisation_id' => $org->id, 'location_id' => $location->id, 'name' => 'DSA', 'tracking_mode' => 'serial']);
+            $dsa->items()->create(['serial_number' => 'DSA-001', 'location_id' => $location->id, 'status' => 'conforme']);
+            $dsa->items()->create(['serial_number' => 'DSA-002', 'location_id' => $location->id, 'status' => 'conforme']);
+            $template = ProtocolTemplate::factory()->forVehicle($vehicle)->create(['organisation_id' => $org->id]);
+
+            return [$template];
+        });
+        $admin = $this->userWithRole($org, Rbac::ADMIN);
+
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+
+        $protocol = $this->tenant()->runFor($org, fn () => Protocol::with('items')->first());
+        $serials = $protocol->items->where('tracking_mode', 'serial');
+        $this->assertCount(2, $serials);
+        $this->assertEqualsCanonicalizing(['DSA-001', 'DSA-002'], $serials->pluck('serial_number')->all());
+
+        // État série « absent » enregistrable.
+        $unit = $serials->first();
+        $this->actingAs($admin)->patch("http://caserne.localhost/protocols/{$protocol->id}/items/{$unit->id}", [
+            'state' => 'absent',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('absent', $unit->refresh()->state);
+    }
+
+    public function test_consumable_expiry_requirement_follows_mobile_setting(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $template = $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $location = Location::create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'kind' => 'mobile', 'name' => 'Sac']);
+            $serum = Material::factory()->create(['organisation_id' => $org->id, 'location_id' => $location->id, 'name' => 'Sérum', 'tracking_mode' => 'lot']);
+            $serum->lots()->create(['lot_number' => 'L1', 'quantity' => 5, 'expiry_date' => now()->addDays(30)->toDateString(), 'location_id' => $location->id, 'status' => 'conforme']);
+
+            return ProtocolTemplate::factory()->forVehicle($vehicle)->create(['organisation_id' => $org->id]);
+        });
+        $admin = $this->userWithRole($org, Rbac::ADMIN);
+
+        // Suivi mobile activé (défaut) -> péremption requise + repère renseigné.
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+        $item = $this->tenant()->runFor($org, fn () => Protocol::latest('id')->first()->items->firstWhere('tracking_mode', 'lot'));
+        $this->assertTrue($item->expiry_required);
+        $this->assertNotNull($item->last_known_expiry);
+
+        // Suivi mobile désactivé -> péremption non requise à bord.
+        $this->tenant()->runFor($org, fn () => $org->update(['settings' => ['track_expiry_in_mobile' => false]]));
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+        $item2 = $this->tenant()->runFor($org, fn () => Protocol::latest('id')->first()->items->firstWhere('tracking_mode', 'lot'));
+        $this->assertFalse($item2->expiry_required);
     }
 
     public function test_validated_protocol_is_read_only(): void
