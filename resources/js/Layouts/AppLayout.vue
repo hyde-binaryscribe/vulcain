@@ -22,6 +22,7 @@ const nav = computed(() =>
     [
         { label: 'Tableau de bord', href: '/dashboard', permission: null },
         { label: 'Véhicules', href: '/vehicles', permission: 'vehicles.manage' },
+        { label: 'Emplacements', href: '/locations', permission: 'locations.manage' },
         { label: 'Utilisateurs', href: '/users', permission: 'users.manage' },
         { label: 'Profil', href: '/profile', permission: null },
     ].filter((item) => can(item.permission)),

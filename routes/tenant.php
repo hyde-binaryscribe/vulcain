@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -23,5 +24,14 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
         Route::delete('vehicles/{vehicle}', [VehicleController::class, 'destroy'])->name('vehicles.destroy');
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
+    });
+
+    // Emplacements & sous-emplacements.
+    Route::middleware('permission:locations.manage')->group(function () {
+        Route::get('locations', [LocationController::class, 'index'])->name('locations.index');
+        Route::post('locations', [LocationController::class, 'store'])->name('locations.store');
+        Route::patch('locations/{location}', [LocationController::class, 'update'])->name('locations.update');
+        Route::post('locations/{location}/toggle', [LocationController::class, 'toggle'])->name('locations.toggle');
+        Route::delete('locations/{location}', [LocationController::class, 'destroy'])->name('locations.destroy');
     });
 });
