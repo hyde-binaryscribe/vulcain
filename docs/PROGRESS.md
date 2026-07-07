@@ -3,9 +3,23 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phases 0, 1, 2 (+ enrichissement)** : terminées.
-- **Phase 3.1 — Modèles d'inventaire** : terminée.
-- Prochaine : **Phase 3.2 — Réalisation d'inventaire (écran tactile + snapshot)**.
+- **Phases 0, 1, 2 (+ enrichissement), 3.1** : terminées.
+- **Phase 3.2 — Réalisation d'inventaire** : terminée.
+- Prochaine : **Phase 3.3 — Autosave avancé + validation + verrouillage**.
+
+## Phase 3.2 — Réalisation d'inventaire (terminée)
+- Tables `inventories` + `inventory_items` avec **instantané (snapshot) immuable** au
+  démarrage : nom matériel/emplacement, quantité attendue, mode de suivi copiés — le
+  catalogue peut changer sans jamais altérer un inventaire.
+- **Démarrage** depuis un modèle (vérificateur limité à ses véhicules autorisés).
+- **Écran tactile** (par emplacement) : quantité présente +/−, états Conforme / Manquant /
+  HS / À remplacer, observation, progression ; enregistrement par élément.
+- Consultation en lecture seule des inventaires validés ; un brouillon d'un autre
+  vérificateur n'est pas ouvrable.
+- Tableau de bord : compteur d'inventaires (total / en cours).
+- Permission `inventories.perform | inventories.manage` ; anti-IDOR.
+- **Tests (5, 84 au total, verts)** : snapshot immuable, accès véhicule autorisé,
+  enregistrement, verrouillage post-validation, cloisonnement des brouillons.
 
 ## Phase 3.1 — Modèles d'inventaire + planification (terminée)
 - Tables `inventory_templates` (véhicule, fréquence, version, actif) +

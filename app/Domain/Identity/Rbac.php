@@ -63,6 +63,7 @@ final class Rbac
                 'catalog.manage',
                 'templates.manage',
                 'inventories.manage',
+                'inventories.perform',
                 'pharmacy.manage',
                 'anomalies.manage',
                 'repairs.manage',

@@ -34,8 +34,8 @@ const tenant = computed(() => page.props.tenant);
             </div>
             <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-xs uppercase tracking-wide text-gray-500">Inventaires</p>
-                <p class="mt-1 text-3xl font-bold text-gray-400">—</p>
-                <p class="text-xs text-gray-400">à venir (Phase 3)</p>
+                <p class="mt-1 text-3xl font-bold text-gray-900">{{ stats.inventories_total ?? 0 }}</p>
+                <p class="text-xs text-gray-500">{{ stats.inventories_draft ?? 0 }} en cours</p>
             </div>
         </div>
     </AppLayout>

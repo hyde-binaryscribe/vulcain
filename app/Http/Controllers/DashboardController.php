@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Fleet\VehicleStatus;
+use App\Models\Inventory;
 use App\Models\User;
 use App\Models\Vehicle;
 use Inertia\Inertia;
@@ -17,6 +18,8 @@ class DashboardController extends Controller
                 'vehicles' => Vehicle::query()->count(),
                 'vehicles_available' => Vehicle::query()->where('status', VehicleStatus::DISPONIBLE->value)->count(),
                 'users' => User::query()->where('is_active', true)->count(),
+                'inventories_draft' => Inventory::query()->where('status', Inventory::STATUS_DRAFT)->count(),
+                'inventories_total' => Inventory::query()->count(),
             ],
         ]);
     }

@@ -21,6 +21,7 @@ const sidebarOpen = ref(false);
 const nav = computed(() =>
     [
         { label: 'Tableau de bord', href: '/dashboard', permission: null },
+        { label: 'Inventaires', href: '/inventories', permission: 'inventories.perform' },
         { label: 'Véhicules', href: '/vehicles', permission: 'vehicles.manage' },
         { label: 'Emplacements', href: '/locations', permission: 'locations.manage' },
         { label: 'Matériel', href: '/materials', permission: 'catalog.manage' },

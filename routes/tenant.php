@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryTemplateController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
@@ -48,6 +49,14 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::post('templates/{template}/items', [InventoryTemplateController::class, 'addItem'])->name('templates.items.add');
         Route::patch('templates/{template}/items/{item}', [InventoryTemplateController::class, 'updateItem'])->name('templates.items.update');
         Route::delete('templates/{template}/items/{item}', [InventoryTemplateController::class, 'removeItem'])->name('templates.items.remove');
+    });
+
+    // Réalisation des inventaires (vérificateur ou gestionnaire).
+    Route::middleware('permission:inventories.perform|inventories.manage')->group(function () {
+        Route::get('inventories', [InventoryController::class, 'index'])->name('inventories.index');
+        Route::post('inventories', [InventoryController::class, 'start'])->name('inventories.start');
+        Route::get('inventories/{inventory}', [InventoryController::class, 'show'])->name('inventories.show');
+        Route::patch('inventories/{inventory}/items/{item}', [InventoryController::class, 'updateItem'])->name('inventories.items.update');
     });
 
     // Emplacements & sous-emplacements.
