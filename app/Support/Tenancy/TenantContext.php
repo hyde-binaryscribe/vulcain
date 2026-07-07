@@ -3,13 +3,16 @@
 namespace App\Support\Tenancy;
 
 use App\Models\Organisation;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Contexte de location courant (organisation active) pour la requête / le process.
  *
  * Enregistré en singleton. Le middleware ResolveTenant le renseigne pour les
  * requêtes servies sur un sous-domaine d'organisation. Le scope global
- * OrganisationScope s'appuie dessus pour cloisonner toutes les lectures.
+ * OrganisationScope s'appuie dessus pour cloisonner toutes les lectures ; le
+ * contexte « team » de spatie/laravel-permission est synchronisé en parallèle
+ * pour que les rôles/permissions soient cloisonnés par organisation.
  */
 class TenantContext
 {
@@ -22,6 +25,7 @@ class TenantContext
     {
         $this->organisation = $organisation;
         $this->crossTenant = false;
+        $this->syncPermissionTeam($organisation->id);
 
         return $this;
     }
@@ -29,6 +33,7 @@ class TenantContext
     public function forget(): void
     {
         $this->organisation = null;
+        $this->syncPermissionTeam(null);
     }
 
     public function check(): bool
@@ -60,12 +65,14 @@ class TenantContext
         [$prevOrg, $prevCross] = [$this->organisation, $this->crossTenant];
         $this->organisation = $organisation;
         $this->crossTenant = false;
+        $this->syncPermissionTeam($organisation->id);
 
         try {
             return $callback();
         } finally {
             $this->organisation = $prevOrg;
             $this->crossTenant = $prevCross;
+            $this->syncPermissionTeam($prevOrg?->id);
         }
     }
 
@@ -78,12 +85,20 @@ class TenantContext
         [$prevOrg, $prevCross] = [$this->organisation, $this->crossTenant];
         $this->organisation = null;
         $this->crossTenant = true;
+        $this->syncPermissionTeam(null);
 
         try {
             return $callback();
         } finally {
             $this->organisation = $prevOrg;
             $this->crossTenant = $prevCross;
+            $this->syncPermissionTeam($prevOrg?->id);
         }
+    }
+
+    /** Aligne le contexte « team » de spatie sur l'organisation courante. */
+    protected function syncPermissionTeam(?int $organisationId): void
+    {
+        app(PermissionRegistrar::class)->setPermissionsTeamId($organisationId);
     }
 }

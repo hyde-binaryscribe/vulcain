@@ -49,11 +49,11 @@ function submit() {
 
             <div class="flex items-center justify-between">
                 <label class="flex items-center gap-2 text-sm text-gray-600">
-                    <input v-model="form.remember" type="checkbox" class="rounded border-gray-300 text-red-800 focus:ring-red-700/30" />
+                    <input v-model="form.remember" type="checkbox" class="rounded border-gray-300 text-[var(--brand)] focus:ring-red-700/30" />
                     Se souvenir de moi
                 </label>
 
-                <Link v-if="canResetPassword" href="/forgot-password" class="text-sm text-red-800 hover:underline">
+                <Link v-if="canResetPassword" href="/forgot-password" class="text-sm text-[var(--brand)] hover:underline">
                     Mot de passe oublié ?
                 </Link>
             </div>

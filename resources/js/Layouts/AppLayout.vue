@@ -5,19 +5,28 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const tenant = computed(() => page.props.tenant);
+const profile = computed(() => tenant.value?.profile);
+const brand = computed(() => profile.value?.theme || '#991b1b');
 const flash = computed(() => page.props.flash?.status || page.props.status);
+
+const permissions = computed(() => user.value?.permissions || []);
+
+function can(permission) {
+    return !permission || permissions.value.includes(permission);
+}
 
 const sidebarOpen = ref(false);
 
-const nav = [
-    { label: 'Tableau de bord', routeName: 'dashboard', href: '/dashboard' },
-    { label: 'Profil', routeName: 'profile.edit', href: '/profile' },
-];
-
-const current = computed(() => page.url);
+// Chaque entrée peut exiger une permission (menu adapté au rôle, vérifié aussi côté serveur).
+const nav = computed(() =>
+    [
+        { label: 'Tableau de bord', href: '/dashboard', permission: null },
+        { label: 'Profil', href: '/profile', permission: null },
+    ].filter((item) => can(item.permission)),
+);
 
 function isActive(href) {
-    return current.value.startsWith(href);
+    return page.url.startsWith(href);
 }
 
 function logout() {
@@ -31,17 +40,17 @@ const initials = computed(() => {
 </script>
 
 <template>
-    <div class="flex min-h-full bg-gray-50">
+    <div class="flex min-h-full bg-gray-50" :style="{ '--brand': brand }">
         <!-- Sidebar -->
         <aside
             class="fixed inset-y-0 left-0 z-30 w-64 -translate-x-full transform bg-gray-950 text-gray-200 transition-transform lg:static lg:translate-x-0"
             :class="{ 'translate-x-0': sidebarOpen }"
         >
             <div class="flex h-16 items-center gap-3 border-b border-white/10 px-5">
-                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-red-800 font-bold text-white">V</span>
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--brand)] font-bold text-white">V</span>
                 <div class="leading-tight">
                     <p class="text-sm font-semibold text-white">Vulcain</p>
-                    <p class="text-xs text-gray-400">Inventaire</p>
+                    <p class="text-xs text-gray-400">{{ profile?.label || 'Inventaire' }}</p>
                 </div>
             </div>
 
@@ -51,7 +60,7 @@ const initials = computed(() => {
                     :key="item.href"
                     :href="item.href"
                     class="block rounded-lg px-3 py-2 text-sm font-medium transition"
-                    :class="isActive(item.href) ? 'bg-red-800 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'"
+                    :class="isActive(item.href) ? 'bg-[var(--brand)] text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'"
                 >
                     {{ item.label }}
                 </Link>
@@ -68,14 +77,10 @@ const initials = computed(() => {
             </div>
         </aside>
 
-        <div
-            v-if="sidebarOpen"
-            class="fixed inset-0 z-20 bg-black/40 lg:hidden"
-            @click="sidebarOpen = false"
-        />
+        <div v-if="sidebarOpen" class="fixed inset-0 z-20 bg-black/40 lg:hidden" @click="sidebarOpen = false" />
 
         <!-- Main -->
-        <div class="flex min-h-full flex-1 flex-col lg:ml-0">
+        <div class="flex min-h-full flex-1 flex-col">
             <header class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-6">
                 <div class="flex items-center gap-3">
                     <button
@@ -88,7 +93,7 @@ const initials = computed(() => {
                         <span class="mt-1 block h-0.5 w-5 bg-current"></span>
                     </button>
                     <div>
-                        <p class="text-xs uppercase tracking-wide text-red-800">Inventaire opérationnel</p>
+                        <p class="text-xs uppercase tracking-wide" :style="{ color: brand }">Inventaire opérationnel</p>
                         <h1 class="text-lg font-semibold text-gray-900"><slot name="title">Tableau de bord</slot></h1>
                     </div>
                 </div>
@@ -98,7 +103,7 @@ const initials = computed(() => {
                         <p class="text-sm font-semibold text-gray-900">{{ user?.name }}</p>
                         <p class="text-xs text-gray-500">{{ tenant?.name }}</p>
                     </div>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-red-800 text-sm font-semibold text-white">{{ initials }}</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--brand)] text-sm font-semibold text-white">{{ initials }}</span>
                 </div>
             </header>
 

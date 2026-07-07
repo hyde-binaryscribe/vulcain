@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 // organisation_id et is_active ne sont jamais renseignés en mass assignment public.
 #[Fillable(['first_name', 'last_name', 'name', 'username', 'grade', 'email', 'password', 'avatar_path'])]
@@ -18,7 +19,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use BelongsToOrganisation, HasFactory, Notifiable, SoftDeletes;
+    use BelongsToOrganisation, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * @return array<string, string>

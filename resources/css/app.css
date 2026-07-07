@@ -7,3 +7,8 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Couleur d'accent par défaut ; surchargée par le profil de secteur de l'organisation. */
+:root {
+    --brand: #991b1b;
+}

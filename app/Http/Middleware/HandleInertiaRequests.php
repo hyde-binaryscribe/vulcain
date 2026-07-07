@@ -46,13 +46,17 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'grade' => $request->user()->grade,
+                    'roles' => $request->user()->getRoleNames(),
+                    'permissions' => $request->user()->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
-            // Organisation courante (personnalisation par tenant).
+            // Organisation courante (personnalisation + branding par secteur).
             'tenant' => $tenant ? [
                 'name' => $tenant->name,
                 'slug' => $tenant->slug,
                 'settings' => $tenant->settings,
+                'profile' => $tenant->profile()->toArray(),
             ] : null,
             // Messages flash (confirmation / erreur).
             'flash' => [

@@ -26,7 +26,7 @@ defineProps({
                 PostgreSQL et Redis, prêt pour la fondation multi-locataire.
             </p>
 
-            <div v-if="phase" class="mt-6 inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800">
+            <div v-if="phase" class="mt-6 inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-[var(--brand)]">
                 {{ phase }}
             </div>
         </div>

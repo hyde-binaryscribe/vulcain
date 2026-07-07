@@ -52,11 +52,30 @@ Pour tout arrêter : `docker compose down` (ajouter `-v` pour effacer aussi la b
 La commande crée un utilisateur dans une organisation, mot de passe saisi de façon **masquée** :
 
 ```bash
-docker compose exec app php artisan vulcain:create-user --organisation=demo
+docker compose exec app php artisan vulcain:create-user --organisation=demo --role=administrateur
 ```
 
 Renseigne prénom, nom, e-mail, puis le mot de passe (min. 10 caractères, lettres + chiffres).
+Rôles disponibles : `administrateur`, `responsable_pharmacie`, `verificateur`.
+
+Pour attribuer un rôle à un **compte existant** :
+
+```bash
+docker compose exec app php artisan vulcain:grant-role mon.email@exemple.fr --organisation=demo --role=administrateur
+```
+
 Connecte-toi ensuite sur **http://demo.localhost:8080** avec cet e-mail et ce mot de passe.
+
+### Multi-secteurs (branding par organisation)
+
+Les organisations de démonstration illustrent les 3 secteurs (chacune sur son sous-domaine,
+avec sa couleur d'accent) :
+
+| Sous-domaine | Secteur | Accent |
+|---|---|---|
+| http://demo.localhost:8080 | Sapeurs-pompiers | rouge |
+| http://ambulance-sud.localhost:8080 | Ambulance privée | bleu |
+| http://protection-civile.localhost:8080 | Sécurité civile | orange |
 
 > **Mot de passe oublié** en local : l'e-mail part vers les logs (`MAIL_MAILER=log`). Récupère
 > le lien de réinitialisation avec `docker compose logs app | grep reset-password`.

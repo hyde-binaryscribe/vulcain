@@ -2,27 +2,39 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Identity\RoleProvisioner;
+use App\Domain\Sectors\Sector;
 use App\Models\Organisation;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Données de démonstration.
-     *
-     * Deux organisations clientes cloisonnées. Les utilisateurs, rôles et
-     * données métier seront ajoutés au fil des phases suivantes (auth, RBAC…).
+     * Données de démonstration : organisations de différents secteurs, avec leurs
+     * rôles provisionnés. Les utilisateurs se créent via `vulcain:create-user`.
      */
     public function run(): void
     {
-        Organisation::query()->firstOrCreate(
-            ['slug' => 'demo'],
-            ['name' => 'CIS Démonstration', 'status' => Organisation::STATUS_ACTIVE]
-        );
+        $provisioner = app(RoleProvisioner::class);
 
-        Organisation::query()->firstOrCreate(
-            ['slug' => 'caserne-nord'],
-            ['name' => 'CIS Nord', 'status' => Organisation::STATUS_ACTIVE]
-        );
+        $organisations = [
+            ['slug' => 'demo', 'name' => 'CIS Démonstration', 'sector' => Sector::SDIS],
+            ['slug' => 'caserne-nord', 'name' => 'CIS Nord', 'sector' => Sector::SDIS],
+            ['slug' => 'ambulance-sud', 'name' => 'Ambulances du Sud', 'sector' => Sector::AMBULANCE_PRIVEE],
+            ['slug' => 'protection-civile', 'name' => 'Protection Civile', 'sector' => Sector::AASC],
+        ];
+
+        foreach ($organisations as $data) {
+            $organisation = Organisation::query()->firstOrCreate(
+                ['slug' => $data['slug']],
+                [
+                    'name' => $data['name'],
+                    'sector' => $data['sector'],
+                    'status' => Organisation::STATUS_ACTIVE,
+                ],
+            );
+
+            $provisioner->provision($organisation);
+        }
     }
 }

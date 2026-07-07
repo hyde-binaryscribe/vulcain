@@ -3,10 +3,33 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phase 0 — Socle projet** : terminée.
-- **Phase 1.1 — Fondation multi-tenant** : terminée.
-- **Phase 1.2 — Authentification** : terminée.
-- Prochaine : **Phase 1.3 — RBAC dynamique + espace super-admin plateforme**.
+- **Phase 0 / 1.1 / 1.2** : terminées.
+- **Phase 1.3 — RBAC + secteurs** : partie RBAC & verticalisation terminée ; reste l'espace
+  plateforme (provisionnement + invitation du 1er admin).
+
+## Phase 1.3 (partie 1) — RBAC dynamique + secteurs (terminée)
+- **RBAC** via spatie/laravel-permission en mode « teams » : rôles **cloisonnés par
+  organisation** (clé `organisation_id`), permissions globales, contexte synchronisé avec
+  le `TenantContext`.
+- 3 rôles métier : Administrateur (accès complet), Responsable pharmacie, Vérificateur ;
+  catalogue de 17 permissions (`app/Domain/Identity/Rbac.php`), provisionnées par organisation.
+- Permissions/rôles partagés à l'UI (menu adapté au rôle) ; middleware `permission`/`role`
+  (vérif. **côté serveur**).
+- **Verticalisation (secteurs)** : champ `secteur` sur l'organisation + abstraction
+  `SectorProfile` (SDIS, ambulance privée, AASC) — vocabulaire, sous-titre et **branding
+  (couleur d'accent) par secteur**, appliqués via variable CSS `--brand`.
+- Commandes : `vulcain:create-user --role=…` et `vulcain:grant-role` (rôle à un utilisateur
+  existant), mot de passe masqué.
+- Données de démo : 4 organisations sur 3 secteurs (demo, caserne-nord, ambulance-sud,
+  protection-civile), rôles provisionnés.
+- **Tests (5 RBAC, 30 au total, verts)** : permissions par rôle, admin=toutes, rôles
+  cloisonnés par organisation, middleware permission (autorisé/refusé).
+
+## Reste en Phase 1.3 (partie 2)
+- Espace **super-admin plateforme** (domaine central) : liste + **provisionnement
+  d'organisations** (avec choix du secteur).
+- **Invitation du 1er administrateur** (lien sécurisé, il définit son mot de passe).
+- Commande `vulcain:create-platform-admin`.
 
 ## Phase 1.2 — Authentification (terminée)
 - Champs utilisateur étendus (prénom, nom, identifiant, grade, actif/inactif, dernière

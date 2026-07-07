@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Domain\Identity\Rbac;
+use App\Domain\Identity\RoleProvisioner;
 use App\Models\Organisation;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
@@ -20,7 +22,8 @@ class CreateUserCommand extends Command
         {--email= : Adresse e-mail}
         {--first-name= : Prénom}
         {--last-name= : Nom}
-        {--grade= : Grade (optionnel)}';
+        {--grade= : Grade (optionnel)}
+        {--role= : Rôle (administrateur, responsable_pharmacie, verificateur)}';
 
     protected $description = 'Crée un utilisateur dans une organisation (mot de passe saisi masqué).';
 
@@ -40,6 +43,13 @@ class CreateUserCommand extends Command
         $lastName = $this->option('last-name') ?: $this->ask('Nom');
         $email = mb_strtolower(trim($this->option('email') ?: $this->ask('E-mail')));
         $grade = $this->option('grade') ?: $this->ask('Grade (optionnel)', null);
+        $role = $this->option('role') ?: $this->choice('Rôle', Rbac::roles(), Rbac::ADMIN);
+
+        if (! in_array($role, Rbac::roles(), true)) {
+            $this->error("Rôle « {$role} » invalide. Attendu : ".implode(', ', Rbac::roles()).'.');
+
+            return self::FAILURE;
+        }
 
         $password = $this->secret('Mot de passe (saisie masquée)');
         $confirmation = $this->secret('Confirmez le mot de passe');
@@ -65,12 +75,15 @@ class CreateUserCommand extends Command
             return self::FAILURE;
         }
 
-        return $tenant->runFor($organisation, function () use ($organisation, $firstName, $lastName, $email, $grade, $password) {
+        return $tenant->runFor($organisation, function () use ($organisation, $firstName, $lastName, $email, $grade, $password, $role) {
             if (User::query()->where('email', $email)->exists()) {
                 $this->error("Un utilisateur avec l’e-mail « {$email} » existe déjà dans cette organisation.");
 
                 return self::FAILURE;
             }
+
+            // S'assure que les rôles de l'organisation existent.
+            app(RoleProvisioner::class)->provision($organisation);
 
             $user = User::create([
                 'first_name' => $firstName,
@@ -82,8 +95,9 @@ class CreateUserCommand extends Command
             ]);
 
             $user->forceFill(['email_verified_at' => now()])->save();
+            $user->assignRole($role);
 
-            $this->info("Utilisateur créé : {$user->email} (organisation « {$organisation->slug} »).");
+            $this->info("Utilisateur créé : {$user->email} — rôle « {$role} » (organisation « {$organisation->slug} »).");
 
             return self::SUCCESS;
         });

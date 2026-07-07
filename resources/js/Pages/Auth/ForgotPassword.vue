@@ -41,7 +41,7 @@ function submit() {
         </form>
 
         <div class="mt-6 text-center">
-            <Link href="/login" class="text-sm text-red-800 hover:underline">Retour à la connexion</Link>
+            <Link href="/login" class="text-sm text-[var(--brand)] hover:underline">Retour à la connexion</Link>
         </div>
     </GuestLayout>
 </template>

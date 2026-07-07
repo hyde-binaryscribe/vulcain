@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\Sectors\Sector;
+use App\Domain\Sectors\SectorProfile;
 use Database\Factories\OrganisationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Organisation cliente = tenant du SaaS (un centre de secours / SDIS).
+ * Organisation cliente = tenant du SaaS (un centre de secours / SDIS,
+ * une société d'ambulance, une association agréée de sécurité civile…).
  * Table centrale : ce modèle n'est PAS cloisonné.
  */
 class Organisation extends Model
@@ -24,6 +27,7 @@ class Organisation extends Model
     protected $fillable = [
         'name',
         'slug',
+        'sector',
         'status',
         'settings',
     ];
@@ -31,6 +35,7 @@ class Organisation extends Model
     protected function casts(): array
     {
         return [
+            'sector' => Sector::class,
             'settings' => 'array',
         ];
     }
@@ -43,5 +48,11 @@ class Organisation extends Model
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /** Profil du secteur (vocabulaire, branding). */
+    public function profile(): SectorProfile
+    {
+        return ($this->sector ?? Sector::default())->profile();
     }
 }
