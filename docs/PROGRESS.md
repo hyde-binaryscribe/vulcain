@@ -4,8 +4,20 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
 - **Phase 0 / 1.1 / 1.2 / 1.3** : terminées.
-- Prochaine : **Phase 2 — Référentiels** (utilisateurs, véhicules + affectations,
-  emplacements, catalogue matériel).
+- **Phase 2.1 — Administration des utilisateurs** : terminée.
+- Prochaine : **Phase 2.2 — Véhicules + affectations**.
+
+## Phase 2.1 — Administration des utilisateurs (terminée)
+- Écran **Utilisateurs** (permission `users.manage`) : liste + recherche (nom/e-mail),
+  rôle, statut, dernière connexion.
+- **Invitation** d'un utilisateur avec choix du rôle (réutilise le flux d'invitation sécurisé).
+- **Édition** (grade, rôle, actif/inactif) via modale ; garde-fou **anti auto-verrouillage**
+  (impossible de retirer son propre accès administrateur).
+- **Invitations en attente** : renvoyer / annuler.
+- Anti-IDOR : binding de route cloisonné (utilisateur d'une autre organisation → 404).
+- Notification d'invitation rendue **générique** (libellé du rôle).
+- **Tests (6, 46 au total, verts)** : accès (admin/refus), invitation, édition rôle/statut,
+  garde-fou self, IDOR inter-organisation.
 
 ## Phase 1.3 (partie 2) — Espace exploitant « Desk » + invitations (terminée)
 - Modèle `PlatformAdmin` + **guard `platform`** (session), strictement séparé du métier ;

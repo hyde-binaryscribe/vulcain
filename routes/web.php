@@ -21,4 +21,5 @@ Route::middleware(['tenant', 'auth'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+require __DIR__.'/tenant.php';
 require __DIR__.'/platform.php';

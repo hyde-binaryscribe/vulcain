@@ -14,6 +14,7 @@ class OrganisationInvitationNotification extends Notification
         public string $organisationName,
         public string $acceptUrl,
         public int $expiresMinutes,
+        public string $roleLabel = 'administrateur',
     ) {}
 
     public function via(object $notifiable): array
@@ -28,7 +29,7 @@ class OrganisationInvitationNotification extends Notification
         return (new MailMessage)
             ->subject("Invitation — {$this->organisationName} sur Vulcain")
             ->greeting('Bonjour,')
-            ->line("Vous êtes invité(e) à rejoindre « {$this->organisationName} » sur Vulcain en tant qu'administrateur.")
+            ->line("Vous êtes invité(e) à rejoindre « {$this->organisationName} » sur Vulcain en tant que {$this->roleLabel}.")
             ->action('Activer mon compte', $this->acceptUrl)
             ->line("Vous définirez votre mot de passe lors de l'activation.")
             ->line("Ce lien expire dans {$days} jour(s).")

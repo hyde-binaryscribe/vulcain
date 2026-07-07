@@ -40,6 +40,7 @@ class InvitationService
                 $organisation->name,
                 $this->acceptUrl($organisation, $token, $email),
                 $this->expiresMinutes,
+                Rbac::ROLE_LABELS[$role] ?? $role,
             )
         );
 
