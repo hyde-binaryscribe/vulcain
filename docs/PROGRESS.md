@@ -3,10 +3,25 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phase 0 / 1.1 / 1.2 / 1.3** : terminées.
-- **Phase 2.1 — Administration des utilisateurs** : terminée.
-- **Phase 2.2 — Véhicules + affectations** : terminée.
-- Prochaine : **Phase 2.3 — Emplacements & sous-emplacements**.
+- **Phases 0, 1 (fondation SaaS) et 2 (référentiels)** : terminées.
+- Prochaine : **Phase 3 — Cœur inventaire** (modèles, planification, réalisation tactile,
+  autosave, validation, contrôles photo).
+
+## Phase 2.3 — Emplacements (terminée)
+- Hiérarchie parent/enfant, rattachement véhicule ou réserve globale, ordre, actif.
+- Écran table + panneau de création ; validations cloisonnées ; anti auto-parent. 4 tests.
+
+## Phase 2.4 — Catalogue matériel + catégories (terminée)
+- Tables `material_categories` + `materials` (référence, catégorie, emplacement, mode de
+  suivi quantité/unité, quantités théorique/min, n° série, péremption, prochain contrôle,
+  statut, observations, soft delete) + enum `MaterialStatus` (conforme / manquant / HS /
+  à remplacer / en réparation / indisponible). Index prêts pour QR/codes-barres.
+- Écran Matériel : table + **mise à jour rapide du statut** (avec note), formulaire d'ajout,
+  gestion des catégories, édition complète en modale (permission `catalog.manage`).
+- Validations cloisonnées (catégorie/emplacement de l'organisation), anti-IDOR.
+- **Données de démonstration** (org « demo ») : VSAV 01, 3 emplacements, 3 catégories,
+  3 matériels (Collier cervical, Couverture de survie, BAVU).
+- **Tests (7, 63 au total, verts)**.
 
 ## Phase 2.2 — Véhicules + affectations (terminée)
 - Table `vehicles` (type, indicatif, immatriculation, centre, statut, mise en service,

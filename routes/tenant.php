@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MaterialCategoryController;
+use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -33,5 +35,17 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::patch('locations/{location}', [LocationController::class, 'update'])->name('locations.update');
         Route::post('locations/{location}/toggle', [LocationController::class, 'toggle'])->name('locations.toggle');
         Route::delete('locations/{location}', [LocationController::class, 'destroy'])->name('locations.destroy');
+    });
+
+    // Catalogue matériel + catégories.
+    Route::middleware('permission:catalog.manage')->group(function () {
+        Route::get('materials', [MaterialController::class, 'index'])->name('materials.index');
+        Route::post('materials', [MaterialController::class, 'store'])->name('materials.store');
+        Route::patch('materials/{material}', [MaterialController::class, 'update'])->name('materials.update');
+        Route::patch('materials/{material}/status', [MaterialController::class, 'quickStatus'])->name('materials.status');
+        Route::delete('materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
+
+        Route::post('material-categories', [MaterialCategoryController::class, 'store'])->name('material-categories.store');
+        Route::delete('material-categories/{category}', [MaterialCategoryController::class, 'destroy'])->name('material-categories.destroy');
     });
 });

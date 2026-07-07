@@ -36,5 +36,7 @@ class DatabaseSeeder extends Seeder
 
             $provisioner->provision($organisation);
         }
+
+        $this->call(DemoDataSeeder::class);
     }
 }
