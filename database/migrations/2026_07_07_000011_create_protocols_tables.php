@@ -18,7 +18,8 @@ return new class extends Migration
         Schema::create('protocols', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('vehicle_id')->constrained()->cascadeOnDelete();
+            // Véhicule cible (null pour un protocole sur emplacement fixe / dépôt).
+            $table->foreignId('vehicle_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('protocol_template_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('template_version')->nullable();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete(); // vérificateur

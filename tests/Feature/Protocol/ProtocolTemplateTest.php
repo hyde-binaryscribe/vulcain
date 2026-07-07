@@ -4,9 +4,9 @@ namespace Tests\Feature\Protocol;
 
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
-use App\Models\ProtocolTemplate;
 use App\Models\Material;
 use App\Models\Organisation;
+use App\Models\ProtocolTemplate;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
@@ -49,21 +49,26 @@ class ProtocolTemplateTest extends TestCase
         return [$org, $user];
     }
 
-    public function test_manager_can_create_a_template(): void
+    public function test_manager_can_create_a_vehicle_scoped_template(): void
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
         $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
 
         $this->actingAs($admin)->post('http://caserne.localhost/templates', [
-            'vehicle_id' => $vehicle->id,
-            'name' => 'Inventaire hebdo',
+            'name' => 'Protocole hebdo',
+            'types' => ['inventaire'],
+            'scope_type' => 'vehicle',
+            'scope_id' => $vehicle->id,
+            'include_children' => true,
             'frequency' => 'weekly',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('protocol_templates', [
             'organisation_id' => $org->id,
             'vehicle_id' => $vehicle->id,
-            'name' => 'Inventaire hebdo',
+            'scope_type' => 'vehicle',
+            'scope_id' => $vehicle->id,
+            'name' => 'Protocole hebdo',
         ]);
     }
 
@@ -73,39 +78,18 @@ class ProtocolTemplateTest extends TestCase
         $this->actingAs($verifier)->get('http://caserne.localhost/templates')->assertForbidden();
     }
 
-    public function test_manager_can_add_an_item_and_version_increments(): void
+    public function test_manager_can_exclude_a_material_from_the_scope(): void
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
         $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
-        $template = ProtocolTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'version' => 1]);
         $material = Material::factory()->create(['organisation_id' => $org->id]);
+        $template = ProtocolTemplate::factory()->forVehicle($vehicle)->create(['organisation_id' => $org->id]);
 
-        $this->actingAs($admin)->post("http://caserne.localhost/templates/{$template->id}/items", [
-            'material_id' => $material->id,
-            'expected_qty' => 4,
+        $this->actingAs($admin)->patch("http://caserne.localhost/templates/{$template->id}/exclusions", [
+            'excluded_material_ids' => [$material->id],
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('protocol_template_items', [
-            'protocol_template_id' => $template->id,
-            'material_id' => $material->id,
-            'expected_qty' => 4,
-        ]);
-        $this->assertSame(2, $template->fresh()->version);
-    }
-
-    public function test_cannot_add_a_material_from_another_organisation(): void
-    {
-        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN, 'caserne');
-        $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
-        $template = ProtocolTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
-
-        $otherOrg = Organisation::factory()->slug('autre')->create();
-        $foreignMaterial = Material::factory()->create(['organisation_id' => $otherOrg->id]);
-
-        $this->actingAs($admin)->post("http://caserne.localhost/templates/{$template->id}/items", [
-            'material_id' => $foreignMaterial->id,
-            'expected_qty' => 1,
-        ])->assertSessionHasErrors('material_id');
+        $this->assertSame([$material->id], $template->fresh()->excluded_material_ids);
     }
 
     public function test_cannot_edit_a_template_of_another_organisation(): void
@@ -113,7 +97,7 @@ class ProtocolTemplateTest extends TestCase
         [, $admin] = $this->orgWithRole(Rbac::ADMIN, 'caserne');
         $otherOrg = Organisation::factory()->slug('autre')->create();
         $foreignVehicle = Vehicle::factory()->create(['organisation_id' => $otherOrg->id]);
-        $foreignTemplate = ProtocolTemplate::factory()->create(['organisation_id' => $otherOrg->id, 'vehicle_id' => $foreignVehicle->id]);
+        $foreignTemplate = ProtocolTemplate::factory()->forVehicle($foreignVehicle)->create(['organisation_id' => $otherOrg->id]);
 
         $this->actingAs($admin)->get("http://caserne.localhost/templates/{$foreignTemplate->id}/edit")->assertNotFound();
     }

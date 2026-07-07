@@ -62,6 +62,36 @@ class Location extends Model
     }
 
     /**
+     * Ids de cet emplacement + tous ses descendants (parcours itératif,
+     * garde-fou anti-boucle). Sert à résoudre un périmètre « + enfants ».
+     *
+     * @return list<int>
+     */
+    public function descendantAndSelfIds(): array
+    {
+        $ids = [$this->id];
+        $frontier = [$this->id];
+        $guard = 0;
+
+        while ($frontier !== [] && $guard++ < 50) {
+            $childIds = static::query()
+                ->whereIn('parent_id', $frontier)
+                ->pluck('id')
+                ->all();
+
+            $childIds = array_values(array_diff($childIds, $ids));
+            if ($childIds === []) {
+                break;
+            }
+
+            $ids = array_merge($ids, $childIds);
+            $frontier = $childIds;
+        }
+
+        return $ids;
+    }
+
+    /**
      * Chemin lisible « Racine › Parent › Emplacement ».
      *
      * La racine est le nom du véhicule (mobile) ou le nom de l'emplacement

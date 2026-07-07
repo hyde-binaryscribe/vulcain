@@ -5,9 +5,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Modèles de protocole : définissent, par véhicule, le matériel à contrôler,
- * les quantités attendues, l'ordre, les photos obligatoires et la fréquence.
- * Un modèle porte un ou plusieurs types (inventaire / vérification / contrôle).
+ * Modèles de protocole : définissent le PÉRIMÈTRE à contrôler (un véhicule ou
+ * un emplacement, avec ou sans ses emplacements enfants), la fréquence et un
+ * ou plusieurs types (inventaire / vérification / contrôle). Le contenu (les
+ * matériels) est déduit du périmètre à l'exécution, moins les exclusions.
  */
 return new class extends Migration
 {
@@ -16,9 +17,17 @@ return new class extends Migration
         Schema::create('protocol_templates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('vehicle_id')->constrained()->cascadeOnDelete();
+            // Véhicule de rattachement (déduit du périmètre ; null pour un dépôt fixe).
+            $table->foreignId('vehicle_id')->nullable()->constrained()->nullOnDelete();
             $table->string('name');
             $table->json('types')->nullable(); // ['inventaire','verification','controle_vehicule']
+
+            // Périmètre : cible = un véhicule OU un emplacement (+ enfants).
+            $table->string('scope_type')->default('vehicle'); // vehicle | location
+            $table->unsignedBigInteger('scope_id')->nullable(); // id du véhicule ou de l'emplacement
+            $table->boolean('include_children')->default(true);
+            $table->json('excluded_material_ids')->nullable(); // matériels retirés du périmètre
+
             $table->string('frequency')->default('weekly'); // daily|weekly|monthly|quarterly|custom
             $table->unsignedInteger('custom_days')->nullable();
             $table->unsignedInteger('version')->default(1);
@@ -28,26 +37,10 @@ return new class extends Migration
 
             $table->index(['organisation_id', 'vehicle_id']);
         });
-
-        Schema::create('protocol_template_items', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('protocol_template_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('material_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('location_id')->nullable()->constrained('locations')->nullOnDelete();
-            $table->unsignedInteger('expected_qty')->default(0);
-            $table->unsignedInteger('display_order')->default(0);
-            $table->boolean('photo_required')->default(false);
-            $table->timestamps();
-
-            $table->unique(['protocol_template_id', 'material_id']);
-            $table->index(['organisation_id', 'protocol_template_id']);
-        });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('protocol_template_items');
         Schema::dropIfExists('protocol_templates');
     }
 };

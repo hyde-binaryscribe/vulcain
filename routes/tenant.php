@@ -52,10 +52,8 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::post('templates', [ProtocolTemplateController::class, 'store'])->name('templates.store');
         Route::get('templates/{template}/edit', [ProtocolTemplateController::class, 'edit'])->name('templates.edit');
         Route::patch('templates/{template}', [ProtocolTemplateController::class, 'update'])->name('templates.update');
+        Route::patch('templates/{template}/exclusions', [ProtocolTemplateController::class, 'exclusions'])->name('templates.exclusions');
         Route::delete('templates/{template}', [ProtocolTemplateController::class, 'destroy'])->name('templates.destroy');
-        Route::post('templates/{template}/items', [ProtocolTemplateController::class, 'addItem'])->name('templates.items.add');
-        Route::patch('templates/{template}/items/{item}', [ProtocolTemplateController::class, 'updateItem'])->name('templates.items.update');
-        Route::delete('templates/{template}/items/{item}', [ProtocolTemplateController::class, 'removeItem'])->name('templates.items.remove');
     });
 
     // Réalisation des protocoles (vérificateur ou gestionnaire).

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Protocol\ProtocolItemState;
+use App\Domain\Protocol\ProtocolScope;
 use App\Domain\Protocol\ProtocolSnapshot;
 use App\Models\Protocol;
 use App\Models\ProtocolItem;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class ProtocolController extends Controller
 {
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(
+        private readonly TenantContext $tenant,
+        private readonly ProtocolScope $scope,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -46,7 +50,7 @@ class ProtocolController extends Controller
             ->map(fn (ProtocolTemplate $t) => [
                 'id' => $t->id,
                 'name' => $t->name,
-                'vehicle' => $t->vehicle?->name,
+                'vehicle' => $this->scope->targetLabel($t),
                 'type_labels' => $t->typeLabels(),
             ]);
 
@@ -67,11 +71,13 @@ class ProtocolController extends Controller
             ],
         ]);
 
-        $template = ProtocolTemplate::with('vehicle')->findOrFail($validated['protocol_template_id']);
-        $vehicle = $template->vehicle;
+        $template = ProtocolTemplate::findOrFail($validated['protocol_template_id']);
+        $vehicle = $this->scope->vehicle($template);
 
-        // Vérificateur : uniquement sur ses véhicules autorisés.
+        // Vérificateur : uniquement sur ses véhicules autorisés (les protocoles
+        // sur emplacement fixe / dépôt sont réservés aux gestionnaires).
         if (! $request->user()->can('protocols.manage')) {
+            abort_if($vehicle === null, 403, 'Ce protocole nécessite un gestionnaire.');
             abort_unless(
                 $vehicle->users()->whereKey($request->user()->id)->exists(),
                 403,
@@ -79,7 +85,7 @@ class ProtocolController extends Controller
             );
         }
 
-        $protocol = $snapshot->start($vehicle, $template, $request->user());
+        $protocol = $snapshot->start($template, $request->user());
 
         return redirect()->route('protocols.show', $protocol);
     }

@@ -4,10 +4,11 @@ namespace Tests\Feature\Protocol;
 
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
-use App\Models\Protocol;
-use App\Models\ProtocolTemplate;
+use App\Models\Location;
 use App\Models\Material;
 use App\Models\Organisation;
+use App\Models\Protocol;
+use App\Models\ProtocolTemplate;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
@@ -46,20 +47,28 @@ class ProtocolRealizationTest extends TestCase
         });
     }
 
-    /** @return array{Organisation, Vehicle, ProtocolTemplate, Material} */
+    /**
+     * Périmètre = véhicule ; un matériel rangé dans un emplacement du véhicule.
+     *
+     * @return array{Organisation, Vehicle, ProtocolTemplate, Material}
+     */
     private function scenario(string $slug = 'caserne'): array
     {
         $org = Organisation::factory()->slug($slug)->create();
-        $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
-        $material = Material::factory()->create(['organisation_id' => $org->id, 'name' => 'Collier cervical', 'theoretical_qty' => 4]);
-        $template = ProtocolTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
-        $this->tenant()->runFor($org, fn () => $template->items()->create([
-            'material_id' => $material->id,
-            'expected_qty' => 4,
-            'display_order' => 10,
-        ]));
 
-        return [$org, $vehicle, $template, $material];
+        return $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $location = Location::create([
+                'organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'kind' => 'mobile', 'name' => 'Cellule',
+            ]);
+            $material = Material::factory()->create([
+                'organisation_id' => $org->id, 'location_id' => $location->id,
+                'name' => 'Collier cervical', 'tracking_mode' => 'quantity', 'theoretical_qty' => 4,
+            ]);
+            $template = ProtocolTemplate::factory()->forVehicle($vehicle)->create(['organisation_id' => $org->id]);
+
+            return [$org, $vehicle, $template, $material];
+        });
     }
 
     public function test_starting_creates_an_immutable_snapshot(): void
@@ -76,7 +85,7 @@ class ProtocolRealizationTest extends TestCase
         $this->assertCount(1, $protocol->items);
         $this->assertSame('Collier cervical', $protocol->items->first()->material_name);
 
-        // Modifier le catalogue ne change pas l'inventaire (immutabilité du snapshot).
+        // Modifier le catalogue ne change pas le protocole (immutabilité du snapshot).
         $this->tenant()->runFor($org, fn () => $material->update(['name' => 'Autre nom']));
         $this->assertSame('Collier cervical', $protocol->items->first()->fresh()->material_name);
     }

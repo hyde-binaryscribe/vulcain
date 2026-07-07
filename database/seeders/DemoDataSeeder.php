@@ -58,19 +58,16 @@ class DemoDataSeeder extends Seeder
             $serum->lots()->create(['lot_number' => 'LOT-B118', 'quantity' => 12, 'expiry_date' => now()->addMonths(10)->toDateString(), 'location_id' => $sac->id, 'status' => 'conforme']);
 
             // Modèle de protocole hebdomadaire du VSAV (inventaire + contrôle véhicule).
-            $template = ProtocolTemplate::create([
-                'vehicle_id' => $vsav->id, 'name' => 'Protocole hebdomadaire VSAV',
-                'types' => ['inventaire', 'controle_vehicule'], 'frequency' => 'weekly',
+            // Cible = tout le matériel embarqué du VSAV (déduit du périmètre).
+            ProtocolTemplate::create([
+                'vehicle_id' => $vsav->id,
+                'name' => 'Protocole hebdomadaire VSAV',
+                'types' => ['inventaire', 'controle_vehicule'],
+                'scope_type' => 'vehicle',
+                'scope_id' => $vsav->id,
+                'include_children' => true,
+                'frequency' => 'weekly',
             ]);
-            $order = 0;
-            foreach ([$collier, $couverture, $dsa, $serum] as $material) {
-                $template->items()->create([
-                    'material_id' => $material->id,
-                    'location_id' => $material->location_id,
-                    'expected_qty' => $material->theoretical_qty ?: 1,
-                    'display_order' => $order += 10,
-                ]);
-            }
         });
     }
 }

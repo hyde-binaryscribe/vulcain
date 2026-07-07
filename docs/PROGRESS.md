@@ -9,6 +9,19 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Lot B3 — Cible de protocole par périmètre + exclusions (terminé)
+- Un modèle de protocole ne cure plus le matériel à la main : il définit une **cible**
+  = un **véhicule** (tout le matériel embarqué) OU un **emplacement** (+ « inclure les
+  emplacements enfants »). Champs `scope_type`, `scope_id`, `include_children`.
+- Service `ProtocolScope` : résout emplacements → matériels du périmètre (moins les
+  `excluded_material_ids`), le véhicule déduit et le libellé de cible.
+- `ProtocolSnapshot` réécrit : au démarrage, fige les matériels du périmètre. Les
+  protocoles sur emplacement fixe / dépôt sont réservés aux gestionnaires.
+- Éditeur de modèle : réglages (cible, types, fréquence) + **liste du périmètre** avec
+  cases à cocher pour **exclure** un matériel. Table `protocol_template_items` supprimée.
+- **Tests adaptés (89 au total, verts)** : création cible véhicule, exclusion, snapshot
+  de périmètre immuable, autorisation vérificateur.
+
 ## Lot B2 — Réglage : suivi des péremptions en mobile (terminé)
 - Réglage d'organisation `track_expiry_in_mobile` (stocké dans `organisations.settings`,
   **activé par défaut**) — `Organisation::tracksExpiryInMobile()`.
