@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\InventoryTemplateController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
@@ -35,6 +36,18 @@ Route::middleware(['tenant', 'auth'])->group(function () {
     // Historique des actions (journal d'activité).
     Route::middleware('permission:history.view')->group(function () {
         Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
+    });
+
+    // Modèles d'inventaire.
+    Route::middleware('permission:templates.manage')->group(function () {
+        Route::get('templates', [InventoryTemplateController::class, 'index'])->name('templates.index');
+        Route::post('templates', [InventoryTemplateController::class, 'store'])->name('templates.store');
+        Route::get('templates/{template}/edit', [InventoryTemplateController::class, 'edit'])->name('templates.edit');
+        Route::patch('templates/{template}', [InventoryTemplateController::class, 'update'])->name('templates.update');
+        Route::delete('templates/{template}', [InventoryTemplateController::class, 'destroy'])->name('templates.destroy');
+        Route::post('templates/{template}/items', [InventoryTemplateController::class, 'addItem'])->name('templates.items.add');
+        Route::patch('templates/{template}/items/{item}', [InventoryTemplateController::class, 'updateItem'])->name('templates.items.update');
+        Route::delete('templates/{template}/items/{item}', [InventoryTemplateController::class, 'removeItem'])->name('templates.items.remove');
     });
 
     // Emplacements & sous-emplacements.

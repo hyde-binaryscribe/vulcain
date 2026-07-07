@@ -3,9 +3,20 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phases 0, 1, 2 + enrichissement (2.5 suivi, 2.6 hub véhicule, 2.7 historique)** : terminées.
-- Prochaine : **Phase 3 — Cœur inventaire** (modèles, réalisation tactile, autosave,
-  validation, snapshots, contrôles photo).
+- **Phases 0, 1, 2 (+ enrichissement)** : terminées.
+- **Phase 3.1 — Modèles d'inventaire** : terminée.
+- Prochaine : **Phase 3.2 — Réalisation d'inventaire (écran tactile + snapshot)**.
+
+## Phase 3.1 — Modèles d'inventaire + planification (terminée)
+- Tables `inventory_templates` (véhicule, fréquence, version, actif) +
+  `inventory_template_items` (matériel, emplacement, quantité attendue, ordre, photo requise).
+- Fréquences (`InventoryFrequency` : quotidienne → trimestrielle + personnalisée avec jours).
+- Écran **Modèles** (liste + création) et **éditeur** (réglages + éléments à contrôler,
+  ajout depuis le catalogue, quantité inline, retrait). Permission `templates.manage`.
+- **Version incrémentée** aux modifications de structure (préparation des snapshots immuables).
+- Validations cloisonnées (véhicule/matériel/emplacement de l'organisation), anti-IDOR.
+- Démo : « Inventaire hebdomadaire VSAV » avec 4 éléments.
+- **Tests (5, 79 au total, verts)**.
 
 ## Phase 2.7 — Historique des actions (terminée)
 - Table `activity_logs` (acteur, sujet polymorphe, action, valeurs avant→après, horodatage).

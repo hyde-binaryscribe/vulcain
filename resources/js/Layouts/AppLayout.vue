@@ -24,6 +24,7 @@ const nav = computed(() =>
         { label: 'Véhicules', href: '/vehicles', permission: 'vehicles.manage' },
         { label: 'Emplacements', href: '/locations', permission: 'locations.manage' },
         { label: 'Matériel', href: '/materials', permission: 'catalog.manage' },
+        { label: 'Modèles', href: '/templates', permission: 'templates.manage' },
         { label: 'Historique', href: '/activity', permission: 'history.view' },
         { label: 'Utilisateurs', href: '/users', permission: 'users.manage' },
         { label: 'Profil', href: '/profile', permission: null },

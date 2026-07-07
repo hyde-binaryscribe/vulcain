@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\InventoryTemplate;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\MaterialCategory;
@@ -44,8 +45,8 @@ class DemoDataSeeder extends Seeder
             $pharma = MaterialCategory::create(['name' => 'Pharmacie']);
 
             // Mode QUANTITÉ
-            Material::create(['name' => 'Collier cervical adulte', 'reference' => 'IMM-COL-AD', 'category_id' => $imm->id, 'location_id' => $cellule->id, 'tracking_mode' => 'quantity', 'theoretical_qty' => 4, 'minimum_qty' => 2, 'current_qty' => 4, 'status' => 'conforme']);
-            Material::create(['name' => 'Couverture de survie', 'reference' => 'SAP-COUV-SURV', 'category_id' => $sap->id, 'location_id' => $coffre->id, 'tracking_mode' => 'quantity', 'theoretical_qty' => 5, 'minimum_qty' => 2, 'current_qty' => 5, 'status' => 'conforme']);
+            $collier = Material::create(['name' => 'Collier cervical adulte', 'reference' => 'IMM-COL-AD', 'category_id' => $imm->id, 'location_id' => $cellule->id, 'tracking_mode' => 'quantity', 'theoretical_qty' => 4, 'minimum_qty' => 2, 'current_qty' => 4, 'status' => 'conforme']);
+            $couverture = Material::create(['name' => 'Couverture de survie', 'reference' => 'SAP-COUV-SURV', 'category_id' => $sap->id, 'location_id' => $coffre->id, 'tracking_mode' => 'quantity', 'theoretical_qty' => 5, 'minimum_qty' => 2, 'current_qty' => 5, 'status' => 'conforme']);
 
             // Mode UNITAIRE (n° de série)
             $dsa = Material::create(['name' => 'Défibrillateur DSA', 'reference' => 'OXY-DSA', 'category_id' => $oxy->id, 'location_id' => $cellule->id, 'tracking_mode' => 'serial', 'status' => 'conforme']);
@@ -55,6 +56,20 @@ class DemoDataSeeder extends Seeder
             $serum = Material::create(['name' => 'Sérum physiologique 500ml', 'reference' => 'PHA-SERUM-500', 'category_id' => $pharma->id, 'location_id' => $sac->id, 'tracking_mode' => 'lot', 'minimum_qty' => 5, 'status' => 'conforme']);
             $serum->lots()->create(['lot_number' => 'LOT-A231', 'quantity' => 8, 'expiry_date' => now()->addDays(20)->toDateString(), 'location_id' => $sac->id, 'status' => 'conforme']);
             $serum->lots()->create(['lot_number' => 'LOT-B118', 'quantity' => 12, 'expiry_date' => now()->addMonths(10)->toDateString(), 'location_id' => $sac->id, 'status' => 'conforme']);
+
+            // Modèle d'inventaire hebdomadaire du VSAV.
+            $template = InventoryTemplate::create([
+                'vehicle_id' => $vsav->id, 'name' => 'Inventaire hebdomadaire VSAV', 'frequency' => 'weekly',
+            ]);
+            $order = 0;
+            foreach ([$collier, $couverture, $dsa, $serum] as $material) {
+                $template->items()->create([
+                    'material_id' => $material->id,
+                    'location_id' => $material->location_id,
+                    'expected_qty' => $material->theoretical_qty ?: 1,
+                    'display_order' => $order += 10,
+                ]);
+            }
         });
     }
 }
