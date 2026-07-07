@@ -55,6 +55,32 @@ Tentatives de connexion (blocage temporaire + traçabilité).
 | successful | bool | |
 | created_at | timestamp | Index (organisation, email, created_at) |
 
+### invitations (cloisonnée par organisation_id explicite)
+Invitation à rejoindre une organisation (1er admin, utilisateurs invités).
+
+| Colonne | Type | Notes |
+|---|---|---|
+| id | bigint PK | |
+| organisation_id | FK → organisations | `cascadeOnDelete` |
+| email | string | |
+| role | string | Rôle attribué à l'acceptation |
+| token | string | **haché** (SHA-256), usage unique |
+| expires_at | timestamp | |
+| accepted_at | timestamp null | |
+
+## Tables centrales additionnelles
+
+### organisations.sector
+Colonne `sector` (SDIS / ambulance privée / AASC), défaut SDIS — verticalisation.
+
+### platform_admins
+Exploitant de la plateforme (guard `platform`) : `id`, `name`, `email` (unique global),
+`password` (Argon2id), `last_login_at`, soft delete.
+
+## RBAC (spatie, mode teams)
+`roles` (avec `organisation_id`), `permissions`, `model_has_roles` / `model_has_permissions`
+/ `role_has_permissions` (pivots portant `organisation_id`). Rôles cloisonnés par organisation.
+
 ## Tables techniques (Laravel)
 - **password_reset_tokens** — redéfinie : clé primaire **(organisation_id, email)**,
   `token` **haché**, `created_at`. Cloisonnée par organisation.

@@ -40,8 +40,18 @@ Document vivant. Recense les mesures de sécurité en place, par domaine.
 ## En-têtes HTTP
 - Nginx : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` (CSP affinée à venir).
 
+## RBAC & espace plateforme (Phase 1.3)
+- **RBAC dynamique** (spatie, mode teams) : rôles **cloisonnés par organisation**,
+  permissions vérifiées **côté serveur** (middleware `permission`/`role` + partage UI
+  pour l'affichage uniquement).
+- **Guard `platform` séparé** : l'exploitant (Desk) ne partage aucune session avec les
+  utilisateurs métier ; ses routes sont réservées au domaine central (`central`).
+- **Invitations** : jeton haché SHA-256, usage unique, expirable, cloisonné par organisation.
+  Le 1er administrateur définit lui-même son mot de passe (aucun défaut).
+- Isolation renforcée : la résolution de l'utilisateur (guard web) applique le scope tenant
+  → une session ne peut pas être rejouée sur une autre organisation.
+
 ## À venir (phases suivantes)
-- Rate limiting / blocage après échecs, reset par jeton haché à usage unique (Phase 1.2).
-- RBAC serveur + policies anti-IDOR par ressource (Phase 1.3).
+- Policies anti-IDOR par ressource métier (au fil des modules).
 - Fichiers privés hors webroot + URL signées (phase fichiers).
 - Journal d'audit append-only (phase audit).

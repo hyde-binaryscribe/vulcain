@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Domain\Identity\InvitationService;
 use App\Domain\Identity\LoginThrottle;
 use App\Domain\Identity\PasswordResetService;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -24,6 +26,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PasswordResetService::class, fn () => new PasswordResetService(
             expiresMinutes: (int) config('security.password_reset.expires_minutes', 60),
             throttleSeconds: (int) config('security.password_reset.throttle_seconds', 60),
+        ));
+
+        $this->app->bind(InvitationService::class, fn ($app) => new InvitationService(
+            tenant: $app->make(TenantContext::class),
+            expiresMinutes: (int) config('security.invitation.expires_minutes', 60 * 24 * 7),
         ));
     }
 

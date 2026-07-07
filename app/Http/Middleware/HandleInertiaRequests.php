@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -37,18 +38,20 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $tenant = app(TenantContext::class)->organisation();
+        // Toujours l'utilisateur métier (guard web), jamais l'exploitant plateforme.
+        $user = Auth::guard('web')->user();
 
         return [
             ...parent::share($request),
             // Utilisateur authentifié (données minimales, jamais de secret).
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    'grade' => $request->user()->grade,
-                    'roles' => $request->user()->getRoleNames(),
-                    'permissions' => $request->user()->getAllPermissions()->pluck('name'),
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'grade' => $user->grade,
+                    'roles' => $user->getRoleNames(),
+                    'permissions' => $user->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
             // Organisation courante (personnalisation + branding par secteur).
@@ -58,6 +61,14 @@ class HandleInertiaRequests extends Middleware
                 'settings' => $tenant->settings,
                 'profile' => $tenant->profile()->toArray(),
             ] : null,
+            // Exploitant plateforme (Desk) — guard séparé du métier.
+            'platformAuth' => [
+                'admin' => Auth::guard('platform')->check() ? [
+                    'id' => Auth::guard('platform')->id(),
+                    'name' => Auth::guard('platform')->user()->name,
+                    'email' => Auth::guard('platform')->user()->email,
+                ] : null,
+            ],
             // Messages flash (confirmation / erreur).
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),

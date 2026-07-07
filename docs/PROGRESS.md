@@ -3,9 +3,26 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phase 0 / 1.1 / 1.2** : terminées.
-- **Phase 1.3 — RBAC + secteurs** : partie RBAC & verticalisation terminée ; reste l'espace
-  plateforme (provisionnement + invitation du 1er admin).
+- **Phase 0 / 1.1 / 1.2 / 1.3** : terminées.
+- Prochaine : **Phase 2 — Référentiels** (utilisateurs, véhicules + affectations,
+  emplacements, catalogue matériel).
+
+## Phase 1.3 (partie 2) — Espace exploitant « Desk » + invitations (terminée)
+- Modèle `PlatformAdmin` + **guard `platform`** (session), strictement séparé du métier ;
+  table centrale `platform_admins`.
+- **Desk** sur le domaine central (préfixe `/platform`, middleware `central`) : connexion
+  exploitant, **tableau des organisations** (secteur, statut, nb utilisateurs), **création
+  d'organisation** (choix du secteur), suspension/réactivation.
+- **Provisionnement** (`OrganisationProvisioner`) : création + rôles + **invitation du 1er
+  administrateur** (transaction).
+- **Invitations** (`invitations`, `InvitationService`) : jeton haché SHA-256, usage unique,
+  expirable, cloisonné ; lien vers le sous-domaine de l'organisation ; page d'activation
+  (l'invité définit son mot de passe → devient administrateur, aucun mot de passe par défaut).
+- Commande `vulcain:create-platform-admin` (mot de passe masqué, min. 12 car. mixtes).
+- Redirection des invités : `/platform/*` → login Desk ; sinon login tenant.
+- **Tests (10 nouveaux, 40 au total, verts)** : accès Desk (central vs tenant, guard séparé),
+  provisionnement (rôles + invitation + notification, slug unique), acceptation (devient
+  admin, usage unique, expiré, cloisonné par organisation).
 
 ## Phase 1.3 (partie 1) — RBAC dynamique + secteurs (terminée)
 - **RBAC** via spatie/laravel-permission en mode « teams » : rôles **cloisonnés par

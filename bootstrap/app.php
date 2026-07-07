@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureCentral;
 use App\Http\Middleware\EnsureTenant;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ResolveTenant;
@@ -34,10 +35,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // + contrôle des rôles/permissions (spatie), vérifiés côté serveur.
         $middleware->alias([
             'tenant' => EnsureTenant::class,
+            'central' => EnsureCentral::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
+
+        // Redirection des invités : espace plateforme -> login plateforme ; sinon login tenant.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('platform', 'platform/*')
+            ? route('platform.login')
+            : route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -12,11 +12,8 @@ Route::get('/', function (TenantContext $tenant) {
             : redirect()->route('login');
     }
 
-    // Domaine central : espace plateforme (page d'accueil provisoire).
-    return Inertia::render('Welcome', [
-        'appName' => config('app.name', 'Vulcain'),
-        'phase' => 'Phase 1.2 — authentification',
-    ]);
+    // Domaine central : espace exploitant (Desk).
+    return redirect()->route('platform.dashboard');
 })->name('home');
 
 Route::middleware(['tenant', 'auth'])->group(function () {
@@ -24,3 +21,4 @@ Route::middleware(['tenant', 'auth'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+require __DIR__.'/platform.php';

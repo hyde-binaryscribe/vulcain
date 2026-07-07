@@ -22,4 +22,13 @@ return [
         'throttle_seconds' => (int) env('PASSWORD_RESET_THROTTLE', 60),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Invitations (1er administrateur, utilisateurs invités)
+    |--------------------------------------------------------------------------
+    */
+    'invitation' => [
+        'expires_minutes' => (int) env('INVITATION_EXPIRES', 60 * 24 * 7), // 7 jours
+    ],
+
 ];

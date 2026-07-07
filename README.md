@@ -66,6 +66,22 @@ docker compose exec app php artisan vulcain:grant-role mon.email@exemple.fr --or
 
 Connecte-toi ensuite sur **http://demo.localhost:8080** avec cet e-mail et ce mot de passe.
 
+### Espace exploitant « Desk » (super-admin plateforme)
+
+Le Desk gère les organisations clientes, sur le **domaine central**. Crée d'abord un
+administrateur plateforme (mot de passe masqué) :
+
+```bash
+docker compose exec app php artisan vulcain:create-platform-admin
+```
+
+Puis connecte-toi sur **http://localhost:8080/platform** :
+- **crée une organisation** (nom, sous-domaine, secteur, e-mail du 1er admin) ;
+- une **invitation** est envoyée (en local, dans les logs) — récupère le lien :
+  `docker compose logs app | Select-String accept-invitation` ;
+- ouvre ce lien : l'administrateur **définit son mot de passe** et accède à son espace
+  (avec le branding de son secteur).
+
 ### Multi-secteurs (branding par organisation)
 
 Les organisations de démonstration illustrent les 3 secteurs (chacune sur son sous-domaine,

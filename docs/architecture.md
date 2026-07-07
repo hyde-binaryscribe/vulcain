@@ -281,6 +281,23 @@ Séparation stricte demandée par le cahier : **présentation** (Vue/Blade) / **
 
 ---
 
+## 8 bis. Vulcain Desk — espace exploitant (back-office SaaS)
+
+L'espace plateforme (super-admin) est conçu comme un **Desk** : le back-office de
+l'exploitant pour piloter le SaaS comme un produit. Fondation posée en Phase 1.3
+(authentification plateforme + provisionnement d'organisations + invitations) ; il
+s'étoffera par pôles :
+
+- **Administratif** : organisations/clients, contrats, plans & abonnements, facturation
+  (paiement branché plus tard), quotas, cycle de vie (suspension/réactivation/réforme).
+- **Technique** : supervision multi-tenant, support (tickets), journal d'audit transverse,
+  état des sauvegardes, indicateurs d'usage, gestion des incidents.
+- **Commercial** : prospects/CRM léger, démonstrations, onboarding, catalogue d'offres,
+  suivi de conversion.
+
+Principe : le Desk reste **strictement cloisonné** du métier des organisations (guard
+`platform`, domaine central) et ne contourne jamais l'audit ni l'isolation des données.
+
 ## 9. Décisions validées (2026-07-06)
 
 Les choix structurants ont été arbitrés par le porteur du projet :

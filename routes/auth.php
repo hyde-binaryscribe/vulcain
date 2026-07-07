@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcceptInvitationController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
@@ -21,6 +22,10 @@ Route::middleware(['tenant', 'guest'])->group(function () {
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
     Route::post('reset-password', [NewPasswordController::class, 'store'])->name('password.store');
+
+    // Acceptation d'invitation (1er administrateur, utilisateurs invités).
+    Route::get('accept-invitation/{token}', [AcceptInvitationController::class, 'create'])->name('invitation.accept');
+    Route::post('accept-invitation', [AcceptInvitationController::class, 'store'])->name('invitation.store');
 });
 
 Route::middleware(['tenant', 'auth'])->group(function () {
