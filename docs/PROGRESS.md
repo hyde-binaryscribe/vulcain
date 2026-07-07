@@ -3,9 +3,21 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phases 0, 1 (fondation SaaS) et 2 (référentiels)** : terminées.
-- Prochaine : **Phase 3 — Cœur inventaire** (modèles, planification, réalisation tactile,
-  autosave, validation, contrôles photo).
+- **Phases 0, 1, 2 (référentiels de base)** : terminées.
+- **Phase 2.5 — Suivi du matériel** : terminée.
+- Prochaine : **Phase 2.6 — Page véhicule dédiée (hub)**, puis 2.7 historique, puis
+  Phase 3 (cœur inventaire).
+
+## Phase 2.5 — Suivi du matériel (terminée)
+- **3 modes de suivi** par matériel : `quantity` (stock courant `current_qty`),
+  `serial` (exemplaires `material_items` avec n° de série/état/prochain contrôle),
+  `lot` (`stock_lots` avec n° de lot, quantité, **péremption** — base FEFO).
+- **Page détail matériel** adaptée au mode : réglage du stock / gestion des exemplaires /
+  gestion des lots (alertes péremption < 30 j et périmé).
+- Stock calculé selon le mode ; alerte sous seuil minimal.
+- Anti-IDOR sur exemplaires et lots (autre organisation → 404).
+- Démo enrichie : DSA (unitaire), Sérum physiologique (2 lots dont un proche péremption).
+- **Tests (6, 69 au total, verts)**.
 
 ## Phase 2.3 — Emplacements (terminée)
 - Hiérarchie parent/enfant, rattachement véhicule ou réserve globale, ordre, actif.

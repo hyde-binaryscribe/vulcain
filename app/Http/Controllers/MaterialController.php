@@ -59,6 +59,75 @@ class MaterialController extends Controller
         ]);
     }
 
+    public function show(Material $material): Response
+    {
+        $material->load(['category:id,name', 'location:id,name']);
+
+        $items = $material->tracking_mode === Material::MODE_SERIAL
+            ? $material->items()->with('location:id,name')->orderBy('serial_number')->get()->map(fn ($i) => [
+                'id' => $i->id,
+                'serial_number' => $i->serial_number,
+                'status' => $i->status->value,
+                'status_label' => $i->status->label(),
+                'location' => $i->location?->name,
+                'location_id' => $i->location_id,
+                'next_check_date' => $i->next_check_date?->format('Y-m-d'),
+                'notes' => $i->notes,
+            ])
+            : [];
+
+        $lots = $material->tracking_mode === Material::MODE_LOT
+            ? $material->lots()->with('location:id,name')->orderByRaw('expiry_date is null')->orderBy('expiry_date')->get()->map(fn ($l) => [
+                'id' => $l->id,
+                'lot_number' => $l->lot_number,
+                'quantity' => $l->quantity,
+                'expiry_date' => $l->expiry_date?->format('Y-m-d'),
+                'expired' => $l->isExpired(),
+                'expiring_soon' => $l->expiresWithin(30),
+                'status' => $l->status->value,
+                'status_label' => $l->status->label(),
+                'location' => $l->location?->name,
+                'location_id' => $l->location_id,
+            ])
+            : [];
+
+        return Inertia::render('Materials/Show', [
+            'material' => [
+                'id' => $material->id,
+                'name' => $material->name,
+                'reference' => $material->reference,
+                'description' => $material->description,
+                'category' => $material->category?->name,
+                'location' => $material->location?->name,
+                'tracking_mode' => $material->tracking_mode,
+                'tracking_label' => Material::TRACKING_MODES[$material->tracking_mode] ?? $material->tracking_mode,
+                'theoretical_qty' => $material->theoretical_qty,
+                'minimum_qty' => $material->minimum_qty,
+                'current_qty' => $material->current_qty,
+                'stock' => $material->stockQuantity(),
+                'below_threshold' => $material->isBelowThreshold(),
+                'status' => $material->status->value,
+                'status_label' => $material->status->label(),
+            ],
+            'items' => $items,
+            'lots' => $lots,
+            'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'statuses' => MaterialStatus::options(),
+            'status' => session('status'),
+        ]);
+    }
+
+    public function setStock(Request $request, Material $material): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_qty' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $material->update(['current_qty' => $validated['current_qty']]);
+
+        return back()->with('status', 'Stock mis à jour.');
+    }
+
     public function store(Request $request): RedirectResponse
     {
         Material::create($this->validated($request));

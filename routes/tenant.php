@@ -3,6 +3,8 @@
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\MaterialItemController;
+use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -40,10 +42,21 @@ Route::middleware(['tenant', 'auth'])->group(function () {
     // Catalogue matériel + catégories.
     Route::middleware('permission:catalog.manage')->group(function () {
         Route::get('materials', [MaterialController::class, 'index'])->name('materials.index');
+        Route::get('materials/{material}', [MaterialController::class, 'show'])->name('materials.show');
         Route::post('materials', [MaterialController::class, 'store'])->name('materials.store');
         Route::patch('materials/{material}', [MaterialController::class, 'update'])->name('materials.update');
         Route::patch('materials/{material}/status', [MaterialController::class, 'quickStatus'])->name('materials.status');
+        Route::patch('materials/{material}/stock', [MaterialController::class, 'setStock'])->name('materials.stock');
         Route::delete('materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
+
+        // Exemplaires (mode unitaire) et lots (mode consommable).
+        Route::post('materials/{material}/items', [MaterialItemController::class, 'store'])->name('material-items.store');
+        Route::patch('material-items/{item}', [MaterialItemController::class, 'update'])->name('material-items.update');
+        Route::delete('material-items/{item}', [MaterialItemController::class, 'destroy'])->name('material-items.destroy');
+
+        Route::post('materials/{material}/lots', [StockLotController::class, 'store'])->name('stock-lots.store');
+        Route::patch('stock-lots/{lot}', [StockLotController::class, 'update'])->name('stock-lots.update');
+        Route::delete('stock-lots/{lot}', [StockLotController::class, 'destroy'])->name('stock-lots.destroy');
 
         Route::post('material-categories', [MaterialCategoryController::class, 'store'])->name('material-categories.store');
         Route::delete('material-categories/{category}', [MaterialCategoryController::class, 'destroy'])->name('material-categories.destroy');

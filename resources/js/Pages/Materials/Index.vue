@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -116,7 +116,7 @@ function remove(m) {
                         <tbody class="divide-y divide-gray-100">
                             <tr v-for="m in materials" :key="m.id">
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-gray-900">{{ m.name }}</div>
+                                    <Link :href="`/materials/${m.id}`" class="font-medium text-gray-900 hover:text-[var(--brand)] hover:underline">{{ m.name }}</Link>
                                     <div class="text-xs text-gray-500">{{ m.reference || '—' }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ m.category ?? '—' }}</td>
