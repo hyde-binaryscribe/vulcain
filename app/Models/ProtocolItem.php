@@ -2,20 +2,20 @@
 
 namespace App\Models;
 
-use App\Domain\Inventory\InventoryItemState;
+use App\Domain\Protocol\ProtocolItemState;
 use App\Models\Concerns\BelongsToOrganisation;
-use Database\Factories\InventoryItemFactory;
+use Database\Factories\ProtocolItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class InventoryItem extends Model
+class ProtocolItem extends Model
 {
-    /** @use HasFactory<InventoryItemFactory> */
+    /** @use HasFactory<ProtocolItemFactory> */
     use BelongsToOrganisation, HasFactory;
 
     protected $fillable = [
-        'inventory_id',
+        'protocol_id',
         'material_id',
         'material_name',
         'reference',
@@ -34,14 +34,14 @@ class InventoryItem extends Model
     protected function casts(): array
     {
         return [
-            'state' => InventoryItemState::class,
+            'state' => ProtocolItemState::class,
             'photo_required' => 'boolean',
             'checked' => 'boolean',
         ];
     }
 
-    public function inventory(): BelongsTo
+    public function protocol(): BelongsTo
     {
-        return $this->belongsTo(Inventory::class);
+        return $this->belongsTo(Protocol::class);
     }
 }

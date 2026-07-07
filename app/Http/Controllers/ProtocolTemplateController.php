@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Domain\Inventory\InventoryFrequency;
-use App\Models\InventoryTemplate;
+use App\Domain\Protocol\ProtocolFrequency;
+use App\Domain\Protocol\ProtocolType;
+use App\Models\ProtocolTemplate;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\Vehicle;
@@ -14,21 +15,23 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class InventoryTemplateController extends Controller
+class ProtocolTemplateController extends Controller
 {
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function index(): Response
     {
-        $templates = InventoryTemplate::query()
+        $templates = ProtocolTemplate::query()
             ->with('vehicle:id,name')
             ->withCount('items')
             ->orderBy('name')
             ->get()
-            ->map(fn (InventoryTemplate $t) => [
+            ->map(fn (ProtocolTemplate $t) => [
                 'id' => $t->id,
                 'name' => $t->name,
                 'vehicle' => $t->vehicle?->name,
+                'types' => $t->types ?? [],
+                'type_labels' => $t->typeLabels(),
                 'frequency' => $t->frequency->value,
                 'frequency_label' => $t->frequency->label(),
                 'items_count' => $t->items_count,
@@ -39,7 +42,8 @@ class InventoryTemplateController extends Controller
         return Inertia::render('Templates/Index', [
             'templates' => $templates,
             'vehicles' => Vehicle::query()->orderBy('name')->get(['id', 'name']),
-            'frequencies' => InventoryFrequency::options(),
+            'frequencies' => ProtocolFrequency::options(),
+            'typeOptions' => ProtocolType::options(),
             'status' => session('status'),
         ]);
     }
@@ -47,13 +51,14 @@ class InventoryTemplateController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateTemplate($request);
+        $validated['types'] = ProtocolType::sanitize($validated['types'] ?? []);
 
-        $template = InventoryTemplate::create($validated);
+        $template = ProtocolTemplate::create($validated);
 
         return redirect()->route('templates.edit', $template)->with('status', 'Modèle créé.');
     }
 
-    public function edit(InventoryTemplate $template): Response
+    public function edit(ProtocolTemplate $template): Response
     {
         $template->load(['vehicle:id,name', 'items.material:id,name,reference', 'items.location:id,name']);
 
@@ -64,6 +69,7 @@ class InventoryTemplateController extends Controller
                 'id' => $template->id,
                 'name' => $template->name,
                 'vehicle' => $template->vehicle?->name,
+                'types' => $template->types ?? [],
                 'frequency' => $template->frequency->value,
                 'custom_days' => $template->custom_days,
                 'is_active' => $template->is_active,
@@ -84,22 +90,26 @@ class InventoryTemplateController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'reference', 'location_id', 'theoretical_qty']),
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'frequencies' => InventoryFrequency::options(),
+            'frequencies' => ProtocolFrequency::options(),
+            'typeOptions' => ProtocolType::options(),
             'status' => session('status'),
         ]);
     }
 
-    public function update(Request $request, InventoryTemplate $template): RedirectResponse
+    public function update(Request $request, ProtocolTemplate $template): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'frequency' => ['required', Rule::enum(InventoryFrequency::class)],
+            'types' => ['array'],
+            'types.*' => [Rule::enum(ProtocolType::class)],
+            'frequency' => ['required', Rule::enum(ProtocolFrequency::class)],
             'custom_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'is_active' => ['boolean'],
         ]);
 
         $template->update([
             'name' => $validated['name'],
+            'types' => ProtocolType::sanitize($validated['types'] ?? []),
             'frequency' => $validated['frequency'],
             'custom_days' => $validated['custom_days'] ?? null,
             'is_active' => $request->boolean('is_active'),
@@ -109,14 +119,14 @@ class InventoryTemplateController extends Controller
         return back()->with('status', 'Modèle mis à jour.');
     }
 
-    public function destroy(InventoryTemplate $template): RedirectResponse
+    public function destroy(ProtocolTemplate $template): RedirectResponse
     {
         $template->delete();
 
         return redirect()->route('templates.index')->with('status', 'Modèle supprimé.');
     }
 
-    public function addItem(Request $request, InventoryTemplate $template): RedirectResponse
+    public function addItem(Request $request, ProtocolTemplate $template): RedirectResponse
     {
         $orgId = $this->tenant->id();
 
@@ -144,7 +154,7 @@ class InventoryTemplateController extends Controller
         return back()->with('status', 'Matériel ajouté au modèle.');
     }
 
-    public function updateItem(Request $request, InventoryTemplate $template, int $item): RedirectResponse
+    public function updateItem(Request $request, ProtocolTemplate $template, int $item): RedirectResponse
     {
         $templateItem = $template->items()->findOrFail($item);
 
@@ -163,7 +173,7 @@ class InventoryTemplateController extends Controller
         return back()->with('status', 'Élément mis à jour.');
     }
 
-    public function removeItem(InventoryTemplate $template, int $item): RedirectResponse
+    public function removeItem(ProtocolTemplate $template, int $item): RedirectResponse
     {
         $template->items()->where('id', $item)->delete();
         $template->increment('version');
@@ -181,7 +191,9 @@ class InventoryTemplateController extends Controller
         return $request->validate([
             'vehicle_id' => ['required', Rule::exists('vehicles', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
             'name' => ['required', 'string', 'max:150'],
-            'frequency' => ['required', Rule::enum(InventoryFrequency::class)],
+            'types' => ['array'],
+            'types.*' => [Rule::enum(ProtocolType::class)],
+            'frequency' => ['required', Rule::enum(ProtocolFrequency::class)],
             'custom_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'is_active' => ['boolean'],
         ]);

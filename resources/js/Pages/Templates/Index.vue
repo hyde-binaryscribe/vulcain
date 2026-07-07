@@ -9,14 +9,22 @@ const props = defineProps({
     templates: { type: Array, default: () => [] },
     vehicles: { type: Array, default: () => [] },
     frequencies: { type: Array, default: () => [] },
+    typeOptions: { type: Array, default: () => [] },
 });
 
 const form = useForm({
     vehicle_id: props.vehicles[0]?.id ?? '',
     name: '',
+    types: ['inventaire'],
     frequency: 'weekly',
     is_active: true,
 });
+
+function toggleType(value) {
+    const i = form.types.indexOf(value);
+    if (i === -1) form.types.push(value);
+    else form.types.splice(i, 1);
+}
 
 function create() {
     form.post('/templates');
@@ -30,15 +38,15 @@ function remove(t) {
 
 <template>
     <AppLayout>
-        <Head title="Modèles d'inventaire" />
-        <template #title>Modèles d'inventaire</template>
+        <Head title="Modèles de protocole" />
+        <template #title>Modèles de protocole</template>
 
         <div class="grid gap-6 lg:grid-cols-3">
             <section class="lg:col-span-2">
                 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                            <tr><th class="px-4 py-3">Modèle</th><th class="px-4 py-3">Véhicule</th><th class="px-4 py-3">Fréquence</th><th class="px-4 py-3">Éléments</th><th class="px-4 py-3 text-right">Actions</th></tr>
+                            <tr><th class="px-4 py-3">Modèle</th><th class="px-4 py-3">Véhicule</th><th class="px-4 py-3">Types</th><th class="px-4 py-3">Fréquence</th><th class="px-4 py-3">Éléments</th><th class="px-4 py-3 text-right">Actions</th></tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             <tr v-for="t in templates" :key="t.id">
@@ -47,6 +55,12 @@ function remove(t) {
                                     <span class="ml-1 text-xs text-gray-400">v{{ t.version }}</span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.vehicle }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-wrap gap-1">
+                                        <span v-for="label in t.type_labels" :key="label" class="rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--brand)]">{{ label }}</span>
+                                        <span v-if="!t.type_labels || t.type_labels.length === 0" class="text-xs text-gray-400">—</span>
+                                    </div>
+                                </td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.frequency_label }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.items_count }}</td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
@@ -54,7 +68,7 @@ function remove(t) {
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="remove(t)">Suppr.</button>
                                 </td>
                             </tr>
-                            <tr v-if="templates.length === 0"><td colspan="5" class="px-4 py-8 text-center text-gray-500">Aucun modèle. Créez-en un →</td></tr>
+                            <tr v-if="templates.length === 0"><td colspan="6" class="px-4 py-8 text-center text-gray-500">Aucun modèle. Créez-en un →</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -72,8 +86,18 @@ function remove(t) {
                     </div>
                     <div>
                         <InputLabel value="Nom" />
-                        <TextInput v-model="form.name" placeholder="Inventaire hebdomadaire VSAV" />
+                        <TextInput v-model="form.name" placeholder="Protocole hebdomadaire VSAV" />
                         <InputError :message="form.errors.name" />
+                    </div>
+                    <div>
+                        <InputLabel value="Types de protocole" />
+                        <div class="mt-1 space-y-1.5">
+                            <label v-for="opt in typeOptions" :key="opt.value" class="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" class="rounded border-gray-300" :checked="form.types.includes(opt.value)" @change="toggleType(opt.value)" />
+                                {{ opt.label }}
+                            </label>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-400">Un même passage peut cumuler plusieurs natures.</p>
                     </div>
                     <div>
                         <InputLabel value="Fréquence" />

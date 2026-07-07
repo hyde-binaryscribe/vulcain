@@ -3,15 +3,15 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToOrganisation;
-use Database\Factories\InventoryFactory;
+use Database\Factories\ProtocolFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Inventory extends Model
+class Protocol extends Model
 {
-    /** @use HasFactory<InventoryFactory> */
+    /** @use HasFactory<ProtocolFactory> */
     use BelongsToOrganisation, HasFactory;
 
     public const STATUS_DRAFT = 'draft';
@@ -20,11 +20,12 @@ class Inventory extends Model
 
     protected $fillable = [
         'vehicle_id',
-        'inventory_template_id',
+        'protocol_template_id',
         'template_version',
         'user_id',
         'vehicle_name',
         'template_name',
+        'types',
         'status',
         'started_at',
         'validated_at',
@@ -34,9 +35,16 @@ class Inventory extends Model
     protected function casts(): array
     {
         return [
+            'types' => 'array',
             'started_at' => 'datetime',
             'validated_at' => 'datetime',
         ];
+    }
+
+    /** Libellés lisibles des types figés au démarrage. */
+    public function typeLabels(): array
+    {
+        return \App\Domain\Protocol\ProtocolType::labelsFor($this->types);
     }
 
     public function vehicle(): BelongsTo
@@ -51,7 +59,7 @@ class Inventory extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(InventoryItem::class)->orderBy('display_order');
+        return $this->hasMany(ProtocolItem::class)->orderBy('display_order');
     }
 
     public function isValidated(): bool

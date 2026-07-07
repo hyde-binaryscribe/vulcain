@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\InventoryTemplate;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\MaterialCategory;
 use App\Models\Organisation;
+use App\Models\ProtocolTemplate;
 use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
@@ -57,9 +57,10 @@ class DemoDataSeeder extends Seeder
             $serum->lots()->create(['lot_number' => 'LOT-A231', 'quantity' => 8, 'expiry_date' => now()->addDays(20)->toDateString(), 'location_id' => $sac->id, 'status' => 'conforme']);
             $serum->lots()->create(['lot_number' => 'LOT-B118', 'quantity' => 12, 'expiry_date' => now()->addMonths(10)->toDateString(), 'location_id' => $sac->id, 'status' => 'conforme']);
 
-            // Modèle d'inventaire hebdomadaire du VSAV.
-            $template = InventoryTemplate::create([
-                'vehicle_id' => $vsav->id, 'name' => 'Inventaire hebdomadaire VSAV', 'frequency' => 'weekly',
+            // Modèle de protocole hebdomadaire du VSAV (inventaire + contrôle véhicule).
+            $template = ProtocolTemplate::create([
+                'vehicle_id' => $vsav->id, 'name' => 'Protocole hebdomadaire VSAV',
+                'types' => ['inventaire', 'controle_vehicule'], 'frequency' => 'weekly',
             ]);
             $order = 0;
             foreach ([$collier, $couverture, $dsa, $serum] as $material) {

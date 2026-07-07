@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\Feature\Inventory;
+namespace Tests\Feature\Protocol;
 
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
-use App\Models\InventoryTemplate;
+use App\Models\ProtocolTemplate;
 use App\Models\Material;
 use App\Models\Organisation;
 use App\Models\User;
@@ -13,7 +13,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class InventoryTemplateTest extends TestCase
+class ProtocolTemplateTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -60,7 +60,7 @@ class InventoryTemplateTest extends TestCase
             'frequency' => 'weekly',
         ])->assertRedirect();
 
-        $this->assertDatabaseHas('inventory_templates', [
+        $this->assertDatabaseHas('protocol_templates', [
             'organisation_id' => $org->id,
             'vehicle_id' => $vehicle->id,
             'name' => 'Inventaire hebdo',
@@ -77,7 +77,7 @@ class InventoryTemplateTest extends TestCase
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
         $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
-        $template = InventoryTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'version' => 1]);
+        $template = ProtocolTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'version' => 1]);
         $material = Material::factory()->create(['organisation_id' => $org->id]);
 
         $this->actingAs($admin)->post("http://caserne.localhost/templates/{$template->id}/items", [
@@ -85,8 +85,8 @@ class InventoryTemplateTest extends TestCase
             'expected_qty' => 4,
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('inventory_template_items', [
-            'inventory_template_id' => $template->id,
+        $this->assertDatabaseHas('protocol_template_items', [
+            'protocol_template_id' => $template->id,
             'material_id' => $material->id,
             'expected_qty' => 4,
         ]);
@@ -97,7 +97,7 @@ class InventoryTemplateTest extends TestCase
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN, 'caserne');
         $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
-        $template = InventoryTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
+        $template = ProtocolTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
 
         $otherOrg = Organisation::factory()->slug('autre')->create();
         $foreignMaterial = Material::factory()->create(['organisation_id' => $otherOrg->id]);
@@ -113,7 +113,7 @@ class InventoryTemplateTest extends TestCase
         [, $admin] = $this->orgWithRole(Rbac::ADMIN, 'caserne');
         $otherOrg = Organisation::factory()->slug('autre')->create();
         $foreignVehicle = Vehicle::factory()->create(['organisation_id' => $otherOrg->id]);
-        $foreignTemplate = InventoryTemplate::factory()->create(['organisation_id' => $otherOrg->id, 'vehicle_id' => $foreignVehicle->id]);
+        $foreignTemplate = ProtocolTemplate::factory()->create(['organisation_id' => $otherOrg->id, 'vehicle_id' => $foreignVehicle->id]);
 
         $this->actingAs($admin)->get("http://caserne.localhost/templates/{$foreignTemplate->id}/edit")->assertNotFound();
     }

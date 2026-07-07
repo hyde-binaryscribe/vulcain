@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
-    inventory: { type: Object, required: true },
+    protocol: { type: Object, required: true },
     groups: { type: Array, default: () => [] },
     progress: { type: Object, default: () => ({ checked: 0, total: 0 }) },
     states: { type: Array, default: () => [] },
@@ -12,7 +12,7 @@ const props = defineProps({
 
 // État local (préserve la saisie pendant les enregistrements en tâche de fond).
 const sections = reactive(JSON.parse(JSON.stringify(props.groups)));
-const editable = props.inventory.editable;
+const editable = props.protocol.editable;
 
 const stateStyles = {
     conforme: 'bg-green-700 text-white border-green-700',
@@ -30,7 +30,7 @@ const pct = computed(() => (totalCount.value ? Math.round((checkedCount.value / 
 function save(item) {
     if (!editable) return;
     item.checked = true;
-    router.patch(`/inventories/${props.inventory.id}/items/${item.id}`, {
+    router.patch(`/protocols/${props.protocol.id}/items/${item.id}`, {
         observed_qty: item.observed_qty,
         state: item.state,
         observation: item.observation,
@@ -54,17 +54,20 @@ function setState(item, state) {
 
 <template>
     <AppLayout>
-        <Head title="Inventaire" />
-        <template #title>Inventaire — {{ inventory.vehicle_name }}</template>
+        <Head title="Protocole" />
+        <template #title>Protocole — {{ protocol.vehicle_name }}</template>
 
-        <Link href="/inventories" class="text-sm text-[var(--brand)] hover:underline">← Inventaires</Link>
+        <Link href="/protocols" class="text-sm text-[var(--brand)] hover:underline">← Protocoles</Link>
 
         <!-- En-tête + progression -->
         <div class="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <p class="text-sm text-gray-500">{{ inventory.template_name }} · {{ inventory.verifier }} · {{ inventory.started_at }}</p>
-                    <span v-if="inventory.status === 'validated'" class="mt-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Validé — lecture seule</span>
+                    <div class="mb-1 flex flex-wrap gap-1">
+                        <span v-for="label in protocol.type_labels" :key="label" class="rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--brand)]">{{ label }}</span>
+                    </div>
+                    <p class="text-sm text-gray-500">{{ protocol.template_name }} · {{ protocol.verifier }} · {{ protocol.started_at }}</p>
+                    <span v-if="protocol.status === 'validated'" class="mt-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Validé — lecture seule</span>
                     <span v-else-if="!editable" class="mt-1 inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">Consultation</span>
                 </div>
                 <div class="text-right">
@@ -140,7 +143,7 @@ function setState(item, state) {
             </section>
 
             <p v-if="sections.length === 0" class="rounded-2xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
-                Cet inventaire ne contient aucun élément (le modèle était vide).
+                Ce protocole ne contient aucun élément (le modèle était vide).
             </p>
         </div>
     </AppLayout>

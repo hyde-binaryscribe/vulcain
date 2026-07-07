@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
-use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\InventoryTemplateController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialItemController;
+use App\Http\Controllers\ProtocolController;
+use App\Http\Controllers\ProtocolTemplateController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
@@ -39,24 +39,24 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
     });
 
-    // Modèles d'inventaire.
+    // Modèles de protocole.
     Route::middleware('permission:templates.manage')->group(function () {
-        Route::get('templates', [InventoryTemplateController::class, 'index'])->name('templates.index');
-        Route::post('templates', [InventoryTemplateController::class, 'store'])->name('templates.store');
-        Route::get('templates/{template}/edit', [InventoryTemplateController::class, 'edit'])->name('templates.edit');
-        Route::patch('templates/{template}', [InventoryTemplateController::class, 'update'])->name('templates.update');
-        Route::delete('templates/{template}', [InventoryTemplateController::class, 'destroy'])->name('templates.destroy');
-        Route::post('templates/{template}/items', [InventoryTemplateController::class, 'addItem'])->name('templates.items.add');
-        Route::patch('templates/{template}/items/{item}', [InventoryTemplateController::class, 'updateItem'])->name('templates.items.update');
-        Route::delete('templates/{template}/items/{item}', [InventoryTemplateController::class, 'removeItem'])->name('templates.items.remove');
+        Route::get('templates', [ProtocolTemplateController::class, 'index'])->name('templates.index');
+        Route::post('templates', [ProtocolTemplateController::class, 'store'])->name('templates.store');
+        Route::get('templates/{template}/edit', [ProtocolTemplateController::class, 'edit'])->name('templates.edit');
+        Route::patch('templates/{template}', [ProtocolTemplateController::class, 'update'])->name('templates.update');
+        Route::delete('templates/{template}', [ProtocolTemplateController::class, 'destroy'])->name('templates.destroy');
+        Route::post('templates/{template}/items', [ProtocolTemplateController::class, 'addItem'])->name('templates.items.add');
+        Route::patch('templates/{template}/items/{item}', [ProtocolTemplateController::class, 'updateItem'])->name('templates.items.update');
+        Route::delete('templates/{template}/items/{item}', [ProtocolTemplateController::class, 'removeItem'])->name('templates.items.remove');
     });
 
-    // Réalisation des inventaires (vérificateur ou gestionnaire).
-    Route::middleware('permission:inventories.perform|inventories.manage')->group(function () {
-        Route::get('inventories', [InventoryController::class, 'index'])->name('inventories.index');
-        Route::post('inventories', [InventoryController::class, 'start'])->name('inventories.start');
-        Route::get('inventories/{inventory}', [InventoryController::class, 'show'])->name('inventories.show');
-        Route::patch('inventories/{inventory}/items/{item}', [InventoryController::class, 'updateItem'])->name('inventories.items.update');
+    // Réalisation des protocoles (vérificateur ou gestionnaire).
+    Route::middleware('permission:protocols.perform|protocols.manage')->group(function () {
+        Route::get('protocols', [ProtocolController::class, 'index'])->name('protocols.index');
+        Route::post('protocols', [ProtocolController::class, 'start'])->name('protocols.start');
+        Route::get('protocols/{protocol}', [ProtocolController::class, 'show'])->name('protocols.show');
+        Route::patch('protocols/{protocol}/items/{item}', [ProtocolController::class, 'updateItem'])->name('protocols.items.update');
     });
 
     // Emplacements & sous-emplacements.

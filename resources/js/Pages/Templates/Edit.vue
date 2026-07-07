@@ -12,15 +12,22 @@ const props = defineProps({
     availableMaterials: { type: Array, default: () => [] },
     locations: { type: Array, default: () => [] },
     frequencies: { type: Array, default: () => [] },
+    typeOptions: { type: Array, default: () => [] },
 });
 
 // Réglages du modèle
 const settings = useForm({
     name: props.template.name,
+    types: [...(props.template.types ?? [])],
     frequency: props.template.frequency,
     custom_days: props.template.custom_days ?? '',
     is_active: props.template.is_active,
 });
+function toggleType(value) {
+    const i = settings.types.indexOf(value);
+    if (i === -1) settings.types.push(value);
+    else settings.types.splice(i, 1);
+}
 function saveSettings() {
     settings.transform((d) => ({ ...d, custom_days: d.custom_days || null }))
         .patch(`/templates/${props.template.id}`, { preserveScroll: true });
@@ -68,6 +75,15 @@ function saveQty(i) {
                 <p class="text-xs text-gray-500">Véhicule : {{ template.vehicle }} · v{{ template.version }}</p>
                 <form class="mt-4 space-y-4" @submit.prevent="saveSettings">
                     <div><InputLabel value="Nom" /><TextInput v-model="settings.name" /></div>
+                    <div>
+                        <InputLabel value="Types de protocole" />
+                        <div class="mt-1 space-y-1.5">
+                            <label v-for="opt in typeOptions" :key="opt.value" class="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" class="rounded border-gray-300" :checked="settings.types.includes(opt.value)" @change="toggleType(opt.value)" />
+                                {{ opt.label }}
+                            </label>
+                        </div>
+                    </div>
                     <div>
                         <InputLabel value="Fréquence" />
                         <select v-model="settings.frequency" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">

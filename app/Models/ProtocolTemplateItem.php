@@ -3,18 +3,18 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToOrganisation;
-use Database\Factories\InventoryTemplateItemFactory;
+use Database\Factories\ProtocolTemplateItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class InventoryTemplateItem extends Model
+class ProtocolTemplateItem extends Model
 {
-    /** @use HasFactory<InventoryTemplateItemFactory> */
+    /** @use HasFactory<ProtocolTemplateItemFactory> */
     use BelongsToOrganisation, HasFactory;
 
     protected $fillable = [
-        'inventory_template_id',
+        'protocol_template_id',
         'material_id',
         'location_id',
         'expected_qty',
@@ -31,7 +31,7 @@ class InventoryTemplateItem extends Model
 
     public function template(): BelongsTo
     {
-        return $this->belongsTo(InventoryTemplate::class, 'inventory_template_id');
+        return $this->belongsTo(ProtocolTemplate::class, 'protocol_template_id');
     }
 
     public function material(): BelongsTo

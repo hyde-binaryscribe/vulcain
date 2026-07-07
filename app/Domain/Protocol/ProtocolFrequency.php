@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Domain\Inventory;
+namespace App\Domain\Protocol;
 
-enum InventoryFrequency: string
+enum ProtocolFrequency: string
 {
     case DAILY = 'daily';
     case WEEKLY = 'weekly';

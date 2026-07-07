@@ -1,11 +1,11 @@
 <?php
 
-namespace Tests\Feature\Inventory;
+namespace Tests\Feature\Protocol;
 
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
-use App\Models\Inventory;
-use App\Models\InventoryTemplate;
+use App\Models\Protocol;
+use App\Models\ProtocolTemplate;
 use App\Models\Material;
 use App\Models\Organisation;
 use App\Models\User;
@@ -14,7 +14,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class InventoryRealizationTest extends TestCase
+class ProtocolRealizationTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -46,13 +46,13 @@ class InventoryRealizationTest extends TestCase
         });
     }
 
-    /** @return array{Organisation, Vehicle, InventoryTemplate, Material} */
+    /** @return array{Organisation, Vehicle, ProtocolTemplate, Material} */
     private function scenario(string $slug = 'caserne'): array
     {
         $org = Organisation::factory()->slug($slug)->create();
         $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
         $material = Material::factory()->create(['organisation_id' => $org->id, 'name' => 'Collier cervical', 'theoretical_qty' => 4]);
-        $template = InventoryTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
+        $template = ProtocolTemplate::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
         $this->tenant()->runFor($org, fn () => $template->items()->create([
             'material_id' => $material->id,
             'expected_qty' => 4,
@@ -67,18 +67,18 @@ class InventoryRealizationTest extends TestCase
         [$org, , $template, $material] = $this->scenario();
         $admin = $this->userWithRole($org, Rbac::ADMIN);
 
-        $this->actingAs($admin)->post('http://caserne.localhost/inventories', [
-            'inventory_template_id' => $template->id,
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', [
+            'protocol_template_id' => $template->id,
         ])->assertRedirect();
 
-        $inventory = $this->tenant()->runFor($org, fn () => Inventory::with('items')->first());
-        $this->assertNotNull($inventory);
-        $this->assertCount(1, $inventory->items);
-        $this->assertSame('Collier cervical', $inventory->items->first()->material_name);
+        $protocol = $this->tenant()->runFor($org, fn () => Protocol::with('items')->first());
+        $this->assertNotNull($protocol);
+        $this->assertCount(1, $protocol->items);
+        $this->assertSame('Collier cervical', $protocol->items->first()->material_name);
 
         // Modifier le catalogue ne change pas l'inventaire (immutabilité du snapshot).
         $this->tenant()->runFor($org, fn () => $material->update(['name' => 'Autre nom']));
-        $this->assertSame('Collier cervical', $inventory->items->first()->fresh()->material_name);
+        $this->assertSame('Collier cervical', $protocol->items->first()->fresh()->material_name);
     }
 
     public function test_verifier_can_only_start_on_authorised_vehicle(): void
@@ -87,14 +87,14 @@ class InventoryRealizationTest extends TestCase
         $verifier = $this->userWithRole($org, Rbac::VERIFIER);
 
         // Non affecté -> 403
-        $this->actingAs($verifier)->post('http://caserne.localhost/inventories', [
-            'inventory_template_id' => $template->id,
+        $this->actingAs($verifier)->post('http://caserne.localhost/protocols', [
+            'protocol_template_id' => $template->id,
         ])->assertForbidden();
 
         // Affecté -> autorisé
         $this->tenant()->runFor($org, fn () => $vehicle->users()->attach($verifier->id));
-        $this->actingAs($verifier)->post('http://caserne.localhost/inventories', [
-            'inventory_template_id' => $template->id,
+        $this->actingAs($verifier)->post('http://caserne.localhost/protocols', [
+            'protocol_template_id' => $template->id,
         ])->assertRedirect();
     }
 
@@ -103,11 +103,11 @@ class InventoryRealizationTest extends TestCase
         [$org, , $template] = $this->scenario();
         $admin = $this->userWithRole($org, Rbac::ADMIN);
 
-        $this->actingAs($admin)->post('http://caserne.localhost/inventories', ['inventory_template_id' => $template->id]);
-        $inventory = $this->tenant()->runFor($org, fn () => Inventory::with('items')->first());
-        $item = $inventory->items->first();
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+        $protocol = $this->tenant()->runFor($org, fn () => Protocol::with('items')->first());
+        $item = $protocol->items->first();
 
-        $this->actingAs($admin)->patch("http://caserne.localhost/inventories/{$inventory->id}/items/{$item->id}", [
+        $this->actingAs($admin)->patch("http://caserne.localhost/protocols/{$protocol->id}/items/{$item->id}", [
             'observed_qty' => 3,
             'state' => 'manquant',
             'observation' => 'Il en manque un',
@@ -119,16 +119,16 @@ class InventoryRealizationTest extends TestCase
         $this->assertTrue($item->checked);
     }
 
-    public function test_validated_inventory_is_read_only(): void
+    public function test_validated_protocol_is_read_only(): void
     {
         [$org, $vehicle] = $this->scenario();
         $admin = $this->userWithRole($org, Rbac::ADMIN);
-        $inventory = Inventory::factory()->validated()->create([
+        $protocol = Protocol::factory()->validated()->create([
             'organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'user_id' => $admin->id,
         ]);
-        $item = $this->tenant()->runFor($org, fn () => $inventory->items()->create(['material_name' => 'X', 'expected_qty' => 1]));
+        $item = $this->tenant()->runFor($org, fn () => $protocol->items()->create(['material_name' => 'X', 'expected_qty' => 1]));
 
-        $this->actingAs($admin)->patch("http://caserne.localhost/inventories/{$inventory->id}/items/{$item->id}", [
+        $this->actingAs($admin)->patch("http://caserne.localhost/protocols/{$protocol->id}/items/{$item->id}", [
             'observed_qty' => 2,
         ])->assertForbidden();
     }
@@ -138,8 +138,8 @@ class InventoryRealizationTest extends TestCase
         [$org, $vehicle] = $this->scenario();
         $owner = $this->userWithRole($org, Rbac::VERIFIER);
         $other = $this->userWithRole($org, Rbac::VERIFIER);
-        $inventory = Inventory::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'user_id' => $owner->id]);
+        $protocol = Protocol::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'user_id' => $owner->id]);
 
-        $this->actingAs($other)->get("http://caserne.localhost/inventories/{$inventory->id}")->assertForbidden();
+        $this->actingAs($other)->get("http://caserne.localhost/protocols/{$protocol->id}")->assertForbidden();
     }
 }

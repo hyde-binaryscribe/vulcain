@@ -52,7 +52,7 @@ class RolePermissionTest extends TestCase
         $user = $this->userWithRole($org, Rbac::VERIFIER);
 
         $this->tenant()->runFor($org, function () use ($user) {
-            $this->assertTrue($user->can('inventories.perform'));
+            $this->assertTrue($user->can('protocols.perform'));
             $this->assertTrue($user->can('anomalies.manage'));
             $this->assertFalse($user->can('users.manage'));
             $this->assertFalse($user->can('settings.manage'));

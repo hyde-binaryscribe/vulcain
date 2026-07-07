@@ -32,8 +32,8 @@ final class Rbac
         'locations.manage',
         'catalog.manage',
         'templates.manage',
-        'inventories.manage',
-        'inventories.perform',
+        'protocols.manage',
+        'protocols.perform',
         'pharmacy.manage',
         'anomalies.manage',
         'repairs.manage',
@@ -56,14 +56,14 @@ final class Rbac
             // Accès complet.
             self::ADMIN => self::PERMISSIONS,
 
-            // Matériel, stock, inventaires, anomalies, réparations (pas d'admin/sécurité).
+            // Matériel, stock, protocoles, anomalies, réparations (pas d'admin/sécurité).
             self::PHARMACY => [
                 'vehicles.manage',
                 'locations.manage',
                 'catalog.manage',
                 'templates.manage',
-                'inventories.manage',
-                'inventories.perform',
+                'protocols.manage',
+                'protocols.perform',
                 'pharmacy.manage',
                 'anomalies.manage',
                 'repairs.manage',
@@ -72,9 +72,9 @@ final class Rbac
                 'exports.create',
             ],
 
-            // Réalisation des inventaires + déclaration d'anomalies.
+            // Réalisation des protocoles + déclaration d'anomalies.
             self::VERIFIER => [
-                'inventories.perform',
+                'protocols.perform',
                 'anomalies.manage',
                 'history.view',
             ],

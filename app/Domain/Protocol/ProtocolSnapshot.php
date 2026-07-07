@@ -1,31 +1,32 @@
 <?php
 
-namespace App\Domain\Inventory;
+namespace App\Domain\Protocol;
 
-use App\Models\Inventory;
-use App\Models\InventoryTemplate;
+use App\Models\Protocol;
+use App\Models\ProtocolTemplate;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Démarre un inventaire en figeant un instantané complet du modèle : les
+ * Démarre un protocole en figeant un instantané complet du modèle : les
  * modifications ultérieures du catalogue ou du modèle n'affectent jamais
- * l'inventaire créé.
+ * le protocole créé.
  */
-class InventorySnapshot
+class ProtocolSnapshot
 {
-    public function start(Vehicle $vehicle, ?InventoryTemplate $template, User $verifier): Inventory
+    public function start(Vehicle $vehicle, ?ProtocolTemplate $template, User $verifier): Protocol
     {
         return DB::transaction(function () use ($vehicle, $template, $verifier) {
-            $inventory = Inventory::create([
+            $protocol = Protocol::create([
                 'vehicle_id' => $vehicle->id,
-                'inventory_template_id' => $template?->id,
+                'protocol_template_id' => $template?->id,
                 'template_version' => $template?->version,
                 'user_id' => $verifier->id,
                 'vehicle_name' => $vehicle->name,
                 'template_name' => $template?->name,
-                'status' => Inventory::STATUS_DRAFT,
+                'types' => $template?->types,
+                'status' => Protocol::STATUS_DRAFT,
                 'started_at' => now(),
             ]);
 
@@ -33,7 +34,7 @@ class InventorySnapshot
                 $template->load(['items.material:id,name,reference,tracking_mode', 'items.location:id,name']);
 
                 foreach ($template->items as $templateItem) {
-                    $inventory->items()->create([
+                    $protocol->items()->create([
                         'material_id' => $templateItem->material_id,
                         'material_name' => $templateItem->material?->name ?? 'Matériel',
                         'reference' => $templateItem->material?->reference,
@@ -46,7 +47,7 @@ class InventorySnapshot
                 }
             }
 
-            return $inventory;
+            return $protocol;
         });
     }
 }

@@ -2,18 +2,18 @@
 
 namespace Database\Factories;
 
-use App\Models\Inventory;
+use App\Models\Protocol;
 use App\Models\Organisation;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Inventory>
+ * @extends Factory<Protocol>
  */
-class InventoryFactory extends Factory
+class ProtocolFactory extends Factory
 {
-    protected $model = Inventory::class;
+    protected $model = Protocol::class;
 
     public function definition(): array
     {
@@ -22,7 +22,7 @@ class InventoryFactory extends Factory
             'vehicle_id' => Vehicle::factory(),
             'user_id' => User::factory(),
             'vehicle_name' => 'VSAV 01',
-            'status' => Inventory::STATUS_DRAFT,
+            'status' => Protocol::STATUS_DRAFT,
             'started_at' => now(),
         ];
     }
@@ -30,7 +30,7 @@ class InventoryFactory extends Factory
     public function validated(): static
     {
         return $this->state(fn () => [
-            'status' => Inventory::STATUS_VALIDATED,
+            'status' => Protocol::STATUS_VALIDATED,
             'validated_at' => now(),
             'duration_seconds' => 300,
         ]);

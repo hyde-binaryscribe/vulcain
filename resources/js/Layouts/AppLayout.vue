@@ -21,7 +21,7 @@ const sidebarOpen = ref(false);
 const nav = computed(() =>
     [
         { label: 'Tableau de bord', href: '/dashboard', permission: null },
-        { label: 'Inventaires', href: '/inventories', permission: 'inventories.perform' },
+        { label: 'Protocoles', href: '/protocols', permission: 'protocols.perform' },
         { label: 'Véhicules', href: '/vehicles', permission: 'vehicles.manage' },
         { label: 'Emplacements', href: '/locations', permission: 'locations.manage' },
         { label: 'Matériel', href: '/materials', permission: 'catalog.manage' },
@@ -57,7 +57,7 @@ const initials = computed(() => {
                 <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--brand)] font-bold text-white">V</span>
                 <div class="leading-tight">
                     <p class="text-sm font-semibold text-white">Vulcain</p>
-                    <p class="text-xs text-gray-400">{{ profile?.label || 'Inventaire' }}</p>
+                    <p class="text-xs text-gray-400">{{ profile?.label || 'Protocole' }}</p>
                 </div>
             </div>
 

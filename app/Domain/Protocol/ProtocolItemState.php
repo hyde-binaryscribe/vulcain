@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Domain\Inventory;
+namespace App\Domain\Protocol;
 
-enum InventoryItemState: string
+enum ProtocolItemState: string
 {
     case CONFORME = 'conforme';
     case MANQUANT = 'manquant';

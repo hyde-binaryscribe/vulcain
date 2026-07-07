@@ -3,9 +3,23 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phases 0, 1, 2 (+ enrichissement), 3.1** : terminées.
-- **Phase 3.2 — Réalisation d'inventaire** : terminée.
-- Prochaine : **Phase 3.3 — Autosave avancé + validation + verrouillage**.
+- **Phases 0, 1, 2 (+ enrichissement), 3.1, 3.2** : terminées.
+- **Renommage « Inventaire » → « Protocole »** (voir ci-dessous) : terminé.
+- Prochaine : **Lot B — modèle d'emplacements (mobile/fixe, dépôts, matériel-conteneur,
+  affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
+  puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
+
+## Renommage « Inventaire » → « Protocole » + types (terminé)
+- L'« inventaire » n'est plus le concept racine : c'est désormais un **type** parmi d'autres
+  au sein d'un **Protocole**. Un modèle de protocole porte un ou plusieurs types
+  (`inventaire`, `verification`, `controle_vehicule` — enum `ProtocolType`, extensible).
+- Renommage complet du code : tables `protocol_templates` / `protocol_template_items` /
+  `protocols` / `protocol_items`, modèles `Protocol*`, domaine `App\Domain\Protocol\*`,
+  contrôleurs, routes (`/protocols`), permissions `protocols.perform | protocols.manage`,
+  pages Vue `Pages/Protocols/*`, menu latéral « Protocoles ».
+- Colonne `types` (JSON) sur le modèle **et** figée dans l'instantané du protocole réalisé ;
+  cases à cocher côté admin (création + éditeur), badges de types côté liste/exécution.
+- **84 tests verts**, build + Pint OK.
 
 ## Phase 3.2 — Réalisation d'inventaire (terminée)
 - Tables `inventories` + `inventory_items` avec **instantané (snapshot) immuable** au

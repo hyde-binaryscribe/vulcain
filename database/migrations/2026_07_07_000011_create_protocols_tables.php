@@ -5,27 +5,28 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Inventaires réalisés + leurs lignes.
+ * Protocoles réalisés + leurs lignes.
  *
  * Au démarrage, un INSTANTANÉ (snapshot) des éléments du modèle est copié dans
- * inventory_items : les modifications ultérieures du catalogue ou du modèle ne
- * changent JAMAIS un inventaire existant.
+ * protocol_items : les modifications ultérieures du catalogue ou du modèle ne
+ * changent JAMAIS un protocole existant.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('inventories', function (Blueprint $table) {
+        Schema::create('protocols', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
             $table->foreignId('vehicle_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('inventory_template_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('protocol_template_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('template_version')->nullable();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete(); // vérificateur
 
             // Instantané d'en-tête (survit à la suppression des références).
             $table->string('vehicle_name');
             $table->string('template_name')->nullable();
+            $table->json('types')->nullable(); // instantané des types du modèle
 
             $table->string('status')->default('draft'); // draft | validated
             $table->timestamp('started_at')->nullable();
@@ -37,10 +38,10 @@ return new class extends Migration
             $table->index(['organisation_id', 'vehicle_id', 'status']);
         });
 
-        Schema::create('inventory_items', function (Blueprint $table) {
+        Schema::create('protocol_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('inventory_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('protocol_id')->constrained()->cascadeOnDelete();
             $table->foreignId('material_id')->nullable()->constrained()->nullOnDelete();
 
             // Instantané figé au démarrage.
@@ -63,13 +64,13 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->index(['inventory_id', 'display_order']);
+            $table->index(['protocol_id', 'display_order']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('inventory_items');
-        Schema::dropIfExists('inventories');
+        Schema::dropIfExists('protocol_items');
+        Schema::dropIfExists('protocols');
     }
 };

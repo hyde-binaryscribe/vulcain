@@ -2,23 +2,23 @@
 
 namespace Database\Factories;
 
-use App\Models\Inventory;
-use App\Models\InventoryItem;
+use App\Models\Protocol;
+use App\Models\ProtocolItem;
 use App\Models\Organisation;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<InventoryItem>
+ * @extends Factory<ProtocolItem>
  */
-class InventoryItemFactory extends Factory
+class ProtocolItemFactory extends Factory
 {
-    protected $model = InventoryItem::class;
+    protected $model = ProtocolItem::class;
 
     public function definition(): array
     {
         return [
             'organisation_id' => Organisation::factory(),
-            'inventory_id' => Inventory::factory(),
+            'protocol_id' => Protocol::factory(),
             'material_name' => 'Collier cervical adulte',
             'tracking_mode' => 'quantity',
             'expected_qty' => 4,
