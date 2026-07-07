@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Catalog\MaterialStatus;
+use App\Models\ActivityLog;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\MaterialCategory;
+use App\Models\MaterialItem;
+use App\Models\StockLot;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -113,8 +117,31 @@ class MaterialController extends Controller
             'lots' => $lots,
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => MaterialStatus::options(),
+            'history' => $this->historyFor($material),
             'status' => session('status'),
         ]);
+    }
+
+    /**
+     * Historique du matériel et de ses exemplaires / lots.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function historyFor(Material $material)
+    {
+        $itemIds = MaterialItem::query()->where('material_id', $material->id)->pluck('id')->all();
+        $lotIds = StockLot::query()->where('material_id', $material->id)->pluck('id')->all();
+
+        return ActivityLog::query()
+            ->forSubjects([
+                Material::class => [$material->id],
+                MaterialItem::class => $itemIds,
+                StockLot::class => $lotIds,
+            ])
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn (ActivityLog $l) => ActivityController::format($l));
     }
 
     public function setStock(Request $request, Material $material): RedirectResponse

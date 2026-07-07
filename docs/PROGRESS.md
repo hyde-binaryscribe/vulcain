@@ -3,10 +3,21 @@
 Suivi vivant du développement (exigé par le cahier des charges, §35).
 
 ## Étape en cours
-- **Phases 0, 1, 2 (référentiels de base)** : terminées.
-- **Phase 2.5 — Suivi du matériel** : terminée.
-- Prochaine : **Phase 2.6 — Page véhicule dédiée (hub)**, puis 2.7 historique, puis
-  Phase 3 (cœur inventaire).
+- **Phases 0, 1, 2 + enrichissement (2.5 suivi, 2.6 hub véhicule, 2.7 historique)** : terminées.
+- Prochaine : **Phase 3 — Cœur inventaire** (modèles, réalisation tactile, autosave,
+  validation, snapshots, contrôles photo).
+
+## Phase 2.7 — Historique des actions (terminée)
+- Table `activity_logs` (acteur, sujet polymorphe, action, valeurs avant→après, horodatage).
+- Trait `RecordsActivity` : journalise automatiquement création / modification / suppression
+  des véhicules, emplacements, matériels, exemplaires et lots (acteur + diff des champs,
+  secrets exclus).
+- **Historique par ressource** : sur la fiche matériel (matériel + ses exemplaires/lots) et
+  la fiche véhicule (véhicule + emplacements + matériels).
+- **Journal global** (`/activity`, permission `history.view`) + composant `HistoryList`.
+- Cloisonné par organisation ; base du journal d'audit (§24).
+- **Tests (4, 74 au total, verts)** : enregistrement création/modification (diff), cloisonnement,
+  accès page, acteur.
 
 ## Phase 2.6 — Page véhicule dédiée (terminée)
 - **Hub par véhicule** (`/vehicles/{id}`) : en-tête (type, statut, indicatif, immat., centre,

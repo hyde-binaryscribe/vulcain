@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\Concerns\BelongsToOrganisation;
+use App\Models\Concerns\RecordsActivity;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Vehicle extends Model
 {
     /** @use HasFactory<VehicleFactory> */
-    use BelongsToOrganisation, HasFactory, SoftDeletes;
+    use BelongsToOrganisation, HasFactory, RecordsActivity, SoftDeletes;
 
     protected $fillable = [
         'name',

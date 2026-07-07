@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import HistoryList from '@/Components/HistoryList.vue';
 
 const props = defineProps({
     material: { type: Object, required: true },
@@ -12,6 +13,7 @@ const props = defineProps({
     lots: { type: Array, default: () => [] },
     locations: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
+    history: { type: Array, default: () => [] },
 });
 
 const statusStyles = {
@@ -168,5 +170,11 @@ function removeLot(l) {
                 </form>
             </section>
         </div>
+
+        <!-- Historique -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 class="text-base font-semibold text-gray-900">Historique</h3>
+            <div class="mt-3"><HistoryList :logs="history" /></div>
+        </section>
     </AppLayout>
 </template>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Catalog\MaterialStatus;
 use App\Models\Concerns\BelongsToOrganisation;
+use App\Models\Concerns\RecordsActivity;
 use Database\Factories\MaterialItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +17,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MaterialItem extends Model
 {
     /** @use HasFactory<MaterialItemFactory> */
-    use BelongsToOrganisation, HasFactory, SoftDeletes;
+    use BelongsToOrganisation, HasFactory, RecordsActivity, SoftDeletes;
+
+    public function activityLabel(): string
+    {
+        return 'Exemplaire '.($this->serial_number ?? '#'.$this->getKey());
+    }
 
     protected $fillable = [
         'material_id',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
@@ -29,6 +30,11 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
         Route::delete('vehicles/{vehicle}', [VehicleController::class, 'destroy'])->name('vehicles.destroy');
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
+    });
+
+    // Historique des actions (journal d'activité).
+    Route::middleware('permission:history.view')->group(function () {
+        Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
     });
 
     // Emplacements & sous-emplacements.

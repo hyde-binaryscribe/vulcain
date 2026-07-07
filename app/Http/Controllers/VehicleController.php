@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Fleet\VehicleStatus;
+use App\Models\ActivityLog;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\User;
@@ -57,6 +58,16 @@ class VehicleController extends Controller
                 'below_threshold' => $materials->where('below_threshold', true)->count(),
                 'anomalies' => $materials->whereNotIn('status', ['conforme'])->count(),
             ],
+            'history' => ActivityLog::query()
+                ->forSubjects([
+                    Vehicle::class => [$vehicle->id],
+                    Location::class => $locations->pluck('id')->all(),
+                    Material::class => $materials->pluck('id')->all(),
+                ])
+                ->orderByDesc('created_at')
+                ->limit(30)
+                ->get()
+                ->map(fn (ActivityLog $l) => ActivityController::format($l)),
             'status' => session('status'),
         ]);
     }

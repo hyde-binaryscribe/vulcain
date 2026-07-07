@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Catalog\MaterialStatus;
 use App\Models\Concerns\BelongsToOrganisation;
+use App\Models\Concerns\RecordsActivity;
 use Database\Factories\MaterialFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Material extends Model
 {
     /** @use HasFactory<MaterialFactory> */
-    use BelongsToOrganisation, HasFactory, SoftDeletes;
+    use BelongsToOrganisation, HasFactory, RecordsActivity, SoftDeletes;
 
     public const MODE_QUANTITY = 'quantity';
 

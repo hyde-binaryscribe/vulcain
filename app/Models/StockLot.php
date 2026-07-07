@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Catalog\MaterialStatus;
 use App\Models\Concerns\BelongsToOrganisation;
+use App\Models\Concerns\RecordsActivity;
 use Database\Factories\StockLotFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +18,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockLot extends Model
 {
     /** @use HasFactory<StockLotFactory> */
-    use BelongsToOrganisation, HasFactory, SoftDeletes;
+    use BelongsToOrganisation, HasFactory, RecordsActivity, SoftDeletes;
+
+    public function activityLabel(): string
+    {
+        return 'Lot '.($this->lot_number ?? '#'.$this->getKey());
+    }
 
     protected $fillable = [
         'material_id',

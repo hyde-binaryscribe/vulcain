@@ -1,12 +1,14 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import HistoryList from '@/Components/HistoryList.vue';
 
 defineProps({
     vehicle: { type: Object, required: true },
     assigned: { type: Array, default: () => [] },
     locations: { type: Array, default: () => [] },
     alerts: { type: Object, default: () => ({ expired: 0, expiring_soon: 0, below_threshold: 0, anomalies: 0 }) },
+    history: { type: Array, default: () => [] },
 });
 
 const statusStyles = {
@@ -97,5 +99,11 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 Aucun emplacement pour ce véhicule. Ajoutez-en dans le menu « Emplacements ».
             </p>
         </div>
+
+        <!-- Historique -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 class="text-base font-semibold text-gray-900">Historique</h3>
+            <div class="mt-3"><HistoryList :logs="history" dense /></div>
+        </section>
     </AppLayout>
 </template>
