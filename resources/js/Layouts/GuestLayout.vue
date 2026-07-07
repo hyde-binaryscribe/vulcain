@@ -9,7 +9,7 @@ const brand = computed(() => profile.value?.theme || '#991b1b');
 </script>
 
 <template>
-    <div class="flex min-h-full flex-col items-center justify-center bg-gray-100 px-4 py-12" :style="{ '--brand': brand }">
+    <div class="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4 py-12" :style="{ '--brand': brand }">
         <div class="mb-6 flex items-center gap-3">
             <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand)] text-lg font-bold text-white">V</span>
             <div class="text-center">

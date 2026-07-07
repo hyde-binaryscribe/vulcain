@@ -45,13 +45,13 @@ const initials = computed(() => {
 </script>
 
 <template>
-    <div class="flex min-h-full bg-gray-50" :style="{ '--brand': brand }">
+    <div class="flex min-h-screen bg-gray-50" :style="{ '--brand': brand }">
         <!-- Sidebar -->
         <aside
-            class="fixed inset-y-0 left-0 z-30 w-64 -translate-x-full transform bg-gray-950 text-gray-200 transition-transform lg:static lg:translate-x-0"
+            class="fixed inset-y-0 left-0 z-30 flex w-64 -translate-x-full transform flex-col bg-gray-950 text-gray-200 transition-transform lg:static lg:translate-x-0"
             :class="{ 'translate-x-0': sidebarOpen }"
         >
-            <div class="flex h-16 items-center gap-3 border-b border-white/10 px-5">
+            <div class="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
                 <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--brand)] font-bold text-white">V</span>
                 <div class="leading-tight">
                     <p class="text-sm font-semibold text-white">Vulcain</p>
@@ -59,19 +59,20 @@ const initials = computed(() => {
                 </div>
             </div>
 
-            <nav class="space-y-1 p-3">
+            <nav class="flex-1 space-y-1 overflow-y-auto p-3">
                 <Link
                     v-for="item in nav"
                     :key="item.href"
                     :href="item.href"
                     class="block rounded-lg px-3 py-2 text-sm font-medium transition"
                     :class="isActive(item.href) ? 'bg-[var(--brand)] text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'"
+                    @click="sidebarOpen = false"
                 >
                     {{ item.label }}
                 </Link>
             </nav>
 
-            <div class="absolute bottom-0 w-full border-t border-white/10 p-3">
+            <div class="shrink-0 border-t border-white/10 p-3">
                 <button
                     type="button"
                     class="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
@@ -85,7 +86,7 @@ const initials = computed(() => {
         <div v-if="sidebarOpen" class="fixed inset-0 z-20 bg-black/40 lg:hidden" @click="sidebarOpen = false" />
 
         <!-- Main -->
-        <div class="flex min-h-full flex-1 flex-col">
+        <div class="flex min-h-full min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-6">
                 <div class="flex items-center gap-3">
                     <button

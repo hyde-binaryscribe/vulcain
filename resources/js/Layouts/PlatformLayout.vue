@@ -13,7 +13,7 @@ function logout() {
 
 <template>
     <!-- Accent neutre « Desk », distinct du branding des organisations. -->
-    <div class="min-h-full bg-slate-100" style="--brand: #4338ca">
+    <div class="min-h-screen bg-slate-100" style="--brand: #4338ca">
         <header class="border-b border-slate-200 bg-slate-900 text-white">
             <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
                 <Link href="/platform" class="flex items-center gap-2">
