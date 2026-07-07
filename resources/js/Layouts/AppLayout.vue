@@ -27,6 +27,7 @@ const navGroups = computed(() =>
             items: [
                 { label: 'Tableau de bord', href: '/dashboard', icon: '🏠', permission: null },
                 { label: 'Protocoles', href: '/protocols', icon: '✅', permission: 'protocols.perform' },
+                { label: 'Événements', href: '/events', icon: '🗂', permission: 'anomalies.manage' },
             ],
         },
         {

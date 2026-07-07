@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Events\AnomalyEvents;
 use App\Domain\Protocol\ProtocolItemState;
 use App\Domain\Protocol\ProtocolScope;
 use App\Domain\Protocol\ProtocolSerialState;
@@ -204,7 +205,13 @@ class ProtocolController extends Controller
             'duration_seconds' => $protocol->started_at ? now()->diffInSeconds($protocol->started_at) : null,
         ]);
 
-        return redirect()->route('protocols.show', $protocol)->with('status', 'Protocole validé et verrouillé.');
+        // Chaque anomalie devient un événement de gestion (Kanban).
+        $count = app(AnomalyEvents::class)->fromProtocol($protocol, $request->user());
+        $message = $count > 0
+            ? "Protocole validé et verrouillé. {$count} événement·s créé·s pour les anomalies."
+            : 'Protocole validé et verrouillé.';
+
+        return redirect()->route('protocols.show', $protocol)->with('status', $message);
     }
 
     /** Durée lisible (ex. « 12 min », « 1 h 05 »). */

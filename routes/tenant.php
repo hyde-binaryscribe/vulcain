@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
@@ -38,6 +39,15 @@ Route::middleware(['tenant', 'auth'])->group(function () {
     // Historique des actions (journal d'activité).
     Route::middleware('permission:history.view')->group(function () {
         Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
+    });
+
+    // Événements (anomalies / réparations) — tableau Kanban.
+    Route::middleware('permission:anomalies.manage')->group(function () {
+        Route::get('events', [EventController::class, 'index'])->name('events.index');
+        Route::post('events', [EventController::class, 'store'])->name('events.store');
+        Route::patch('events/{event}', [EventController::class, 'update'])->name('events.update');
+        Route::patch('events/{event}/move', [EventController::class, 'move'])->name('events.move');
+        Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
     });
 
     // Réglages de l'organisation (propriétaire / administrateur).

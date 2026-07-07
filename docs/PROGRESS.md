@@ -9,6 +9,17 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 4 (1/2) — Événements + Kanban (terminée)
+- Table `events` (type anomalie/réparation/autre, statut, priorité, rattachements
+  véhicule/matériel/protocole, auteur, assigné). Migration **additive** (simple `migrate`).
+- **Génération automatique** : à la validation d'un protocole, chaque anomalie devient un
+  événement (`AnomalyEvents`), sans doublon ; HS/absent → priorité haute.
+- **Tableau Kanban** (`Events/Index`) : colonnes À traiter / En cours / Résolu / Fermé,
+  cartes (type, priorité, véhicule/matériel/assigné), déplacement ←/→ (tactile), création
+  manuelle, suppression. Entrée de menu « Événements » (permission `anomalies.manage`).
+- **Tests (+3 = 94 au total, verts)** : anomalie → événement, création, passage en colonne
+  close (resolved_at).
+
 ## Phase 3.3 — Finalisation d'un protocole (terminée)
 - **Récapitulatif** avant validation (modale) : contrôlés / non contrôlés / anomalies.
 - **Observation obligatoire** sur chaque anomalie (série ou quantité/consommable) —

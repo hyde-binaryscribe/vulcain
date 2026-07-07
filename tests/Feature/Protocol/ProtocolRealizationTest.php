@@ -209,6 +209,14 @@ class ProtocolRealizationTest extends TestCase
         $this->assertSame(Protocol::STATUS_VALIDATED, $protocol->status);
         $this->assertNotNull($protocol->validated_at);
         $this->assertNotNull($protocol->duration_seconds);
+
+        // L'anomalie a généré un événement de gestion (Kanban).
+        $this->assertDatabaseHas('events', [
+            'organisation_id' => $org->id,
+            'protocol_item_id' => $item->id,
+            'type' => 'anomalie',
+            'status' => 'a_traiter',
+        ]);
     }
 
     public function test_validated_protocol_is_read_only(): void
