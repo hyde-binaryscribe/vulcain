@@ -1,20 +1,10 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
-use App\Support\Tenancy\TenantContext;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (TenantContext $tenant) {
-    if ($tenant->check()) {
-        return Auth::check()
-            ? redirect()->route('dashboard')
-            : redirect()->route('login');
-    }
-
-    // Domaine central : espace exploitant (Desk).
-    return redirect()->route('platform.dashboard');
-})->name('home');
+Route::get('/', HomeController::class)->name('home');
 
 Route::middleware(['tenant', 'auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

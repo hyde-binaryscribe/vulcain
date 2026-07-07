@@ -12,10 +12,10 @@ if [ "$VULCAIN_BOOTSTRAP" = "1" ]; then
         cp .env.example .env
     fi
 
-    # 2. Dépendances PHP
+    # 2. Dépendances PHP (autoloader optimisé)
     if [ ! -f vendor/autoload.php ]; then
         echo "📦 Installation des dépendances Composer (première exécution)…"
-        composer install --no-interaction --prefer-dist --no-progress
+        composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
     fi
 
     # 3. Droits d'écriture (bind mount)
@@ -30,6 +30,11 @@ if [ "$VULCAIN_BOOTSTRAP" = "1" ]; then
     # 5. Migrations + données de démonstration (idempotent)
     echo "🗄️  Migrations et données de démonstration…"
     php artisan migrate --force --seed || php artisan migrate --force
+
+    # 5 bis. Mise en cache (config, routes, vues, événements) — fluidité.
+    # Reconstruit à chaque démarrage : toujours cohérent avec le code monté.
+    echo "⚡ Optimisation (cache config/routes/vues)…"
+    php artisan optimize >/dev/null 2>&1 || php artisan optimize:clear >/dev/null 2>&1 || true
 
     # 6. Attendre la construction des assets front (service "assets"), max ~2 min
     echo "🎨 Attente de la construction des assets front…"

@@ -81,7 +81,8 @@ services:
   assets:
     image: node:22-alpine
     working_dir: /var/www/html
-    command: sh -c "npm install && npm run build"
+    # N'installe les dépendances qu'à la première fois (node_modules absent).
+    command: sh -c "[ -d node_modules ] || npm ci; npm run build"
     volumes:
       - ./:/var/www/html
     networks:

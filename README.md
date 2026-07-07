@@ -47,6 +47,35 @@ Pour tout arrêter : `docker compose down` (ajouter `-v` pour effacer aussi la b
   instantanées.
 - Aucune conversion de fins de ligne à craindre : le dépôt force `LF` (`.gitattributes`).
 
+### ⚡ Performances — placer le projet dans WSL
+
+Sous Windows, cloner le projet dans `C:\...` rend chaque page **lente** (traversée du
+système de fichiers Windows↔Linux). **Le vrai correctif** : cloner dans le système de
+fichiers **WSL2** (ext4), où les pages passent de plusieurs secondes à ~200-500 ms.
+
+```bash
+wsl                      # entrer dans la distribution Linux (Ubuntu)
+cd ~
+git clone https://github.com/hyde-binaryscribe/vulcain.git
+cd vulcain
+git checkout claude/adapte-saas-model-yi376o
+docker compose up --build
+```
+
+L'application reste accessible sur http://demo.localhost:8080. Astuce : `code .` ouvre
+VS Code branché sur WSL. Côté serveur, l'image met déjà en cache config/routes/vues,
+active OPcache et un grand *realpath cache* pour limiter les accès disque.
+
+### Rafraîchir après un `git pull`
+
+Le conteneur met le code en cache au démarrage. Après avoir récupéré du nouveau code :
+
+```bash
+docker compose restart app assets
+```
+
+`app` rejoue migrations + optimisation, `assets` reconstruit le front — en quelques secondes.
+
 ### Créer un compte pour se connecter (aucun mot de passe par défaut)
 
 La commande crée un utilisateur dans une organisation, mot de passe saisi de façon **masquée** :
