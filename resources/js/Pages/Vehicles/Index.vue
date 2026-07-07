@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -93,7 +93,7 @@ function saveAssign() {
                     <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ v.status_label }}</span>
                 </div>
                 <div class="p-5">
-                    <h3 class="text-base font-semibold text-gray-900">{{ v.name }}</h3>
+                    <Link :href="`/vehicles/${v.id}`" class="text-base font-semibold text-gray-900 hover:text-[var(--brand)] hover:underline">{{ v.name }}</Link>
                     <p class="text-xs text-gray-500">{{ v.callsign || '—' }} · {{ v.registration || '—' }}</p>
 
                     <div class="mt-3 flex flex-wrap gap-1.5">
@@ -106,7 +106,8 @@ function saveAssign() {
                         <span v-if="v.assigned_names.length"> : {{ v.assigned_names.join(', ') }}</span>
                     </p>
 
-                    <div class="mt-4 flex gap-2">
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <Link :href="`/vehicles/${v.id}`" class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800">Voir la fiche</Link>
                         <button class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openEdit(v)">Modifier</button>
                         <button class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openAssign(v)">Affecter</button>
                         <button class="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50" @click="remove(v)">Supprimer</button>

@@ -8,6 +8,14 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
 - Prochaine : **Phase 2.6 — Page véhicule dédiée (hub)**, puis 2.7 historique, puis
   Phase 3 (cœur inventaire).
 
+## Phase 2.6 — Page véhicule dédiée (terminée)
+- **Hub par véhicule** (`/vehicles/{id}`) : en-tête (type, statut, indicatif, immat., centre,
+  km, utilisateurs autorisés), bandeau d'**alertes** (lots périmés, péremption < 30 j, sous
+  seuil, non conformes), puis le **matériel groupé par emplacement** (suivi, stock/théorique,
+  péremption, état). Liens vers les fiches matériel.
+- Accès depuis les cartes véhicule (« Voir la fiche » / nom cliquable).
+- **Test** de rendu + agrégation par emplacement (70 au total, verts).
+
 ## Phase 2.5 — Suivi du matériel (terminée)
 - **3 modes de suivi** par matériel : `quantity` (stock courant `current_qty`),
   `serial` (exemplaires `material_items` avec n° de série/état/prochain contrôle),

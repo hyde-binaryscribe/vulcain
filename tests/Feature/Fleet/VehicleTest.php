@@ -4,6 +4,8 @@ namespace Tests\Feature\Fleet;
 
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
+use App\Models\Location;
+use App\Models\Material;
 use App\Models\Organisation;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -57,6 +59,19 @@ class VehicleTest extends TestCase
     {
         [, $verifier] = $this->orgWithRole(Rbac::VERIFIER);
         $this->actingAs($verifier)->get('http://caserne.localhost/vehicles')->assertForbidden();
+    }
+
+    public function test_vehicle_detail_hub_renders_with_materials_by_location(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+        $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+        $location = Location::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id]);
+        Material::factory()->create(['organisation_id' => $org->id, 'location_id' => $location->id]);
+
+        $this->actingAs($admin)
+            ->get("http://caserne.localhost/vehicles/{$vehicle->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Vehicles/Show', false)->has('locations', 1));
     }
 
     public function test_manager_can_create_a_vehicle(): void

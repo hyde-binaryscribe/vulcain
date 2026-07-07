@@ -24,6 +24,7 @@ Route::middleware(['tenant', 'auth'])->group(function () {
     // Véhicules + affectations.
     Route::middleware('permission:vehicles.manage')->group(function () {
         Route::get('vehicles', [VehicleController::class, 'index'])->name('vehicles.index');
+        Route::get('vehicles/{vehicle}', [VehicleController::class, 'show'])->name('vehicles.show');
         Route::post('vehicles', [VehicleController::class, 'store'])->name('vehicles.store');
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
         Route::delete('vehicles/{vehicle}', [VehicleController::class, 'destroy'])->name('vehicles.destroy');
