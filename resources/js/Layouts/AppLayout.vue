@@ -17,20 +17,43 @@ function can(permission) {
 
 const sidebarOpen = ref(false);
 
-// Chaque entrée peut exiger une permission (menu adapté au rôle, vérifié aussi côté serveur).
-const nav = computed(() =>
+// Navigation groupée. Chaque entrée peut exiger une permission (menu adapté au
+// rôle, revérifié côté serveur). Un groupe vide est masqué.
+const navGroups = computed(() =>
     [
-        { label: 'Tableau de bord', href: '/dashboard', permission: null },
-        { label: 'Protocoles', href: '/protocols', permission: 'protocols.perform' },
-        { label: 'Véhicules', href: '/vehicles', permission: 'vehicles.manage' },
-        { label: 'Emplacements', href: '/locations', permission: 'locations.manage' },
-        { label: 'Matériel', href: '/materials', permission: 'catalog.manage' },
-        { label: 'Modèles', href: '/templates', permission: 'templates.manage' },
-        { label: 'Historique', href: '/activity', permission: 'history.view' },
-        { label: 'Utilisateurs', href: '/users', permission: 'users.manage' },
-        { label: 'Réglages', href: '/settings', permission: 'settings.manage' },
-        { label: 'Profil', href: '/profile', permission: null },
-    ].filter((item) => can(item.permission)),
+        {
+            label: 'Exploitation',
+            items: [
+                { label: 'Tableau de bord', href: '/dashboard', icon: '🏠', permission: null },
+                { label: 'Protocoles', href: '/protocols', icon: '✅', permission: 'protocols.perform' },
+            ],
+        },
+        {
+            label: 'Parc & stock',
+            items: [
+                { label: 'Véhicules', href: '/vehicles', icon: '🚑', permission: 'vehicles.manage' },
+                { label: 'Emplacements', href: '/locations', icon: '📍', permission: 'locations.manage' },
+                { label: 'Matériel', href: '/materials', icon: '🧰', permission: 'catalog.manage' },
+            ],
+        },
+        {
+            label: 'Configuration',
+            items: [
+                { label: 'Modèles de protocole', href: '/templates', icon: '📋', permission: 'templates.manage' },
+                { label: 'Utilisateurs', href: '/users', icon: '👥', permission: 'users.manage' },
+                { label: 'Réglages', href: '/settings', icon: '⚙', permission: 'settings.manage' },
+            ],
+        },
+        {
+            label: 'Suivi',
+            items: [
+                { label: 'Historique', href: '/activity', icon: '🕓', permission: 'history.view' },
+                { label: 'Profil', href: '/profile', icon: '👤', permission: null },
+            ],
+        },
+    ]
+        .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) }))
+        .filter((group) => group.items.length > 0),
 );
 
 function isActive(href) {
@@ -62,17 +85,23 @@ const initials = computed(() => {
                 </div>
             </div>
 
-            <nav class="flex-1 space-y-1 overflow-y-auto p-3">
-                <Link
-                    v-for="item in nav"
-                    :key="item.href"
-                    :href="item.href"
-                    class="block rounded-lg px-3 py-2 text-sm font-medium transition"
-                    :class="isActive(item.href) ? 'bg-[var(--brand)] text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'"
-                    @click="sidebarOpen = false"
-                >
-                    {{ item.label }}
-                </Link>
+            <nav class="flex-1 space-y-4 overflow-y-auto p-3">
+                <div v-for="group in navGroups" :key="group.label">
+                    <p class="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">{{ group.label }}</p>
+                    <div class="space-y-0.5">
+                        <Link
+                            v-for="item in group.items"
+                            :key="item.href"
+                            :href="item.href"
+                            class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition"
+                            :class="isActive(item.href) ? 'bg-[var(--brand)] text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'"
+                            @click="sidebarOpen = false"
+                        >
+                            <span class="w-4 text-center text-xs opacity-80">{{ item.icon }}</span>
+                            {{ item.label }}
+                        </Link>
+                    </div>
+                </div>
             </nav>
 
             <div class="shrink-0 border-t border-white/10 p-3">
