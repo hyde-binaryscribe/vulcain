@@ -5,7 +5,21 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
 ## Étape en cours
 - **Phase 0 / 1.1 / 1.2 / 1.3** : terminées.
 - **Phase 2.1 — Administration des utilisateurs** : terminée.
-- Prochaine : **Phase 2.2 — Véhicules + affectations**.
+- **Phase 2.2 — Véhicules + affectations** : terminée.
+- Prochaine : **Phase 2.3 — Emplacements & sous-emplacements**.
+
+## Phase 2.2 — Véhicules + affectations (terminée)
+- Table `vehicles` (type, indicatif, immatriculation, centre, statut, mise en service,
+  kilométrage, observations, soft delete) + statuts (`VehicleStatus` : disponible /
+  indisponible / maintenance / réparation / réformé).
+- Écran **Véhicules** en cartes (thème du secteur), CRUD via modale (permission
+  `vehicles.manage`), suppression logique.
+- **Affectations** utilisateurs↔véhicules (`vehicle_user`) : seuls les utilisateurs de
+  l'organisation peuvent être affectés (les IDs étrangers sont ignorés).
+- Anti-IDOR : binding cloisonné (véhicule d'une autre organisation → 404).
+- **Tableau de bord** enrichi : compteurs véhicules / disponibles / utilisateurs actifs.
+- **Tests (6, 52 au total, verts)** : accès (manager/refus), CRUD, affectations (filtrage
+  inter-organisation), IDOR.
 
 ## Phase 2.1 — Administration des utilisateurs (terminée)
 - Écran **Utilisateurs** (permission `users.manage`) : liste + recherche (nom/e-mail),
