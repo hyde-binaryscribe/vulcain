@@ -8,27 +8,39 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-// organisation_id est renseigné par le contexte de location, jamais en mass assignment.
-#[Fillable(['name', 'email', 'password'])]
+// organisation_id et is_active ne sont jamais renseignés en mass assignment public.
+#[Fillable(['first_name', 'last_name', 'name', 'username', 'grade', 'email', 'password', 'avatar_path'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use BelongsToOrganisation, HasFactory, Notifiable;
+    use BelongsToOrganisation, HasFactory, Notifiable, SoftDeletes;
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'is_active' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
+    /** Nom complet d'affichage (prénom + nom). */
+    public function fullName(): string
+    {
+        return trim("{$this->first_name} {$this->last_name}") ?: $this->name;
     }
 }

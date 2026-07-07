@@ -47,11 +47,22 @@ Pour tout arrêter : `docker compose down` (ajouter `-v` pour effacer aussi la b
   instantanées.
 - Aucune conversion de fins de ligne à craindre : le dépôt force `LF` (`.gitattributes`).
 
-### Premier administrateur (à venir)
+### Créer un compte pour se connecter (aucun mot de passe par défaut)
 
-La commande sécurisée de création du premier administrateur (`php artisan vulcain:create-admin`,
-mot de passe saisi masqué, jamais dans les logs) sera ajoutée avec le module d'authentification
-(Phase 1.2). À ce stade, seules les **organisations** de démonstration existent.
+La commande crée un utilisateur dans une organisation, mot de passe saisi de façon **masquée** :
+
+```bash
+docker compose exec app php artisan vulcain:create-user --organisation=demo
+```
+
+Renseigne prénom, nom, e-mail, puis le mot de passe (min. 10 caractères, lettres + chiffres).
+Connecte-toi ensuite sur **http://demo.localhost:8080** avec cet e-mail et ce mot de passe.
+
+> **Mot de passe oublié** en local : l'e-mail part vers les logs (`MAIL_MAILER=log`). Récupère
+> le lien de réinitialisation avec `docker compose logs app | grep reset-password`.
+
+> Les rôles (Administrateur / Responsable pharmacie / Vérificateur) et l'espace exploitant
+> arrivent en Phase 1.3.
 
 ---
 

@@ -6,30 +6,45 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             // Cloisonnement multi-tenant : chaque utilisateur appartient à une organisation.
             $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
+
+            // Identité
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('name'); // nom d'affichage (prénom + nom)
+            $table->string('username')->nullable(); // identifiant interne
+            $table->string('grade')->nullable();
             $table->string('email');
+            $table->string('avatar_path')->nullable();
+
+            // Accès
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('last_login_at')->nullable();
             $table->rememberToken();
-            $table->timestamps();
 
-            // L'e-mail est unique au sein d'une organisation (pas globalement).
+            $table->timestamps();
+            $table->softDeletes(); // suppression logique (intégrité des historiques)
+
+            // Unicité au sein d'une organisation (jamais globale).
             $table->unique(['organisation_id', 'email']);
+            $table->unique(['organisation_id', 'username']);
         });
 
+        // Jetons de réinitialisation : cloisonnés par organisation, stockés hachés.
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
+            $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
+            $table->string('email');
+            $table->string('token'); // haché (jamais en clair)
             $table->timestamp('created_at')->nullable();
+
+            $table->primary(['organisation_id', 'email']);
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -42,9 +57,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');

@@ -46,7 +46,7 @@ class TenantIsolationTest extends TestCase
         $org = Organisation::factory()->create();
         $this->context()->set($org);
 
-        $user = new User(['name' => 'Test', 'email' => 'test@example.test', 'password' => 'motdepasse123']);
+        $user = new User(['first_name' => 'Jean', 'last_name' => 'Test', 'name' => 'Jean Test', 'email' => 'test@example.test', 'password' => 'motdepasse123']);
         $user->save();
 
         $this->assertSame($org->id, $user->fresh()->organisation_id);
@@ -56,7 +56,7 @@ class TenantIsolationTest extends TestCase
     {
         $this->expectException(TenancyContextMissingException::class);
 
-        $user = new User(['name' => 'Test', 'email' => 'test@example.test', 'password' => 'motdepasse123']);
+        $user = new User(['first_name' => 'Jean', 'last_name' => 'Test', 'name' => 'Jean Test', 'email' => 'test@example.test', 'password' => 'motdepasse123']);
         $user->organisation_id = null;
         $user->save();
     }

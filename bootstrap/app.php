@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTenant;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
@@ -24,6 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        // Alias : exige une organisation résolue (routes métier sur sous-domaine).
+        $middleware->alias([
+            'tenant' => EnsureTenant::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

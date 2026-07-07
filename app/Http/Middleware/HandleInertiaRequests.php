@@ -54,6 +54,11 @@ class HandleInertiaRequests extends Middleware
                 'slug' => $tenant->slug,
                 'settings' => $tenant->settings,
             ] : null,
+            // Messages flash (confirmation / erreur).
+            'flash' => [
+                'status' => fn () => $request->session()->get('status'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
         ];
     }
 }

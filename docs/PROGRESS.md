@@ -5,7 +5,25 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
 ## Étape en cours
 - **Phase 0 — Socle projet** : terminée.
 - **Phase 1.1 — Fondation multi-tenant** : terminée.
-- Prochaine : **Phase 1.2 — Authentification**.
+- **Phase 1.2 — Authentification** : terminée.
+- Prochaine : **Phase 1.3 — RBAC dynamique + espace super-admin plateforme**.
+
+## Phase 1.2 — Authentification (terminée)
+- Champs utilisateur étendus (prénom, nom, identifiant, grade, actif/inactif, dernière
+  connexion, avatar, suppression logique) ; e-mail et identifiant uniques **par organisation**.
+- Connexion / déconnexion **cloisonnées** (Auth::attempt filtré par le scope tenant + `is_active`).
+- Rotation de l'ID de session après connexion ; comptes inactifs bloqués.
+- **Blocage temporaire** après N échecs via table `login_attempts` (+ rate limiter HTTP).
+- Mot de passe oublié → **jeton haché SHA-256, à usage unique, expirable, cloisonné**
+  (table `password_reset_tokens` scellée par organisation).
+- Changement de mot de passe (vérifie l'actuel), édition de profil (e-mail unique/org).
+- **Sessions actives listées et révocables** (pilote base de données).
+- Front Inertia/Vue : `GuestLayout`, `AppLayout` (menu latéral + barre — thème sapeurs-pompiers),
+  pages Login / ForgotPassword / ResetPassword / Dashboard / Profil.
+- Commande sécurisée `vulcain:create-user` (mot de passe saisi masqué, jamais par défaut).
+- **Tests (16 nouveaux, 25 au total, verts)** : connexion cloisonnée, échec, cross-tenant,
+  compte inactif, lockout, déconnexion, reset (haché, usage unique, expiré, mauvais jeton,
+  cloisonné), profil (unicité e-mail/org), changement de mot de passe, révocation de session.
 
 ## Phase 1.1 — Multi-tenant (terminée)
 - Table centrale `organisations` (slug = sous-domaine, statut, settings JSON, soft delete).

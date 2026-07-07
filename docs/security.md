@@ -14,10 +14,24 @@ Document vivant. Recense les mesures de sécurité en place, par domaine.
 - **Argon2id** par défaut (`config/hashing.php`), paramètres via `.env` (mémoire/threads/temps).
 - Cast `hashed` sur `User::password` ; rehash à la connexion activé.
 
-## Sessions & cookies (socle en place, durcissement en Phase 1.2)
-- Sessions stockées en base (permet la révocation).
+## Authentification (Phase 1.2)
+- Connexion **cloisonnée par organisation** : `Auth::attempt` filtré par le scope tenant
+  + contrainte `is_active` (comptes désactivés bloqués). Impossible de se connecter avec
+  les identifiants d'une autre organisation.
+- **Rotation de l'ID de session** après connexion (anti-fixation) ; invalidation à la déconnexion.
+- **Blocage temporaire** après N échecs (table `login_attempts`, fenêtre glissante) +
+  rate limiter HTTP complémentaire par e-mail/IP.
+- **Réinitialisation** : jeton aléatoire 64 c., stocké **haché SHA-256**, **usage unique**,
+  expirable, **cloisonné par organisation** ; réponse uniforme (anti-énumération de comptes).
+- Changement de mot de passe : vérifie le mot de passe actuel (`current_password`).
+- Politique mot de passe : min. 10 caractères, lettres + chiffres.
+- Commande `vulcain:create-user` : mot de passe saisi masqué, jamais en argument/log.
+
+## Sessions & cookies
+- Sessions stockées en base ; **listées et révocables** par l'utilisateur.
 - `.env.example` : `SESSION_ENCRYPT=true`, `SESSION_SECURE_COOKIE` (true en prod HTTPS),
-  `SESSION_SAME_SITE=lax`.
+  `SESSION_SAME_SITE=lax`. Cookies **host-only** (SESSION_DOMAIN=null) → pas de partage de
+  session entre sous-domaines d'organisations.
 
 ## Secrets & configuration
 - `.env` hors dépôt Git ; `.env.example` sans aucun secret.
