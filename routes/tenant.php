@@ -7,6 +7,7 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialItemController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\ProtocolTemplateController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
@@ -37,6 +38,12 @@ Route::middleware(['tenant', 'auth'])->group(function () {
     // Historique des actions (journal d'activité).
     Route::middleware('permission:history.view')->group(function () {
         Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
+    });
+
+    // Réglages de l'organisation (propriétaire / administrateur).
+    Route::middleware('permission:settings.manage')->group(function () {
+        Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::patch('settings', [SettingsController::class, 'update'])->name('settings.update');
     });
 
     // Modèles de protocole.

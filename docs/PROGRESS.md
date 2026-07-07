@@ -9,6 +9,13 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Lot B2 — Réglage : suivi des péremptions en mobile (terminé)
+- Réglage d'organisation `track_expiry_in_mobile` (stocké dans `organisations.settings`,
+  **activé par défaut**) — `Organisation::tracksExpiryInMobile()`.
+- Écran **Réglages** (permission `settings.manage`) avec l'option ; partagé au front via
+  `tenant.settings` (consommé par l'exécution des protocoles au lot B4).
+- **Tests (+3 = 90 au total, verts)** : défaut à vrai, désactivation par l'admin, accès refusé.
+
 ## Lot B1 — Emplacements mobile/fixe + chemin parent + matériel-conteneur (terminé)
 - Emplacements typés **mobile** (à bord d'un véhicule) / **fixe** (dépôt, pièce de stock)
   — enum `LocationKind`. Colonne `kind` + rétro-remplissage (véhicule ⇒ mobile, sinon fixe).

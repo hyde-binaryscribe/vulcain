@@ -55,4 +55,14 @@ class Organisation extends Model
     {
         return ($this->sector ?? Sector::default())->profile();
     }
+
+    /**
+     * Suit-on les péremptions dans les emplacements mobiles (véhicules) ?
+     * Activé par défaut ; le propriétaire peut désactiver (suivi jugé trop
+     * lourd à tenir à bord).
+     */
+    public function tracksExpiryInMobile(): bool
+    {
+        return (bool) ($this->settings['track_expiry_in_mobile'] ?? true);
+    }
 }

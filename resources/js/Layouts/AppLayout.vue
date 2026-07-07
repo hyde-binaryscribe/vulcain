@@ -28,6 +28,7 @@ const nav = computed(() =>
         { label: 'Modèles', href: '/templates', permission: 'templates.manage' },
         { label: 'Historique', href: '/activity', permission: 'history.view' },
         { label: 'Utilisateurs', href: '/users', permission: 'users.manage' },
+        { label: 'Réglages', href: '/settings', permission: 'settings.manage' },
         { label: 'Profil', href: '/profile', permission: null },
     ].filter((item) => can(item.permission)),
 );
