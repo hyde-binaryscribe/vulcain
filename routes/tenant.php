@@ -62,6 +62,7 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::post('protocols', [ProtocolController::class, 'start'])->name('protocols.start');
         Route::get('protocols/{protocol}', [ProtocolController::class, 'show'])->name('protocols.show');
         Route::patch('protocols/{protocol}/items/{item}', [ProtocolController::class, 'updateItem'])->name('protocols.items.update');
+        Route::post('protocols/{protocol}/validate', [ProtocolController::class, 'finalize'])->name('protocols.validate');
     });
 
     // Emplacements & sous-emplacements.

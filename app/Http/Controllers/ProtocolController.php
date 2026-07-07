@@ -135,6 +135,7 @@ class ProtocolController extends Controller
                 'status' => $protocol->status,
                 'started_at' => $protocol->started_at?->format('d/m/Y H:i'),
                 'validated_at' => $protocol->validated_at?->format('d/m/Y H:i'),
+                'duration' => $this->humanDuration($protocol->duration_seconds),
                 'editable' => $protocol->isDraft() && $this->canEdit($request, $protocol),
             ],
             'groups' => $groups,
@@ -184,6 +185,41 @@ class ProtocolController extends Controller
         $protocolItem->update($changes);
 
         return back(303)->with('status', 'Enregistré.');
+    }
+
+    /** Clôture (validation) : verrouille le protocole après contrôle du récapitulatif. */
+    public function finalize(Request $request, Protocol $protocol): RedirectResponse
+    {
+        abort_unless($protocol->isDraft() && $this->canEdit($request, $protocol), 403);
+
+        // Toute anomalie doit être justifiée par une observation.
+        $missing = $protocol->items->filter(fn (ProtocolItem $i) => $i->isAnomaly() && blank($i->observation));
+        if ($missing->isNotEmpty()) {
+            return back()->with('error', "Renseigne une observation pour chaque anomalie ({$missing->count()} manquante·s).");
+        }
+
+        $protocol->update([
+            'status' => Protocol::STATUS_VALIDATED,
+            'validated_at' => now(),
+            'duration_seconds' => $protocol->started_at ? now()->diffInSeconds($protocol->started_at) : null,
+        ]);
+
+        return redirect()->route('protocols.show', $protocol)->with('status', 'Protocole validé et verrouillé.');
+    }
+
+    /** Durée lisible (ex. « 12 min », « 1 h 05 »). */
+    private function humanDuration(?int $seconds): ?string
+    {
+        if ($seconds === null) {
+            return null;
+        }
+
+        $minutes = intdiv($seconds, 60);
+        if ($minutes < 60) {
+            return "{$minutes} min";
+        }
+
+        return sprintf('%d h %02d', intdiv($minutes, 60), $minutes % 60);
     }
 
     private function authorizeView(Request $request, Protocol $protocol): void

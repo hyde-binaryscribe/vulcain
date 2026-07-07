@@ -9,6 +9,17 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 3.3 — Finalisation d'un protocole (terminée)
+- **Récapitulatif** avant validation (modale) : contrôlés / non contrôlés / anomalies.
+- **Observation obligatoire** sur chaque anomalie (série ou quantité/consommable) —
+  bloquant à la validation, champ surligné en rouge tant qu'il manque.
+- **Validation → verrouillage** : statut `validated`, `validated_at`, `duration_seconds`
+  (durée lisible affichée). Écran en lecture seule ensuite.
+- **Autosave débounced** pour la saisie des observations ; bannière d'erreur (flash.error).
+- Sans changement de schéma (colonnes déjà présentes).
+- **Tests (+1 = 92 au total, verts)** : validation refusée sans observation puis
+  verrouillage avec durée.
+
 ## Lot B4 — Exécution différenciée matériel / consommable / quantité (terminé)
 - Le snapshot éclate chaque matériel selon sa nature :
   - **série** : une ligne PAR n° de série attendu → états **Présent / Absent / Présent

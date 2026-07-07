@@ -184,6 +184,33 @@ class ProtocolRealizationTest extends TestCase
         $this->assertFalse($item2->expiry_required);
     }
 
+    public function test_finalize_requires_observation_on_anomalies_then_locks(): void
+    {
+        [$org, , $template] = $this->scenario();
+        $admin = $this->userWithRole($org, Rbac::ADMIN);
+
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+        $protocol = $this->tenant()->runFor($org, fn () => Protocol::with('items')->first());
+        $item = $protocol->items->first();
+
+        // Anomalie sans observation -> validation refusée, protocole encore brouillon.
+        $this->actingAs($admin)->patch("http://caserne.localhost/protocols/{$protocol->id}/items/{$item->id}", ['state' => 'manquant']);
+        $this->actingAs($admin)->post("http://caserne.localhost/protocols/{$protocol->id}/validate")
+            ->assertSessionHas('error');
+        $this->assertSame(Protocol::STATUS_DRAFT, $protocol->refresh()->status);
+
+        // Observation renseignée -> validation + verrouillage + durée.
+        $this->actingAs($admin)->patch("http://caserne.localhost/protocols/{$protocol->id}/items/{$item->id}", [
+            'state' => 'manquant', 'observation' => 'Il en manque un',
+        ]);
+        $this->actingAs($admin)->post("http://caserne.localhost/protocols/{$protocol->id}/validate")->assertRedirect();
+
+        $protocol->refresh();
+        $this->assertSame(Protocol::STATUS_VALIDATED, $protocol->status);
+        $this->assertNotNull($protocol->validated_at);
+        $this->assertNotNull($protocol->duration_seconds);
+    }
+
     public function test_validated_protocol_is_read_only(): void
     {
         [$org, $vehicle] = $this->scenario();

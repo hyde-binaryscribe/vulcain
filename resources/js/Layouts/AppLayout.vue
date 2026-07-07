@@ -8,6 +8,7 @@ const tenant = computed(() => page.props.tenant);
 const profile = computed(() => tenant.value?.profile);
 const brand = computed(() => profile.value?.theme || '#991b1b');
 const flash = computed(() => page.props.flash?.status || page.props.status);
+const flashError = computed(() => page.props.flash?.error);
 
 const permissions = computed(() => user.value?.permissions || []);
 
@@ -151,6 +152,12 @@ const initials = computed(() => {
                     class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
                 >
                     {{ flash }}
+                </div>
+                <div
+                    v-if="flashError"
+                    class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                >
+                    {{ flashError }}
                 </div>
 
                 <slot />

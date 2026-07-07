@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
@@ -25,11 +25,44 @@ const stateStyles = {
     present_anomalie: 'bg-orange-600 text-white border-orange-600',
 };
 
-const checkedCount = computed(() =>
-    sections.reduce((n, s) => n + s.items.filter((i) => i.checked).length, 0),
-);
-const totalCount = computed(() => sections.reduce((n, s) => n + s.items.length, 0));
+const SERIAL_ANOMALIES = ['absent', 'present_anomalie'];
+const OTHER_ANOMALIES = ['manquant', 'hs', 'a_remplacer'];
+
+function isAnomaly(item) {
+    const set = item.tracking_mode === 'serial' ? SERIAL_ANOMALIES : OTHER_ANOMALIES;
+    return set.includes(item.state);
+}
+
+const allItems = computed(() => sections.flatMap((s) => s.items));
+const checkedCount = computed(() => allItems.value.filter((i) => i.checked).length);
+const totalCount = computed(() => allItems.value.length);
 const pct = computed(() => (totalCount.value ? Math.round((checkedCount.value / totalCount.value) * 100) : 0));
+
+const anomalies = computed(() => allItems.value.filter(isAnomaly));
+const uncheckedItems = computed(() => allItems.value.filter((i) => !i.checked));
+const missingObservation = computed(() => anomalies.value.filter((i) => !i.observation || !i.observation.trim()));
+
+// Récapitulatif + validation.
+const showRecap = ref(false);
+const validating = ref(false);
+
+function validate() {
+    validating.value = true;
+    router.post(`/protocols/${props.protocol.id}/validate`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            validating.value = false;
+            showRecap.value = false;
+        },
+    });
+}
+
+// Autosave débounced pour la saisie texte (observation).
+const debounceTimers = {};
+function saveDebounced(item) {
+    clearTimeout(debounceTimers[item.id]);
+    debounceTimers[item.id] = setTimeout(() => save(item), 600);
+}
 
 function save(item) {
     if (!editable) return;
@@ -96,7 +129,9 @@ function fmt(date) {
                         <span v-for="label in protocol.type_labels" :key="label" class="rounded-full bg-[var(--brand)]/10 px-2 py-0.5 text-xs font-medium text-[var(--brand)]">{{ label }}</span>
                     </div>
                     <p class="text-sm text-gray-500">{{ protocol.template_name }} · {{ protocol.verifier }} · {{ protocol.started_at }}</p>
-                    <span v-if="protocol.status === 'validated'" class="mt-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Validé — lecture seule</span>
+                    <span v-if="protocol.status === 'validated'" class="mt-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        Validé — lecture seule<span v-if="protocol.duration"> · durée {{ protocol.duration }}</span>
+                    </span>
                     <span v-else-if="!editable" class="mt-1 inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">Consultation</span>
                 </div>
                 <div class="text-right">
@@ -104,6 +139,56 @@ function fmt(date) {
                     <div class="mt-1 h-2 w-40 overflow-hidden rounded-full bg-gray-200">
                         <div class="h-full rounded-full bg-[var(--brand)] transition-all" :style="{ width: pct + '%' }"></div>
                     </div>
+                    <button
+                        v-if="editable"
+                        type="button"
+                        class="mt-3 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                        @click="showRecap = true"
+                    >
+                        Valider le protocole
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Récapitulatif avant validation -->
+        <div v-if="showRecap" class="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 sm:items-center" @click.self="showRecap = false">
+            <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                <h2 class="text-lg font-semibold text-gray-900">Récapitulatif</h2>
+                <p class="mt-1 text-sm text-gray-500">Vérifie avant de verrouiller le protocole.</p>
+
+                <dl class="mt-4 grid grid-cols-3 gap-3 text-center">
+                    <div class="rounded-xl bg-gray-50 p-3">
+                        <dt class="text-xs text-gray-500">Contrôlés</dt>
+                        <dd class="text-xl font-bold text-gray-900">{{ checkedCount }}/{{ totalCount }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-amber-50 p-3">
+                        <dt class="text-xs text-amber-700">Non contrôlés</dt>
+                        <dd class="text-xl font-bold text-amber-700">{{ uncheckedItems.length }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-red-50 p-3">
+                        <dt class="text-xs text-red-700">Anomalies</dt>
+                        <dd class="text-xl font-bold text-red-700">{{ anomalies.length }}</dd>
+                    </div>
+                </dl>
+
+                <div v-if="missingObservation.length" class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    <p class="font-semibold">Observation obligatoire sur les anomalies :</p>
+                    <ul class="mt-1 list-disc pl-5">
+                        <li v-for="i in missingObservation" :key="i.id">{{ i.material_name }}<span v-if="i.serial_number"> ({{ i.serial_number }})</span></li>
+                    </ul>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="showRecap = false">Continuer la saisie</button>
+                    <button
+                        type="button"
+                        :disabled="validating || missingObservation.length > 0"
+                        class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50"
+                        @click="validate"
+                    >
+                        Valider et verrouiller
+                    </button>
                 </div>
             </div>
         </div>
@@ -148,6 +233,7 @@ function fmt(date) {
                                     :disabled="!editable"
                                     placeholder="Décrire l'anomalie…"
                                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50"
+                                    @input="saveDebounced(item)"
                                     @change="save(item)"
                                 />
                                 <div class="flex items-center gap-3">
@@ -212,7 +298,7 @@ function fmt(date) {
                                 </div>
                             </div>
                             <div class="mt-3">
-                                <input v-model="item.observation" type="text" :disabled="!editable" placeholder="Observation (obligatoire si anomalie)" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50" @change="save(item)" />
+                                <input v-model="item.observation" type="text" :disabled="!editable" :placeholder="isAnomaly(item) ? 'Observation obligatoire (anomalie)' : 'Observation'" class="w-full rounded-lg border px-3 py-2 text-sm disabled:bg-gray-50" :class="isAnomaly(item) && (!item.observation || !item.observation.trim()) ? 'border-red-300 bg-red-50' : 'border-gray-300'" @input="saveDebounced(item)" @change="save(item)" />
                             </div>
                         </template>
                     </article>
