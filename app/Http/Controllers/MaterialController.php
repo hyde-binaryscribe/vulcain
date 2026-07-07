@@ -26,7 +26,7 @@ class MaterialController extends Controller
         $search = trim((string) $request->query('q', ''));
 
         $materials = Material::query()
-            ->with(['category:id,name', 'location:id,name'])
+            ->with(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id'])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('reference', 'like', "%{$search}%")))
@@ -39,7 +39,7 @@ class MaterialController extends Controller
                 'description' => $m->description,
                 'category' => $m->category?->name,
                 'category_id' => $m->category_id,
-                'location' => $m->location?->name,
+                'location' => $m->location?->fullPath(),
                 'location_id' => $m->location_id,
                 'tracking_mode' => $m->tracking_mode,
                 'theoretical_qty' => $m->theoretical_qty,
@@ -65,15 +65,17 @@ class MaterialController extends Controller
 
     public function show(Material $material): Response
     {
-        $material->load(['category:id,name', 'location:id,name']);
+        $material->load(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id']);
+
+        $itemLocationLoad = ['location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id'];
 
         $items = $material->tracking_mode === Material::MODE_SERIAL
-            ? $material->items()->with('location:id,name')->orderBy('serial_number')->get()->map(fn ($i) => [
+            ? $material->items()->with($itemLocationLoad)->orderBy('serial_number')->get()->map(fn ($i) => [
                 'id' => $i->id,
                 'serial_number' => $i->serial_number,
                 'status' => $i->status->value,
                 'status_label' => $i->status->label(),
-                'location' => $i->location?->name,
+                'location' => $i->location?->fullPath(),
                 'location_id' => $i->location_id,
                 'next_check_date' => $i->next_check_date?->format('Y-m-d'),
                 'notes' => $i->notes,
@@ -81,7 +83,7 @@ class MaterialController extends Controller
             : [];
 
         $lots = $material->tracking_mode === Material::MODE_LOT
-            ? $material->lots()->with('location:id,name')->orderByRaw('expiry_date is null')->orderBy('expiry_date')->get()->map(fn ($l) => [
+            ? $material->lots()->with($itemLocationLoad)->orderByRaw('expiry_date is null')->orderBy('expiry_date')->get()->map(fn ($l) => [
                 'id' => $l->id,
                 'lot_number' => $l->lot_number,
                 'quantity' => $l->quantity,
@@ -90,7 +92,7 @@ class MaterialController extends Controller
                 'expiring_soon' => $l->expiresWithin(30),
                 'status' => $l->status->value,
                 'status_label' => $l->status->label(),
-                'location' => $l->location?->name,
+                'location' => $l->location?->fullPath(),
                 'location_id' => $l->location_id,
             ])
             : [];

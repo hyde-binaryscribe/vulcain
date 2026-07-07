@@ -55,6 +55,7 @@ class LocationTest extends TestCase
 
         $this->actingAs($admin)->post('http://caserne.localhost/locations', [
             'name' => 'Coffre gauche',
+            'kind' => 'mobile',
             'vehicle_id' => $vehicle->id,
             'display_order' => 10,
             'is_active' => true,
@@ -63,8 +64,51 @@ class LocationTest extends TestCase
         $this->assertDatabaseHas('locations', [
             'organisation_id' => $org->id,
             'name' => 'Coffre gauche',
+            'kind' => 'mobile',
             'vehicle_id' => $vehicle->id,
         ]);
+    }
+
+    public function test_admin_can_create_a_fixed_storage_location(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+
+        // Un emplacement fixe (dépôt / pièce de stock) n'est pas rattaché à un véhicule.
+        $this->actingAs($admin)->post('http://caserne.localhost/locations', [
+            'name' => 'Dépôt central',
+            'kind' => 'fixe',
+            'vehicle_id' => null,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('locations', [
+            'organisation_id' => $org->id,
+            'name' => 'Dépôt central',
+            'kind' => 'fixe',
+            'vehicle_id' => null,
+        ]);
+    }
+
+    public function test_mobile_location_requires_a_vehicle(): void
+    {
+        [, $admin] = $this->orgWithAdmin();
+
+        $this->actingAs($admin)->post('http://caserne.localhost/locations', [
+            'name' => 'Sac rouge',
+            'kind' => 'mobile',
+        ])->assertSessionHasErrors('vehicle_id');
+    }
+
+    public function test_full_path_prefixes_vehicle_and_parents(): void
+    {
+        [$org] = $this->orgWithAdmin();
+
+        $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'name' => 'VSAV 01']);
+            $cellule = Location::create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'kind' => 'mobile', 'name' => 'Cellule']);
+            $sac = Location::create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'kind' => 'mobile', 'parent_id' => $cellule->id, 'name' => 'Sac rouge']);
+
+            $this->assertSame('VSAV 01 › Cellule › Sac rouge', $sac->fullPath());
+        });
     }
 
     public function test_cannot_attach_a_vehicle_from_another_organisation(): void

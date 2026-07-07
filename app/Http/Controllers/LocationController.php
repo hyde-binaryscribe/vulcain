@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Storage\LocationKind;
 use App\Models\Location;
+use App\Models\Material;
 use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +20,7 @@ class LocationController extends Controller
     public function index(): Response
     {
         $locations = Location::query()
-            ->with(['vehicle:id,name', 'parent:id,name'])
+            ->with(['vehicle:id,name', 'parent:id,name,parent_id,vehicle_id', 'holder:id,name'])
             ->orderByRaw('vehicle_id is null')
             ->orderBy('vehicle_id')
             ->orderBy('display_order')
@@ -26,10 +28,15 @@ class LocationController extends Controller
             ->map(fn (Location $l) => [
                 'id' => $l->id,
                 'name' => $l->name,
+                'kind' => $l->kind->value,
+                'kind_label' => $l->kind->label(),
+                'full_path' => $l->fullPath(),
                 'vehicle' => $l->vehicle?->name,
                 'vehicle_id' => $l->vehicle_id,
                 'parent' => $l->parent?->name,
                 'parent_id' => $l->parent_id,
+                'holder' => $l->holder?->name,
+                'holder_material_id' => $l->holder_material_id,
                 'display_order' => $l->display_order,
                 'is_active' => $l->is_active,
             ]);
@@ -38,6 +45,8 @@ class LocationController extends Controller
             'locations' => $locations,
             'vehicles' => Vehicle::query()->orderBy('name')->get(['id', 'name']),
             'parents' => Location::query()->orderBy('name')->get(['id', 'name']),
+            'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'reference']),
+            'kinds' => LocationKind::options(),
             'status' => session('status'),
         ]);
     }
@@ -80,8 +89,10 @@ class LocationController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'kind' => ['required', Rule::enum(LocationKind::class)],
             'vehicle_id' => [
                 'nullable',
+                'required_if:kind,mobile',
                 Rule::exists('vehicles', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at'),
             ],
             'parent_id' => [
@@ -89,9 +100,18 @@ class LocationController extends Controller
                 Rule::exists('locations', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at'),
                 Rule::notIn([$current?->id]), // un emplacement ne peut être son propre parent
             ],
+            'holder_material_id' => [
+                'nullable',
+                Rule::exists('materials', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at'),
+            ],
             'display_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
         ]);
+
+        // Un emplacement fixe (dépôt / pièce de stock) n'est jamais rattaché à un véhicule.
+        if ($data['kind'] === LocationKind::FIXE->value) {
+            $data['vehicle_id'] = null;
+        }
 
         $data['display_order'] ??= 0;
         $data['is_active'] = $request->boolean('is_active', true);

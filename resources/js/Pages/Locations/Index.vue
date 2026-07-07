@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -10,11 +10,15 @@ const props = defineProps({
     locations: { type: Array, default: () => [] },
     vehicles: { type: Array, default: () => [] },
     parents: { type: Array, default: () => [] },
+    materials: { type: Array, default: () => [] },
+    kinds: { type: Array, default: () => [] },
 });
 
-const blank = { name: '', vehicle_id: '', parent_id: '', display_order: 0, is_active: true };
+const blank = { name: '', kind: 'mobile', vehicle_id: '', parent_id: '', holder_material_id: '', display_order: 0, is_active: true };
 const form = useForm({ ...blank });
 const editingId = ref(null);
+
+const isMobile = computed(() => form.kind === 'mobile');
 
 function resetForm() {
     editingId.value = null;
@@ -26,8 +30,10 @@ function edit(l) {
     form.clearErrors();
     Object.assign(form, {
         name: l.name,
+        kind: l.kind ?? 'mobile',
         vehicle_id: l.vehicle_id ?? '',
         parent_id: l.parent_id ?? '',
+        holder_material_id: l.holder_material_id ?? '',
         display_order: l.display_order,
         is_active: l.is_active,
     });
@@ -35,8 +41,9 @@ function edit(l) {
 function submit() {
     const payload = {
         ...form.data(),
-        vehicle_id: form.vehicle_id || null,
+        vehicle_id: isMobile.value ? (form.vehicle_id || null) : null,
         parent_id: form.parent_id || null,
+        holder_material_id: form.holder_material_id || null,
     };
     const opts = { preserveScroll: true, onSuccess: () => resetForm() };
     if (editingId.value) {
@@ -67,9 +74,9 @@ function remove(l) {
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                             <tr>
-                                <th class="px-4 py-3">Nom</th>
-                                <th class="px-4 py-3">Véhicule</th>
-                                <th class="px-4 py-3">Parent</th>
+                                <th class="px-4 py-3">Emplacement</th>
+                                <th class="px-4 py-3">Nature</th>
+                                <th class="px-4 py-3">Matériel hôte</th>
                                 <th class="px-4 py-3">Ordre</th>
                                 <th class="px-4 py-3">Actif</th>
                                 <th class="px-4 py-3 text-right">Actions</th>
@@ -77,9 +84,16 @@ function remove(l) {
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             <tr v-for="l in locations" :key="l.id">
-                                <td class="px-4 py-3 font-medium text-gray-900">{{ l.name }}</td>
-                                <td class="px-4 py-3 text-gray-600">{{ l.vehicle ?? 'Global / réserve' }}</td>
-                                <td class="px-4 py-3 text-gray-600">{{ l.parent ?? '—' }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-gray-900">{{ l.name }}</div>
+                                    <div class="text-xs text-gray-400">{{ l.full_path }}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="l.kind === 'mobile' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'">
+                                        {{ l.kind_label }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-600">{{ l.holder ?? '—' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ l.display_order }}</td>
                                 <td class="px-4 py-3">
                                     <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="l.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'">
@@ -104,23 +118,42 @@ function remove(l) {
                 <form class="mt-4 space-y-4" @submit.prevent="submit">
                     <div>
                         <InputLabel value="Nom" />
-                        <TextInput v-model="form.name" placeholder="Coffre gauche, Sac rouge…" />
+                        <TextInput v-model="form.name" placeholder="Coffre gauche, Sac rouge, Dépôt central…" />
                         <InputError :message="form.errors.name" />
                     </div>
                     <div>
+                        <InputLabel value="Nature" />
+                        <div class="mt-1 flex gap-2">
+                            <label v-for="k in kinds" :key="k.value" class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm" :class="form.kind === k.value ? 'border-[var(--brand)] bg-[var(--brand)]/5 font-semibold text-[var(--brand)]' : 'border-gray-300 text-gray-600'">
+                                <input v-model="form.kind" type="radio" class="sr-only" :value="k.value" />
+                                {{ k.label }}
+                            </label>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-400">Mobile = à bord d'un véhicule · Fixe = dépôt, pièce de stock.</p>
+                    </div>
+                    <div v-if="isMobile">
                         <InputLabel value="Véhicule" />
                         <select v-model="form.vehicle_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
-                            <option value="">Global / réserve</option>
+                            <option value="">Choisir un véhicule…</option>
                             <option v-for="v in vehicles" :key="v.id" :value="v.id">{{ v.name }}</option>
                         </select>
+                        <InputError :message="form.errors.vehicle_id" />
                     </div>
                     <div>
                         <InputLabel value="Emplacement parent" />
                         <select v-model="form.parent_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
-                            <option value="">Aucun</option>
+                            <option value="">Aucun (racine)</option>
                             <option v-for="p in parents" :key="p.id" :value="p.id" :disabled="p.id === editingId">{{ p.name }}</option>
                         </select>
                         <InputError :message="form.errors.parent_id" />
+                    </div>
+                    <div>
+                        <InputLabel value="Matériel hôte (optionnel)" />
+                        <select v-model="form.holder_material_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
+                            <option value="">Aucun</option>
+                            <option v-for="m in materials" :key="m.id" :value="m.id">{{ m.name }}<span v-if="m.reference"> ({{ m.reference }})</span></option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-400">Ex. la pochette d'un Lifepak 15 qui contient du consommable.</p>
                     </div>
                     <div>
                         <InputLabel value="Ordre d’affichage" />

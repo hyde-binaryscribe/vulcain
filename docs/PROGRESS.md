@@ -9,6 +9,18 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Lot B1 — Emplacements mobile/fixe + chemin parent + matériel-conteneur (terminé)
+- Emplacements typés **mobile** (à bord d'un véhicule) / **fixe** (dépôt, pièce de stock)
+  — enum `LocationKind`. Colonne `kind` + rétro-remplissage (véhicule ⇒ mobile, sinon fixe).
+- Un **matériel peut héberger un emplacement** (`holder_material_id`) : ex. la pochette d'un
+  Lifepak 15 qui contient du consommable.
+- Helper `Location::fullPath()` → « Véhicule › Parent › Emplacement » (préfixe véhicule pour
+  le mobile, remontée de la hiérarchie). Affiché sur l'écran **Emplacements** et le
+  **catalogue matériel** (matériel, exemplaires, lots).
+- Écran Emplacements refondu : nature mobile/fixe (le véhicule ne s'affiche qu'en mobile),
+  parent, matériel hôte, badges de nature, chemin complet.
+- **Tests (+3 = 87 au total, verts)** : création fixe, véhicule requis en mobile, `fullPath`.
+
 ## Renommage « Inventaire » → « Protocole » + types (terminé)
 - L'« inventaire » n'est plus le concept racine : c'est désormais un **type** parmi d'autres
   au sein d'un **Protocole**. Un modèle de protocole porte un ou plusieurs types

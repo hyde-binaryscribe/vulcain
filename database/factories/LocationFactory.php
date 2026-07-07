@@ -18,6 +18,7 @@ class LocationFactory extends Factory
         return [
             'organisation_id' => Organisation::factory(),
             'name' => fake()->randomElement(['Cellule sanitaire', 'Coffre gauche', 'Coffre droit', 'Sac rouge', 'Cabine', 'Réserve']),
+            'kind' => 'fixe',
             'display_order' => fake()->numberBetween(0, 100),
             'is_active' => true,
         ];
