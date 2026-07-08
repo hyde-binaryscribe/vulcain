@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -10,6 +10,10 @@ const props = defineProps({
     sites: { type: Array, default: () => [] },
     kinds: { type: Array, default: () => [] },
 });
+
+const profile = computed(() => usePage().props.tenant?.profile || {});
+const siteWord = computed(() => profile.value.site_label || 'Site');
+const siteWordPlural = computed(() => profile.value.site_label_plural || 'Sites');
 
 const kindLabels = { centre: 'Centre', depot: 'Dépôt', autre: 'Autre' };
 
@@ -41,15 +45,15 @@ function remove(s) {
 
 <template>
     <AppLayout>
-        <Head title="Sites" />
-        <template #title>Sites</template>
+        <Head :title="siteWordPlural" />
+        <template #title>{{ siteWordPlural }}</template>
 
         <div class="grid gap-6 lg:grid-cols-3">
             <section class="lg:col-span-2">
                 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                            <tr><th class="px-4 py-3">Site</th><th class="px-4 py-3">Type</th><th class="px-4 py-3">Véhicules</th><th class="px-4 py-3">Actif</th><th class="px-4 py-3 text-right">Actions</th></tr>
+                            <tr><th class="px-4 py-3">{{ siteWord }}</th><th class="px-4 py-3">Type</th><th class="px-4 py-3">Véhicules</th><th class="px-4 py-3">Actif</th><th class="px-4 py-3 text-right">Actions</th></tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             <tr v-for="s in sites" :key="s.id">
@@ -71,7 +75,7 @@ function remove(s) {
             </section>
 
             <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Modifier le site' : 'Nouveau site' }}</h2>
+                <h2 class="text-base font-semibold text-gray-900">{{ editingId ? `Modifier : ${siteWord.toLowerCase()}` : `Nouveau : ${siteWord.toLowerCase()}` }}</h2>
                 <form class="mt-4 space-y-4" @submit.prevent="submit">
                     <div>
                         <InputLabel value="Nom" />

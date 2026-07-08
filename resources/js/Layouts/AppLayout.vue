@@ -34,7 +34,7 @@ const navGroups = computed(() =>
         {
             label: 'Parc & stock',
             items: [
-                { label: 'Sites', href: '/sites', icon: '🏢', permission: 'sites.manage' },
+                { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: '🏢', permission: 'sites.manage' },
                 { label: 'Véhicules', href: '/vehicles', icon: '🚑', permission: 'vehicles.manage' },
                 { label: 'Emplacements', href: '/locations', icon: '📍', permission: 'locations.manage' },
                 { label: 'Matériel', href: '/materials', icon: '🧰', permission: 'catalog.manage' },
@@ -174,7 +174,7 @@ const initials = computed(() => {
                         title="Site actif"
                         @change="switchSite"
                     >
-                        <option value="">🏢 Tous les sites</option>
+                        <option value="">🏢 Tous les {{ (profile?.site_label_plural || 'sites').toLowerCase() }}</option>
                         <option v-for="s in siteContext.options" :key="s.id" :value="s.id">{{ s.name }}</option>
                     </select>
                 </div>

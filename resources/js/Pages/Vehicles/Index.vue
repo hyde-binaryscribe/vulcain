@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -12,6 +12,8 @@ const props = defineProps({
     sites: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
 });
+
+const siteWord = computed(() => usePage().props.tenant?.profile?.site_label || 'Site');
 
 const statusStyles = {
     disponible: 'bg-green-100 text-green-800',
@@ -135,7 +137,7 @@ function saveAssign() {
                     <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
                     <div><InputLabel value="Centre" /><TextInput v-model="form.center" /></div>
                     <div v-if="sites.length">
-                        <InputLabel value="Site" />
+                        <InputLabel :value="siteWord" />
                         <select v-model="form.site_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
                             <option value="">—</option>
                             <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>

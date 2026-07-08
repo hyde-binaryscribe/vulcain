@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -15,6 +15,7 @@ const props = defineProps({
 });
 
 const searchTerm = ref(props.search);
+const siteWordPlural = computed(() => usePage().props.tenant?.profile?.site_label_plural || 'sites');
 
 function runSearch() {
     router.get('/users', { q: searchTerm.value }, { preserveState: true, replace: true });
@@ -177,8 +178,8 @@ function cancel(inv) {
                         Compte actif
                     </label>
                     <div v-if="sites.length">
-                        <InputLabel value="Périmètre de sites" />
-                        <p class="mb-1 text-xs text-gray-400">Aucun coché = accès à tous les sites.</p>
+                        <InputLabel :value="`Périmètre (${siteWordPlural.toLowerCase()})`" />
+                        <p class="mb-1 text-xs text-gray-400">Aucun coché = accès à {{ siteWordPlural.toLowerCase() }}.</p>
                         <div class="space-y-1">
                             <label v-for="s in sites" :key="s.id" class="flex items-center gap-2 text-sm text-gray-700">
                                 <input type="checkbox" class="rounded border-gray-300" :checked="editForm.site_ids.includes(s.id)" @change="toggleSite(s.id)" />
