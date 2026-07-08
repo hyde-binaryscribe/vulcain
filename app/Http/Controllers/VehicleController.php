@@ -6,8 +6,10 @@ use App\Domain\Fleet\VehicleStatus;
 use App\Models\ActivityLog;
 use App\Models\Location;
 use App\Models\Material;
+use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,6 +18,8 @@ use Inertia\Response;
 
 class VehicleController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenant) {}
+
     public function show(Vehicle $vehicle): Response
     {
         $vehicle->load('users:id,name');
@@ -118,7 +122,7 @@ class VehicleController extends Controller
     public function index(): Response
     {
         $vehicles = Vehicle::query()
-            ->with('users:id,name')
+            ->with(['users:id,name', 'site:id,name'])
             ->orderBy('name')
             ->get()
             ->map(fn (Vehicle $v) => [
@@ -128,6 +132,8 @@ class VehicleController extends Controller
                 'callsign' => $v->callsign,
                 'registration' => $v->registration,
                 'center' => $v->center,
+                'site' => $v->site?->name,
+                'site_id' => $v->site_id,
                 'status' => $v->status->value,
                 'status_label' => $v->status->label(),
                 'commissioned_at' => $v->commissioned_at?->format('Y-m-d'),
@@ -146,6 +152,7 @@ class VehicleController extends Controller
         return Inertia::render('Vehicles/Index', [
             'vehicles' => $vehicles,
             'users' => $users,
+            'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => VehicleStatus::options(),
             'status' => session('status'),
         ]);
@@ -194,6 +201,7 @@ class VehicleController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'site_id' => ['nullable', Rule::exists('sites', 'id')->where('organisation_id', $this->tenant->id())->whereNull('deleted_at')],
             'type' => ['nullable', 'string', 'max:50'],
             'callsign' => ['nullable', 'string', 'max:50'],
             'registration' => ['nullable', 'string', 'max:50'],

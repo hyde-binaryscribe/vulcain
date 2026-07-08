@@ -41,6 +41,25 @@ class User extends Authenticatable
         return $this->belongsToMany(Vehicle::class, 'vehicle_user');
     }
 
+    /** Sites auxquels l'utilisateur est rattaché (vide = tous les sites). */
+    public function sites(): BelongsToMany
+    {
+        return $this->belongsToMany(Site::class, 'site_user');
+    }
+
+    /**
+     * Ids des sites accessibles. `null` = aucun cloisonnement (voit tout) :
+     * un utilisateur sans rattachement de site accède à toute l'organisation.
+     *
+     * @return list<int>|null
+     */
+    public function accessibleSiteIds(): ?array
+    {
+        $ids = $this->sites()->pluck('sites.id')->all();
+
+        return $ids === [] ? null : $ids;
+    }
+
     public function isActive(): bool
     {
         return (bool) $this->is_active;

@@ -13,6 +13,7 @@ use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\ProtocolTemplateController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
@@ -42,6 +43,14 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::patch('users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('invitations/{invitation}', [UserController::class, 'cancelInvitation'])->name('invitations.cancel');
         Route::post('invitations/{invitation}/resend', [UserController::class, 'resendInvitation'])->name('invitations.resend');
+    });
+
+    // Sites (centres / dépôts).
+    Route::middleware('permission:sites.manage')->group(function () {
+        Route::get('sites', [SiteController::class, 'index'])->name('sites.index');
+        Route::post('sites', [SiteController::class, 'store'])->name('sites.store');
+        Route::patch('sites/{site}', [SiteController::class, 'update'])->name('sites.update');
+        Route::delete('sites/{site}', [SiteController::class, 'destroy'])->name('sites.destroy');
     });
 
     // Véhicules + affectations.

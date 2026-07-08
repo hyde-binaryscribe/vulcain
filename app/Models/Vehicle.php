@@ -8,6 +8,7 @@ use App\Models\Concerns\RecordsActivity;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -18,6 +19,7 @@ class Vehicle extends Model
     use BelongsToOrganisation, HasFactory, RecordsActivity, SoftDeletes;
 
     protected $fillable = [
+        'site_id',
         'name',
         'type',
         'callsign',
@@ -36,6 +38,11 @@ class Vehicle extends Model
             'status' => VehicleStatus::class,
             'commissioned_at' => 'date',
         ];
+    }
+
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
     }
 
     /** Utilisateurs autorisés sur ce véhicule. */

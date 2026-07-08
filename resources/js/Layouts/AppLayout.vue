@@ -34,6 +34,7 @@ const navGroups = computed(() =>
         {
             label: 'Parc & stock',
             items: [
+                { label: 'Sites', href: '/sites', icon: '🏢', permission: 'sites.manage' },
                 { label: 'Véhicules', href: '/vehicles', icon: '🚑', permission: 'vehicles.manage' },
                 { label: 'Emplacements', href: '/locations', icon: '📍', permission: 'locations.manage' },
                 { label: 'Matériel', href: '/materials', icon: '🧰', permission: 'catalog.manage' },

@@ -28,6 +28,7 @@ final class Rbac
     public const PERMISSIONS = [
         'users.manage',
         'roles.manage',
+        'sites.manage',
         'vehicles.manage',
         'locations.manage',
         'catalog.manage',

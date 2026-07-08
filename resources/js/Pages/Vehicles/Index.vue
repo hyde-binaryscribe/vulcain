@@ -9,6 +9,7 @@ import InputError from '@/Components/InputError.vue';
 const props = defineProps({
     vehicles: { type: Array, default: () => [] },
     users: { type: Array, default: () => [] },
+    sites: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
 });
 
@@ -24,7 +25,7 @@ const statusStyles = {
 const showForm = ref(false);
 const editingId = ref(null);
 const form = useForm({
-    name: '', type: '', callsign: '', registration: '', center: '',
+    name: '', type: '', callsign: '', registration: '', center: '', site_id: '',
     status: 'disponible', commissioned_at: '', mileage: '', observations: '',
 });
 
@@ -39,13 +40,14 @@ function openEdit(v) {
     form.clearErrors();
     Object.assign(form, {
         name: v.name, type: v.type ?? '', callsign: v.callsign ?? '', registration: v.registration ?? '',
-        center: v.center ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
+        center: v.center ?? '', site_id: v.site_id ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
         mileage: v.mileage ?? '', observations: v.observations ?? '',
     });
     showForm.value = true;
 }
 function submit() {
     const opts = { preserveScroll: true, onSuccess: () => (showForm.value = false) };
+    form.transform((d) => ({ ...d, site_id: d.site_id || null }));
     if (editingId.value) {
         form.patch(`/vehicles/${editingId.value}`, opts);
     } else {
@@ -132,6 +134,13 @@ function saveAssign() {
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>
                     <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
                     <div><InputLabel value="Centre" /><TextInput v-model="form.center" /></div>
+                    <div v-if="sites.length">
+                        <InputLabel value="Site" />
+                        <select v-model="form.site_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
+                            <option value="">—</option>
+                            <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                    </div>
                     <div>
                         <InputLabel value="Statut" />
                         <select v-model="form.status" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">

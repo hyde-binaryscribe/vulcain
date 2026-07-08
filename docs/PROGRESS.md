@@ -21,6 +21,15 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Multi-sites (1/2) — Sites + rattachement des véhicules (terminée)
+- Entité **`Site`** (centre / dépôt / autre) sous une organisation ; tables `sites`,
+  `site_user` (périmètre utilisateur), colonnes `site_id` sur `vehicles` et `locations`
+  (migration additive). Permission **`sites.manage`** (admin) — resync via `db:seed`.
+- Écran **Sites** (CRUD) sous Configuration ; rattachement d'un **véhicule à un site**
+  dans son formulaire. `User::accessibleSiteIds()` (null = voit tout) posé pour le
+  cloisonnement (2/2). **Tests (+4 = 109) : création site, refus vérificateur, véhicule↔site,
+  cloisonnement inter-organisation.**
+
 ## Phase 5 — Palette de recherche temps réel (terminée)
 - Palette type « command-K » (popup) : ouverture via le bouton d'en-tête ou **⌘/Ctrl+K**,
   recherche **en temps réel** (débouncée, endpoint JSON `/search/suggest`), résultats
