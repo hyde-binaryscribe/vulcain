@@ -36,6 +36,7 @@ const navGroups = computed(() =>
                 { label: 'Véhicules', href: '/vehicles', icon: '🚑', permission: 'vehicles.manage' },
                 { label: 'Emplacements', href: '/locations', icon: '📍', permission: 'locations.manage' },
                 { label: 'Matériel', href: '/materials', icon: '🧰', permission: 'catalog.manage' },
+                { label: 'Pharmacie', href: '/pharmacy', icon: '💊', permission: 'pharmacy.manage' },
             ],
         },
         {

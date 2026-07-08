@@ -9,6 +9,12 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Pharmacie — déclaration rapide des consommables (terminée)
+- Espace **Pharmacie** (permission `pharmacy.manage`) : liste des consommables (stock,
+  seuil, péremption la plus proche) + **déclaration rapide** d'un consommable (matériel
+  suivi par lot). Les lots se gèrent ensuite depuis la fiche matériel. Gestion admin
+  dédiée à venir. Entrée de menu « Pharmacie ». **Tests (+2 = 96 au total, verts)**.
+
 ## Phase 4 (1/2) — Événements + Kanban (terminée)
 - Table `events` (type anomalie/réparation/autre, statut, priorité, rattachements
   véhicule/matériel/protocole, auteur, assigné). Migration **additive** (simple `migrate`).

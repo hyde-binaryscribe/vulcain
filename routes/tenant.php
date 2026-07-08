@@ -6,6 +6,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialItemController;
+use App\Http\Controllers\PharmacyController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\ProtocolTemplateController;
 use App\Http\Controllers\SettingsController;
@@ -39,6 +40,12 @@ Route::middleware(['tenant', 'auth'])->group(function () {
     // Historique des actions (journal d'activité).
     Route::middleware('permission:history.view')->group(function () {
         Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
+    });
+
+    // Pharmacie : déclaration rapide des consommables.
+    Route::middleware('permission:pharmacy.manage')->group(function () {
+        Route::get('pharmacy', [PharmacyController::class, 'index'])->name('pharmacy.index');
+        Route::post('pharmacy/consumables', [PharmacyController::class, 'store'])->name('pharmacy.consumables.store');
     });
 
     // Événements (anomalies / réparations) — tableau Kanban.
