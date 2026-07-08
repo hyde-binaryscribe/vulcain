@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
@@ -21,6 +22,12 @@ Route::middleware(['tenant', 'auth'])->group(function () {
 
     // Recherche globale (résultats filtrés par permissions dans le contrôleur).
     Route::get('search', [SearchController::class, 'index'])->name('search.index');
+
+    // Exports CSV.
+    Route::middleware('permission:exports.create')->group(function () {
+        Route::get('exports/materiel.csv', [ExportController::class, 'materials'])->name('exports.materials');
+        Route::get('exports/evenements.csv', [ExportController::class, 'events'])->name('exports.events');
+    });
 
     // Administration des utilisateurs.
     Route::middleware('permission:users.manage')->group(function () {

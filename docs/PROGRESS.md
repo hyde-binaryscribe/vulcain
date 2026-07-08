@@ -9,6 +9,11 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 5 — Exports CSV (terminée)
+- Export CSV (BOM UTF-8, séparateur `;`) du **catalogue matériel** et des **événements**,
+  boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
+  **Tests (+2 = 103) : export matériel, refus vérificateur.**
+
 ## Phase 5 — Recherche globale (terminée)
 - Barre de recherche dans l'en-tête + page de résultats (`/search`) groupés par catégorie
   (Matériel, Véhicules, Protocoles, Événements). Chaque catégorie n'apparaît que si

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -18,6 +18,7 @@ const props = defineProps({
 
 const statusOrder = computed(() => props.columns.map((c) => c.value));
 const showForm = ref(false);
+const canExport = computed(() => (usePage().props.auth?.user?.permissions || []).includes('exports.create'));
 
 // Détail d'une carte (résolu par id pour se rafraîchir après chaque action).
 const selectedId = ref(null);
@@ -105,9 +106,12 @@ function remove(event) {
 
         <div class="mb-4 flex items-center justify-between">
             <p class="text-sm text-gray-500">Anomalies et réparations à suivre. Déplace les cartes selon leur avancement.</p>
-            <button class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110" @click="showForm = !showForm">
-                {{ showForm ? 'Fermer' : 'Nouvel événement' }}
-            </button>
+            <div class="flex gap-2">
+                <a v-if="canExport" href="/exports/evenements.csv" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">⬇ CSV</a>
+                <button class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110" @click="showForm = !showForm">
+                    {{ showForm ? 'Fermer' : 'Nouvel événement' }}
+                </button>
+            </div>
         </div>
 
         <!-- Formulaire de création -->

@@ -1,6 +1,6 @@
 <script setup>
-import { reactive, ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, reactive, ref } from 'vue';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -14,6 +14,8 @@ const props = defineProps({
     trackingModes: { type: Array, default: () => [] },
     search: { type: String, default: '' },
 });
+
+const canExport = computed(() => (usePage().props.auth?.user?.permissions || []).includes('exports.create'));
 
 const statusStyles = {
     conforme: 'bg-green-100 text-green-800',
@@ -98,6 +100,7 @@ function remove(m) {
                 <div class="mb-3 flex gap-2">
                     <TextInput v-model="searchTerm" placeholder="Rechercher nom ou référence…" @keyup.enter="runSearch" />
                     <button class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white" @click="runSearch">Rechercher</button>
+                    <a v-if="canExport" href="/exports/materiel.csv" class="whitespace-nowrap rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">⬇ CSV</a>
                 </div>
 
                 <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
