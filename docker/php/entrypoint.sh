@@ -18,8 +18,12 @@ if [ "$VULCAIN_BOOTSTRAP" = "1" ]; then
         composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader
     fi
 
-    # 3. Droits d'écriture (bind mount)
-    chmod -R ug+rw storage bootstrap/cache 2>/dev/null || true
+    # 3. Droits d'écriture (bind mount). a+rwX : lecture/écriture pour tous les
+    #    fichiers, +execute sur les dossiers (indispensable pour créer les vues
+    #    compilées quel que soit l'utilisateur PHP du conteneur). Corrige aussi
+    #    l'arborescence si des sous-dossiers manquent.
+    mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache
+    chmod -R a+rwX storage bootstrap/cache 2>/dev/null || true
 
     # 3 bis. Lien symbolique public/storage → storage/app/public (photos de protocole).
     php artisan storage:link 2>/dev/null || true
