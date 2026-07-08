@@ -6,7 +6,9 @@ use App\Models\Event;
 use App\Models\Material;
 use App\Models\Protocol;
 use App\Models\Vehicle;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,7 +21,31 @@ class SearchController extends Controller
     public function index(Request $request): Response
     {
         $q = trim((string) $request->query('q', ''));
-        $user = $request->user();
+
+        return Inertia::render('Search/Index', [
+            'q' => $q,
+            'groups' => $this->groups($q, $request->user()),
+        ]);
+    }
+
+    /** Suggestions temps réel (palette de recherche) — JSON. */
+    public function suggest(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        return response()->json([
+            'q' => $q,
+            'groups' => $this->groups($q, $request->user(), 6),
+        ]);
+    }
+
+    /**
+     * Construit les groupes de résultats, filtrés par permission.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function groups(string $q, $user, int $limit = 10): Collection
+    {
         $groups = [];
 
         if ($q !== '') {
@@ -30,7 +56,7 @@ class SearchController extends Controller
                     'label' => 'Matériel',
                     'results' => Material::query()
                         ->where(fn ($w) => $w->where('name', 'like', $like)->orWhere('reference', 'like', $like))
-                        ->orderBy('name')->limit(10)->get()
+                        ->orderBy('name')->limit($limit)->get()
                         ->map(fn (Material $m) => ['label' => $m->name, 'sub' => $m->reference, 'href' => "/materials/{$m->id}"])
                         ->values(),
                 ];
@@ -41,7 +67,7 @@ class SearchController extends Controller
                     'label' => 'Véhicules',
                     'results' => Vehicle::query()
                         ->where(fn ($w) => $w->where('name', 'like', $like)->orWhere('callsign', 'like', $like)->orWhere('registration', 'like', $like))
-                        ->orderBy('name')->limit(10)->get()
+                        ->orderBy('name')->limit($limit)->get()
                         ->map(fn (Vehicle $v) => ['label' => $v->name, 'sub' => $v->callsign, 'href' => "/vehicles/{$v->id}"])
                         ->values(),
                 ];
@@ -52,7 +78,7 @@ class SearchController extends Controller
                     'label' => 'Protocoles',
                     'results' => Protocol::query()
                         ->where(fn ($w) => $w->where('vehicle_name', 'like', $like)->orWhere('template_name', 'like', $like))
-                        ->orderByDesc('started_at')->limit(10)->get()
+                        ->orderByDesc('started_at')->limit($limit)->get()
                         ->map(fn (Protocol $p) => ['label' => $p->vehicle_name, 'sub' => $p->template_name, 'href' => "/protocols/{$p->id}"])
                         ->values(),
                 ];
@@ -63,16 +89,13 @@ class SearchController extends Controller
                     'label' => 'Événements',
                     'results' => Event::query()
                         ->where('title', 'like', $like)
-                        ->orderByDesc('created_at')->limit(10)->get()
+                        ->orderByDesc('created_at')->limit($limit)->get()
                         ->map(fn (Event $e) => ['label' => $e->title, 'sub' => $e->type->label(), 'href' => '/events'])
                         ->values(),
                 ];
             }
         }
 
-        return Inertia::render('Search/Index', [
-            'q' => $q,
-            'groups' => collect($groups)->filter(fn ($g) => $g['results']->isNotEmpty())->values(),
-        ]);
+        return collect($groups)->filter(fn ($g) => $g['results']->isNotEmpty())->values();
     }
 }

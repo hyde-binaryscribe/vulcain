@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import SearchPalette from '@/Components/SearchPalette.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -67,12 +68,16 @@ function logout() {
     router.post('/logout');
 }
 
-const searchQuery = ref('');
-function goSearch() {
-    if (searchQuery.value.trim()) {
-        router.get('/search', { q: searchQuery.value });
+// Palette de recherche (temps réel, Ctrl/Cmd+K).
+const paletteOpen = ref(false);
+function onGlobalKey(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        paletteOpen.value = true;
     }
 }
+onMounted(() => window.addEventListener('keydown', onGlobalKey));
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKey));
 
 // Notifications
 const notifications = computed(() => page.props.notifications || { unread: 0, items: [] });
@@ -158,14 +163,15 @@ const initials = computed(() => {
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <form class="hidden md:block" @submit.prevent="goSearch">
-                        <input
-                            v-model="searchQuery"
-                            type="search"
-                            placeholder="Rechercher…"
-                            class="w-48 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10 lg:w-64"
-                        />
-                    </form>
+                    <button
+                        type="button"
+                        class="hidden items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-50 md:flex"
+                        @click="paletteOpen = true"
+                    >
+                        <span>🔍</span>
+                        <span>Rechercher…</span>
+                        <kbd class="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] text-gray-400">⌘K</kbd>
+                    </button>
                     <div class="relative">
                         <button type="button" class="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100" @click="showNotifs = !showNotifs">
                             <span class="text-lg">🔔</span>
@@ -218,5 +224,7 @@ const initials = computed(() => {
                 <slot />
             </main>
         </div>
+
+        <SearchPalette :open="paletteOpen" @close="paletteOpen = false" />
     </div>
 </template>

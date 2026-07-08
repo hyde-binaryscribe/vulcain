@@ -23,6 +23,7 @@ Route::middleware(['tenant', 'auth'])->group(function () {
 
     // Recherche globale (résultats filtrés par permissions dans le contrôleur).
     Route::get('search', [SearchController::class, 'index'])->name('search.index');
+    Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
 
     // Notifications in-app.
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');

@@ -21,6 +21,12 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Phase 5 — Palette de recherche temps réel (terminée)
+- Palette type « command-K » (popup) : ouverture via le bouton d'en-tête ou **⌘/Ctrl+K**,
+  recherche **en temps réel** (débouncée, endpoint JSON `/search/suggest`), résultats
+  **groupés par type**, navigation clavier (↑↓, Entrée, Échap) + clic. La page `/search`
+  reste disponible en repli. **Test (+1 = 105) : suggest JSON groupé.**
+
 ## Phase 5 — Recherche globale (terminée)
 - Barre de recherche dans l'en-tête + page de résultats (`/search`) groupés par catégorie
   (Matériel, Véhicules, Protocoles, Événements). Chaque catégorie n'apparaît que si

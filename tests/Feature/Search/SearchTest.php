@@ -62,6 +62,17 @@ class SearchTest extends TestCase
                 ->where('groups.0.results.0.label', 'Collier cervical'));
     }
 
+    public function test_suggest_returns_json_grouped_by_type(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+        $this->tenant()->runFor($org, fn () => Material::factory()->create(['organisation_id' => $org->id, 'name' => 'Collier cervical']));
+
+        $this->actingAs($admin)->getJson('http://caserne.localhost/search/suggest?q=Collier')
+            ->assertOk()
+            ->assertJsonPath('groups.0.label', 'Matériel')
+            ->assertJsonPath('groups.0.results.0.label', 'Collier cervical');
+    }
+
     public function test_verifier_does_not_see_material_category(): void
     {
         [$org, $verifier] = $this->orgWithRole(Rbac::VERIFIER);
