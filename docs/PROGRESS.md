@@ -21,6 +21,16 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Multi-entreprises — portail groupe (Desk) (terminée)
+- Entité **`Group`** (entreprise) ; `organisations.group_id` + `platform_admins.group_id`
+  (migration additive). Un admin plateforme **sans groupe = exploitant global** (voit tout) ;
+  **avec groupe = gestionnaire de groupe** (ne voit que ses organisations).
+- Desk : tableau de bord **filtré par groupe** pour les gestionnaires ; page **Groupes**
+  (exploitant global) — créer un groupe, rattacher des organisations, créer un compte
+  **gestionnaire de groupe**. Nav Desk (Organisations / Groupes).
+- **Tests (+4 = 119) : création+rattachement, cloisonnement du gestionnaire, accès Groupes
+  refusé au gestionnaire, création d'un gestionnaire.**
+
 ## Application des limites de plan (terminée)
 - Service `PlanLimits` : bloque la création au-delà du quota du plan (utilisateurs —
   actifs + invitations en attente —, véhicules, sites) avec un message clair invitant à

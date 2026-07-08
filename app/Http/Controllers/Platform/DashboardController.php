@@ -14,9 +14,13 @@ class DashboardController extends Controller
 
     public function index(): Response
     {
+        $admin = auth('platform')->user();
+
         // Lecture inter-tenant explicite (opération plateforme légitime).
+        // Un gestionnaire de groupe ne voit que les organisations de son groupe.
         $organisations = $this->tenant->runCrossTenant(
             fn () => Organisation::query()
+                ->when($admin->group_id, fn ($q) => $q->where('group_id', $admin->group_id))
                 ->withCount('users')
                 ->with('subscription')
                 ->orderBy('name')
@@ -43,6 +47,10 @@ class DashboardController extends Controller
             'stats' => [
                 'total' => $organisations->count(),
                 'active' => $organisations->where('status', Organisation::STATUS_ACTIVE)->count(),
+            ],
+            'viewer' => [
+                'is_group_manager' => $admin->isGroupManager(),
+                'group' => $admin->group?->name,
             ],
         ]);
     }

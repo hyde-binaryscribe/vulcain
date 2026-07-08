@@ -93,6 +93,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => Auth::guard('platform')->id(),
                     'name' => Auth::guard('platform')->user()->name,
                     'email' => Auth::guard('platform')->user()->email,
+                    'is_group_manager' => Auth::guard('platform')->user()->isGroupManager(),
                 ] : null,
             ],
             // Contexte multi-sites : options accessibles + site actif (switcher).

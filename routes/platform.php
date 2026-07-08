@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Platform\AuthenticatedPlatformSessionController;
 use App\Http\Controllers\Platform\DashboardController;
+use App\Http\Controllers\Platform\GroupController;
 use App\Http\Controllers\Platform\OrganisationController;
 use App\Http\Controllers\Platform\SubscriptionController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,12 @@ Route::prefix('platform')->middleware('central')->group(function () {
         Route::post('logout', [AuthenticatedPlatformSessionController::class, 'destroy'])->name('platform.logout');
 
         Route::get('/', [DashboardController::class, 'index'])->name('platform.dashboard');
+
+        // Groupes / multi-entreprises (exploitant global uniquement — vérifié dans le contrôleur).
+        Route::get('groups', [GroupController::class, 'index'])->name('platform.groups');
+        Route::post('groups', [GroupController::class, 'store'])->name('platform.groups.store');
+        Route::patch('organisations/{organisation}/group', [GroupController::class, 'assign'])->name('platform.organisations.group');
+        Route::post('groups/{group}/managers', [GroupController::class, 'createManager'])->name('platform.groups.managers');
 
         Route::get('organisations/create', [OrganisationController::class, 'create'])->name('platform.organisations.create');
         Route::post('organisations', [OrganisationController::class, 'store'])->name('platform.organisations.store');

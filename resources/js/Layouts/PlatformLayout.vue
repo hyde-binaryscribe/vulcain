@@ -21,6 +21,10 @@ function logout() {
                     <span class="font-semibold">Vulcain <span class="text-indigo-300">Desk</span></span>
                 </Link>
                 <div class="flex items-center gap-4">
+                    <nav class="hidden items-center gap-1 sm:flex">
+                        <Link href="/platform" class="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white">Organisations</Link>
+                        <Link v-if="!admin?.is_group_manager" href="/platform/groups" class="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-white/10 hover:text-white">Groupes</Link>
+                    </nav>
                     <span class="hidden text-sm text-slate-300 sm:block">{{ admin?.name }}</span>
                     <button type="button" class="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" @click="logout">
                         Se déconnecter

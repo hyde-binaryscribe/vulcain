@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\PlatformAdminFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,10 +19,22 @@ class PlatformAdmin extends Authenticatable
     use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
+        'group_id',
         'name',
         'email',
         'password',
     ];
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    /** Gestionnaire de groupe (périmètre limité) vs exploitant global. */
+    public function isGroupManager(): bool
+    {
+        return $this->group_id !== null;
+    }
 
     protected $hidden = [
         'password',
