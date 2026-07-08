@@ -219,6 +219,19 @@ class ProtocolRealizationTest extends TestCase
         ]);
     }
 
+    public function test_report_is_printable(): void
+    {
+        [$org, , $template] = $this->scenario();
+        $admin = $this->userWithRole($org, Rbac::ADMIN);
+
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+        $protocol = $this->tenant()->runFor($org, fn () => Protocol::first());
+
+        $this->actingAs($admin)->get("http://caserne.localhost/protocols/{$protocol->id}/report")
+            ->assertOk()
+            ->assertSee('Rapport de protocole');
+    }
+
     public function test_validated_protocol_is_read_only(): void
     {
         [$org, $vehicle] = $this->scenario();

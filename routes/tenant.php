@@ -80,6 +80,7 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::get('protocols', [ProtocolController::class, 'index'])->name('protocols.index');
         Route::post('protocols', [ProtocolController::class, 'start'])->name('protocols.start');
         Route::get('protocols/{protocol}', [ProtocolController::class, 'show'])->name('protocols.show');
+        Route::get('protocols/{protocol}/report', [ProtocolController::class, 'report'])->name('protocols.report');
         Route::patch('protocols/{protocol}/items/{item}', [ProtocolController::class, 'updateItem'])->name('protocols.items.update');
         Route::post('protocols/{protocol}/validate', [ProtocolController::class, 'finalize'])->name('protocols.validate');
     });

@@ -11,6 +11,7 @@ use App\Models\Protocol;
 use App\Models\ProtocolItem;
 use App\Models\ProtocolTemplate;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -212,6 +213,41 @@ class ProtocolController extends Controller
             : 'Protocole validé et verrouillé.';
 
         return redirect()->route('protocols.show', $protocol)->with('status', $message);
+    }
+
+    /** Rapport imprimable (→ PDF via l'impression navigateur). */
+    public function report(Request $request, Protocol $protocol): View
+    {
+        $this->authorizeView($request, $protocol);
+
+        $groups = $protocol->items
+            ->groupBy(fn (ProtocolItem $i) => $i->location_name ?: 'Sans emplacement')
+            ->map(fn ($items, $location) => [
+                'location' => $location,
+                'items' => $items->map(fn (ProtocolItem $i) => [
+                    'material_name' => $i->material_name,
+                    'reference' => $i->reference,
+                    'serial_number' => $i->serial_number,
+                    'tracking_mode' => $i->tracking_mode,
+                    'expected_qty' => $i->expected_qty,
+                    'observed_qty' => $i->observed_qty,
+                    'observed_expiry' => $i->observed_expiry?->format('d/m/Y'),
+                    'state_label' => $i->stateLabel(),
+                    'is_anomaly' => $i->isAnomaly(),
+                    'observation' => $i->observation,
+                    'checked' => $i->checked,
+                ])->values(),
+            ])->values();
+
+        return view('protocols.report', [
+            'organisation' => $this->tenant->organisation(),
+            'protocol' => $protocol,
+            'groups' => $groups,
+            'duration' => $this->humanDuration($protocol->duration_seconds),
+            'anomalies' => $protocol->items->filter(fn (ProtocolItem $i) => $i->isAnomaly())->count(),
+            'checked' => $protocol->items->where('checked', true)->count(),
+            'total' => $protocol->items->count(),
+        ]);
     }
 
     /** Durée lisible (ex. « 12 min », « 1 h 05 »). */

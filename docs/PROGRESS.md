@@ -9,6 +9,14 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 5 (1/?) — Rapport imprimable / PDF d'un protocole (terminée)
+- Vue dédiée print-friendly (`protocols/report.blade.php`) : en-tête organisation, types,
+  cible, vérificateur, compteurs, tableau par emplacement (anomalies surlignées),
+  observations, zones de signature. Bouton « Imprimer / PDF » sur l'écran protocole
+  (impression navigateur → PDF, zéro dépendance). **Test (+1 = 99) : rapport imprimable.**
+- Correctif ops : entrypoint `chmod -R a+rwX storage bootstrap/cache` (+ création des
+  sous-dossiers) — évite l'échec de compilation des vues (droits du bind mount).
+
 ## Phase 4 — Détail événement : assignation, commentaires, réparations (terminée)
 - Modale de détail sur les cartes Kanban : **assignation** (à un utilisateur), **fil de
   commentaires** (table `event_comments`, additive), et — volet **réparations** — action de

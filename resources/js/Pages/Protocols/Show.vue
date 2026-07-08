@@ -119,7 +119,10 @@ function fmt(date) {
         <Head title="Protocole" />
         <template #title>Protocole — {{ protocol.vehicle_name }}</template>
 
-        <Link href="/protocols" class="text-sm text-[var(--brand)] hover:underline">← Protocoles</Link>
+        <div class="flex items-center justify-between">
+            <Link href="/protocols" class="text-sm text-[var(--brand)] hover:underline">← Protocoles</Link>
+            <a :href="`/protocols/${protocol.id}/report`" target="_blank" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">🖨️ Imprimer / PDF</a>
+        </div>
 
         <!-- En-tête + progression -->
         <div class="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
