@@ -64,6 +64,39 @@ class GroupTest extends TestCase
         $this->actingAs($manager, 'platform')->get('http://localhost/platform/groups')->assertForbidden();
     }
 
+    public function test_group_manager_cannot_touch_an_organisation_outside_their_group(): void
+    {
+        $group = Group::create(['name' => 'Groupe A']);
+        $manager = PlatformAdmin::factory()->create(['group_id' => $group->id]);
+        $foreign = Organisation::factory()->slug('foreign')->create(); // hors groupe
+
+        // Abonnement d'une organisation hors périmètre : interdit.
+        $this->actingAs($manager, 'platform')
+            ->get("http://localhost/platform/organisations/{$foreign->id}/subscription")
+            ->assertForbidden();
+
+        // Suspension d'une organisation hors périmètre : interdit.
+        $this->actingAs($manager, 'platform')
+            ->post("http://localhost/platform/organisations/{$foreign->id}/toggle")
+            ->assertForbidden();
+
+        // Création d'organisation : réservé à l'exploitant global.
+        $this->actingAs($manager, 'platform')
+            ->get('http://localhost/platform/organisations/create')
+            ->assertForbidden();
+    }
+
+    public function test_group_manager_can_manage_an_organisation_in_their_group(): void
+    {
+        $group = Group::create(['name' => 'Groupe A']);
+        $manager = PlatformAdmin::factory()->create(['group_id' => $group->id]);
+        $own = Organisation::factory()->slug('own')->create(['group_id' => $group->id]);
+
+        $this->actingAs($manager, 'platform')
+            ->get("http://localhost/platform/organisations/{$own->id}/subscription")
+            ->assertOk();
+    }
+
     public function test_global_operator_can_create_a_group_manager(): void
     {
         $admin = PlatformAdmin::factory()->create();

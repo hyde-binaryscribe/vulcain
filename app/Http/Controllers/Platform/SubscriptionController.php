@@ -20,6 +20,7 @@ class SubscriptionController extends Controller
 {
     public function show(Organisation $organisation): Response
     {
+        $this->authorizeOrg($organisation);
         $subscription = $this->ensureSubscription($organisation);
         $plan = $subscription->plan;
 
@@ -60,6 +61,7 @@ class SubscriptionController extends Controller
 
     public function update(Request $request, Organisation $organisation): RedirectResponse
     {
+        $this->authorizeOrg($organisation);
         $subscription = $this->ensureSubscription($organisation);
 
         $validated = $request->validate([
@@ -77,6 +79,12 @@ class SubscriptionController extends Controller
         ]);
 
         return back()->with('status', "Abonnement de « {$organisation->name} » mis à jour.");
+    }
+
+    /** Un gestionnaire de groupe ne gère que les organisations de son groupe. */
+    private function authorizeOrg(Organisation $organisation): void
+    {
+        abort_unless(auth('platform')->user()->canManageOrganisation($organisation), 403);
     }
 
     private function ensureSubscription(Organisation $organisation): Subscription

@@ -21,6 +21,15 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Durcissement autorisations Desk + commande reset-password (terminée)
+- **Correctif de sécurité** : un gestionnaire de groupe ne peut agir que sur les
+  organisations **de son groupe** — `PlatformAdmin::canManageOrganisation()` appliqué à
+  l'abonnement (voir/éditer) et à la suspension ; **création d'organisation réservée à
+  l'exploitant global**. (Comble une fuite introduite par le portail groupe.)
+- Commande **`vulcain:reset-password`** (`--email`, `--organisation`, `--platform`) —
+  saisie masquée, Argon2id.
+- **Tests (+2 = 121) : gestionnaire bloqué hors de son groupe, autorisé dans son groupe.**
+
 ## Multi-entreprises — portail groupe (Desk) (terminée)
 - Entité **`Group`** (entreprise) ; `organisations.group_id` + `platform_admins.group_id`
   (migration additive). Un admin plateforme **sans groupe = exploitant global** (voit tout) ;

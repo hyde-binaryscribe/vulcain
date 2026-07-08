@@ -36,6 +36,15 @@ class PlatformAdmin extends Authenticatable
         return $this->group_id !== null;
     }
 
+    /**
+     * Peut-il gérer cette organisation ? L'exploitant global gère tout ; un
+     * gestionnaire de groupe uniquement les organisations de son groupe.
+     */
+    public function canManageOrganisation(Organisation $organisation): bool
+    {
+        return $this->group_id === null || $organisation->group_id === $this->group_id;
+    }
+
     protected $hidden = [
         'password',
         'remember_token',

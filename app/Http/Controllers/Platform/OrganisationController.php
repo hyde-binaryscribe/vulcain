@@ -16,6 +16,9 @@ class OrganisationController extends Controller
 {
     public function create(): Response
     {
+        // Le provisioning d'une nouvelle organisation est réservé à l'exploitant global.
+        abort_if(auth('platform')->user()->isGroupManager(), 403);
+
         return Inertia::render('Platform/Organisations/Create', [
             'sectors' => Sector::options(),
         ]);
@@ -23,6 +26,8 @@ class OrganisationController extends Controller
 
     public function store(Request $request, OrganisationProvisioner $provisioner): RedirectResponse
     {
+        abort_if(auth('platform')->user()->isGroupManager(), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'slug' => [
@@ -51,6 +56,8 @@ class OrganisationController extends Controller
 
     public function toggle(Organisation $organisation): RedirectResponse
     {
+        abort_unless(auth('platform')->user()->canManageOrganisation($organisation), 403);
+
         $organisation->update([
             'status' => $organisation->isActive()
                 ? Organisation::STATUS_SUSPENDED
