@@ -9,6 +9,7 @@ use App\Models\MaterialCategory;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,22 +24,34 @@ class PharmacyController extends Controller
 
     public function index(): Response
     {
+        $today = Carbon::today();
+
         $consumables = Material::query()
             ->where('tracking_mode', Material::MODE_LOT)
             ->with(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id', 'lots:id,material_id,quantity,expiry_date'])
             ->orderBy('name')
             ->get()
-            ->map(fn (Material $m) => [
-                'id' => $m->id,
-                'name' => $m->name,
-                'reference' => $m->reference,
-                'category' => $m->category?->name,
-                'location' => $m->location?->fullPath(),
-                'stock' => $m->stockQuantity(),
-                'minimum_qty' => $m->minimum_qty,
-                'below_threshold' => $m->isBelowThreshold(),
-                'nearest_expiry' => $m->lots->pluck('expiry_date')->filter()->sort()->first()?->format('d/m/Y'),
-            ]);
+            ->map(function (Material $m) use ($today) {
+                $nearest = $m->lots->pluck('expiry_date')->filter()->sort()->first();
+
+                return [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'reference' => $m->reference,
+                    'category' => $m->category?->name,
+                    'location' => $m->location?->fullPath(),
+                    'stock' => $m->stockQuantity(),
+                    'minimum_qty' => $m->minimum_qty,
+                    'below_threshold' => $m->isBelowThreshold(),
+                    'nearest_expiry' => $nearest?->format('d/m/Y'),
+                    'nearest_expiry_sort' => $nearest?->format('Y-m-d'),
+                    'expired' => $nearest !== null && $nearest->lt($today),
+                    'expiring_soon' => $nearest !== null && $nearest->gte($today) && $nearest->lte($today->copy()->addDays(30)),
+                ];
+            })
+            // FEFO : péremption la plus proche d'abord (sans date en dernier).
+            ->sortBy(fn ($c) => $c['nearest_expiry_sort'] ?? '9999-99-99')
+            ->values();
 
         return Inertia::render('Pharmacy/Index', [
             'consumables' => $consumables,

@@ -9,6 +9,11 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 4 — Alertes stock / péremption + FEFO pharmacie (terminée)
+- Tableau de bord : cartes d'**alerte** cliquables (périmés, péremption < 30 j, stock bas,
+  événements ouverts) — comptées côté serveur (`StockLot`, seuils matériel, événements).
+- Pharmacie : tri **FEFO** (péremption la plus proche d'abord) + surlignage périmé/proche.
+
 ## Pharmacie — déclaration rapide des consommables (terminée)
 - Espace **Pharmacie** (permission `pharmacy.manage`) : liste des consommables (stock,
   seuil, péremption la plus proche) + **déclaration rapide** d'un consommable (matériel

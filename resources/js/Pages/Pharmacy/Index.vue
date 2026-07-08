@@ -42,7 +42,7 @@ function declare() {
                             <tr><th class="px-4 py-3">Consommable</th><th class="px-4 py-3">Emplacement</th><th class="px-4 py-3">Stock</th><th class="px-4 py-3">Péremption proche</th></tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            <tr v-for="c in consumables" :key="c.id">
+                            <tr v-for="c in consumables" :key="c.id" :class="c.expired ? 'bg-red-50' : (c.expiring_soon ? 'bg-amber-50' : '')">
                                 <td class="px-4 py-3">
                                     <Link :href="`/materials/${c.id}`" class="font-medium text-gray-900 hover:text-[var(--brand)] hover:underline">{{ c.name }}</Link>
                                     <div class="text-xs text-gray-400">{{ c.reference }}<span v-if="c.category"> · {{ c.category }}</span></div>
@@ -52,7 +52,11 @@ function declare() {
                                     <span :class="c.below_threshold ? 'font-semibold text-red-600' : 'text-gray-700'">{{ c.stock }}</span>
                                     <span class="text-xs text-gray-400"> / min {{ c.minimum_qty }}</span>
                                 </td>
-                                <td class="px-4 py-3 text-gray-600">{{ c.nearest_expiry ?? '—' }}</td>
+                                <td class="px-4 py-3">
+                                    <span :class="c.expired ? 'font-semibold text-red-600' : (c.expiring_soon ? 'font-semibold text-amber-600' : 'text-gray-600')">{{ c.nearest_expiry ?? '—' }}</span>
+                                    <span v-if="c.expired" class="ml-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Périmé</span>
+                                    <span v-else-if="c.expiring_soon" class="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Proche</span>
+                                </td>
                             </tr>
                             <tr v-if="consumables.length === 0"><td colspan="4" class="px-4 py-8 text-center text-gray-500">Aucun consommable déclaré.</td></tr>
                         </tbody>
