@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Site;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,31 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
+    /**
+     * Sites accessibles (pour le sélecteur d'en-tête) + site actif.
+     *
+     * @return array<string, mixed>
+     */
+    private function siteContext(Request $request, $user): array
+    {
+        if ($user === null) {
+            return ['options' => [], 'current' => null];
+        }
+
+        $accessible = $user->accessibleSiteIds(); // null = tout
+
+        $options = Site::query()
+            ->where('is_active', true)
+            ->when($accessible !== null, fn ($q) => $q->whereIn('id', $accessible))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return [
+            'options' => $options,
+            'current' => $request->session()->get('current_site_id'),
+        ];
+    }
+
     public function share(Request $request): array
     {
         $tenant = app(TenantContext::class)->organisation();
@@ -69,6 +95,8 @@ class HandleInertiaRequests extends Middleware
                     'email' => Auth::guard('platform')->user()->email,
                 ] : null,
             ],
+            // Contexte multi-sites : options accessibles + site actif (switcher).
+            'siteContext' => $this->siteContext($request, $user),
             // Notifications in-app de l'utilisateur métier.
             'notifications' => $user ? [
                 'unread' => $user->unreadNotifications()->count(),

@@ -9,6 +9,7 @@ use App\Models\Material;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -119,10 +120,13 @@ class VehicleController extends Controller
         ];
     }
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $siteIds = SiteScope::forUser($request->user(), session('current_site_id'));
+
         $vehicles = Vehicle::query()
             ->with(['users:id,name', 'site:id,name'])
+            ->when($siteIds !== null, fn ($q) => $q->whereIn('site_id', $siteIds))
             ->orderBy('name')
             ->get()
             ->map(fn (Vehicle $v) => [

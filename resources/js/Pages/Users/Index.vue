@@ -10,6 +10,7 @@ const props = defineProps({
     users: { type: Array, default: () => [] },
     pendingInvitations: { type: Array, default: () => [] },
     roles: { type: Array, default: () => [] },
+    sites: { type: Array, default: () => [] },
     search: { type: String, default: '' },
 });
 
@@ -27,7 +28,7 @@ function invite() {
 
 // Édition
 const editing = ref(null);
-const editForm = useForm({ grade: '', role: '', is_active: true });
+const editForm = useForm({ grade: '', role: '', is_active: true, site_ids: [] });
 
 function openEdit(user) {
     editing.value = user;
@@ -35,6 +36,12 @@ function openEdit(user) {
     editForm.grade = user.grade ?? '';
     editForm.role = user.role ?? props.roles[0]?.value;
     editForm.is_active = user.is_active;
+    editForm.site_ids = [...(user.site_ids ?? [])];
+}
+function toggleSite(id) {
+    const i = editForm.site_ids.indexOf(id);
+    if (i === -1) editForm.site_ids.push(id);
+    else editForm.site_ids.splice(i, 1);
 }
 function saveEdit() {
     editForm.patch(`/users/${editing.value.id}`, {
@@ -169,6 +176,16 @@ function cancel(inv) {
                         <input v-model="editForm.is_active" type="checkbox" class="rounded border-gray-300" />
                         Compte actif
                     </label>
+                    <div v-if="sites.length">
+                        <InputLabel value="Périmètre de sites" />
+                        <p class="mb-1 text-xs text-gray-400">Aucun coché = accès à tous les sites.</p>
+                        <div class="space-y-1">
+                            <label v-for="s in sites" :key="s.id" class="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" class="rounded border-gray-300" :checked="editForm.site_ids.includes(s.id)" @change="toggleSite(s.id)" />
+                                {{ s.name }}
+                            </label>
+                        </div>
+                    </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="editing = null">Annuler</button>
                         <button type="submit" :disabled="editForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>

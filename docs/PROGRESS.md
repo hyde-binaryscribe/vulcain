@@ -21,6 +21,14 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Multi-sites (2/2) — Cloisonnement utilisateur + sélecteur de site (terminée)
+- **Rattachement utilisateur ↔ sites** (fiche utilisateur) : périmètre par site ; aucun
+  coché = accès à tout (règle « mixte » : admins non rattachés voient tout).
+- **Sélecteur de site** dans l'en-tête (session `current_site_id`, route `site-switch`),
+  partagé via `siteContext`. `SiteScope::forUser` combine périmètre utilisateur + site actif.
+- **Filtrage** de la liste des véhicules par le périmètre effectif.
+- **Tests (+1 = 110) : un utilisateur restreint à un site ne voit que ses véhicules.**
+
 ## Multi-sites (1/2) — Sites + rattachement des véhicules (terminée)
 - Entité **`Site`** (centre / dépôt / autre) sous une organisation ; tables `sites`,
   `site_user` (périmètre utilisateur), colonnes `site_id` sur `vehicles` et `locations`

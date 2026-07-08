@@ -53,6 +53,30 @@ class SiteController extends Controller
         return back()->with('status', 'Site supprimé.');
     }
 
+    /** Change le site actif (filtre d'affichage) — stocké en session. */
+    public function switch(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'site_id' => ['nullable', 'integer'],
+        ]);
+
+        $id = $validated['site_id'] ?? null;
+
+        // On n'accepte qu'un site accessible à l'utilisateur.
+        $accessible = $request->user()->accessibleSiteIds();
+        if ($id !== null && $accessible !== null && ! in_array($id, $accessible, true)) {
+            $id = null;
+        }
+
+        if ($id === null) {
+            $request->session()->forget('current_site_id');
+        } else {
+            $request->session()->put('current_site_id', $id);
+        }
+
+        return back(303);
+    }
+
     /**
      * @return array<string, mixed>
      */

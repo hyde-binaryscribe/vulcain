@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Domain\Identity\InvitationService;
 use App\Domain\Identity\Rbac;
 use App\Models\Invitation;
+use App\Models\Site;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +24,7 @@ class UserController extends Controller
         $search = trim((string) $request->query('q', ''));
 
         $users = User::query()
+            ->with('sites:id')
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")))
@@ -35,6 +37,7 @@ class UserController extends Controller
                 'grade' => $u->grade,
                 'role' => $u->getRoleNames()->first(),
                 'is_active' => $u->is_active,
+                'site_ids' => $u->sites->pluck('id'),
                 'last_login_at' => $u->last_login_at?->format('d/m/Y H:i'),
                 'is_self' => $u->id === $request->user()->id,
             ])
@@ -58,6 +61,7 @@ class UserController extends Controller
             'users' => $users,
             'pendingInvitations' => $pending,
             'roles' => $this->roleOptions(),
+            'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'search' => $search,
             'status' => session('status'),
         ]);
@@ -89,6 +93,8 @@ class UserController extends Controller
             'grade' => ['nullable', 'string', 'max:100'],
             'role' => ['required', Rule::in(Rbac::roles())],
             'is_active' => ['required', 'boolean'],
+            'site_ids' => ['array'],
+            'site_ids.*' => ['integer'],
         ]);
 
         // Anti auto-verrouillage : on ne retire pas son propre accès administrateur.
@@ -103,6 +109,10 @@ class UserController extends Controller
         $user->is_active = $validated['is_active'];
         $user->save();
         $user->syncRoles([$validated['role']]);
+
+        // Périmètre de sites (ne garder que ceux de l'organisation).
+        $siteIds = Site::query()->whereIn('id', $validated['site_ids'] ?? [])->pluck('id')->all();
+        $user->sites()->sync($siteIds);
 
         return back()->with('status', 'Utilisateur mis à jour.');
     }

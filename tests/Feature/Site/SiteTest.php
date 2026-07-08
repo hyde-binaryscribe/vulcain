@@ -7,8 +7,10 @@ use App\Domain\Identity\RoleProvisioner;
 use App\Models\Organisation;
 use App\Models\Site;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class SiteTest extends TestCase
@@ -77,6 +79,27 @@ class SiteTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('vehicles', ['organisation_id' => $org->id, 'name' => 'VSAV 02', 'site_id' => $site->id]);
+    }
+
+    public function test_user_restricted_to_a_site_only_sees_its_vehicles(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+
+        [$siteA, $vehicleA] = $this->tenant()->runFor($org, function () use ($org, $admin) {
+            $siteA = Site::factory()->create(['organisation_id' => $org->id]);
+            $siteB = Site::factory()->create(['organisation_id' => $org->id]);
+            $vehicleA = Vehicle::factory()->create(['organisation_id' => $org->id, 'name' => 'VSAV A', 'site_id' => $siteA->id]);
+            Vehicle::factory()->create(['organisation_id' => $org->id, 'name' => 'VSAV B', 'site_id' => $siteB->id]);
+            $admin->sites()->attach($siteA->id); // admin restreint au site A
+
+            return [$siteA, $vehicleA];
+        });
+
+        $this->actingAs($admin)->get('http://caserne.localhost/vehicles')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Vehicles/Index')
+                ->has('vehicles', 1)
+                ->where('vehicles.0.name', 'VSAV A'));
     }
 
     public function test_cannot_attach_a_site_from_another_organisation(): void

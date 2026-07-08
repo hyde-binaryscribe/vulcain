@@ -69,6 +69,12 @@ function logout() {
     router.post('/logout');
 }
 
+// Multi-sites : sélecteur de site actif.
+const siteContext = computed(() => page.props.siteContext || { options: [], current: null });
+function switchSite(e) {
+    router.post('/site-switch', { site_id: e.target.value || null });
+}
+
 // Palette de recherche (temps réel, Ctrl/Cmd+K).
 const paletteOpen = ref(false);
 function onGlobalKey(e) {
@@ -161,6 +167,16 @@ const initials = computed(() => {
                         <p class="text-xs uppercase tracking-wide" :style="{ color: brand }">Inventaire opérationnel</p>
                         <h1 class="text-lg font-semibold text-gray-900"><slot name="title">Tableau de bord</slot></h1>
                     </div>
+                    <select
+                        v-if="siteContext.options.length > 1"
+                        :value="siteContext.current ?? ''"
+                        class="ml-2 hidden rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-700 sm:block"
+                        title="Site actif"
+                        @change="switchSite"
+                    >
+                        <option value="">🏢 Tous les sites</option>
+                        <option v-for="s in siteContext.options" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
                 </div>
 
                 <div class="flex items-center gap-3">
