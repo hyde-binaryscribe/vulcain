@@ -203,7 +203,8 @@ class ProtocolController extends Controller
         $protocol->update([
             'status' => Protocol::STATUS_VALIDATED,
             'validated_at' => now(),
-            'duration_seconds' => $protocol->started_at ? now()->diffInSeconds($protocol->started_at) : null,
+            // Durée entière et positive (diffInSeconds renvoie un float signé en Carbon 3).
+            'duration_seconds' => $protocol->started_at ? (int) $protocol->started_at->diffInSeconds(now(), true) : null,
         ]);
 
         // Chaque anomalie devient un événement de gestion (Kanban).
