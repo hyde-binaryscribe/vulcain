@@ -102,6 +102,21 @@ class SiteTest extends TestCase
                 ->where('vehicles.0.name', 'VSAV A'));
     }
 
+    public function test_plan_limit_blocks_creating_a_site_over_quota(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+        // Plan Découverte : 1 site maximum.
+        $org->subscription()->create(['plan' => 'decouverte', 'status' => 'trial']);
+        Site::factory()->create(['organisation_id' => $org->id]); // quota atteint
+
+        $this->actingAs($admin)->post('http://caserne.localhost/sites', [
+            'name' => 'Site en trop',
+            'kind' => 'centre',
+        ])->assertSessionHasErrors('name');
+
+        $this->assertDatabaseMissing('sites', ['name' => 'Site en trop']);
+    }
+
     public function test_cannot_attach_a_site_from_another_organisation(): void
     {
         [, $admin] = $this->orgWithRole(Rbac::ADMIN);

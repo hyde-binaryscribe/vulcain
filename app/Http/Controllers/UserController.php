@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Billing\PlanLimits;
 use App\Domain\Identity\InvitationService;
 use App\Domain\Identity\Rbac;
 use App\Models\Invitation;
@@ -67,7 +68,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function store(Request $request, InvitationService $invitations): RedirectResponse
+    public function store(Request $request, InvitationService $invitations, PlanLimits $limits): RedirectResponse
     {
         $validated = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
@@ -80,6 +81,13 @@ class UserController extends Controller
             throw ValidationException::withMessages([
                 'email' => 'Un utilisateur avec cet e-mail existe déjà dans cette organisation.',
             ]);
+        }
+
+        // Quota du plan : utilisateurs actifs + invitations en attente.
+        $count = User::query()->count()
+            + Invitation::query()->where('organisation_id', $this->tenant->id())->whereNull('accepted_at')->count();
+        if ($message = $limits->check('users', $count)) {
+            throw ValidationException::withMessages(['email' => $message]);
         }
 
         $invitations->invite($this->tenant->organisation(), $email, $validated['role']);

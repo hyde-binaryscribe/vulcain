@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Billing\PlanLimits;
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\ActivityLog;
 use App\Models\Location;
@@ -14,6 +15,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -162,8 +164,12 @@ class VehicleController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PlanLimits $limits): RedirectResponse
     {
+        if ($message = $limits->check('vehicles', Vehicle::query()->count())) {
+            throw ValidationException::withMessages(['name' => $message]);
+        }
+
         Vehicle::create($this->validated($request));
 
         return back()->with('status', 'Véhicule créé.');

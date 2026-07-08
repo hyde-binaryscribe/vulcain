@@ -21,6 +21,12 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Application des limites de plan (terminée)
+- Service `PlanLimits` : bloque la création au-delà du quota du plan (utilisateurs —
+  actifs + invitations en attente —, véhicules, sites) avec un message clair invitant à
+  faire évoluer l'abonnement. Sans abonnement / plan illimité : aucune limite.
+- **Test (+1 = 115) : quota Découverte bloque un 2ᵉ site.**
+
 ## Desk — Abonnements par organisation (terminée)
 - **Plans** (`Découverte` / `Standard` / `Pro`) avec limites (utilisateurs / véhicules /
   sites) + prix indicatif ; **statuts** (essai / actif / impayé / suspendu / résilié).

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Billing\PlanLimits;
 use App\Models\Site;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,8 +34,12 @@ class SiteController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PlanLimits $limits): RedirectResponse
     {
+        if ($message = $limits->check('sites', Site::query()->count())) {
+            throw ValidationException::withMessages(['name' => $message]);
+        }
+
         Site::create($this->validated($request));
 
         return back()->with('status', 'Site créé.');
