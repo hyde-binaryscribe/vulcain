@@ -14,6 +14,9 @@ const props = defineProps({
 });
 
 const siteWord = computed(() => usePage().props.tenant?.profile?.site_label || 'Site');
+// Mode multi-site : aucun site actif sélectionné et plusieurs sites accessibles.
+const siteContext = computed(() => usePage().props.siteContext || { options: [], current: null });
+const multiSite = computed(() => !siteContext.value.current && siteContext.value.options.length > 1);
 
 const statusStyles = {
     disponible: 'bg-green-100 text-green-800',
@@ -102,6 +105,12 @@ function saveAssign() {
 
                     <div class="mt-3 flex flex-wrap gap-1.5">
                         <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusStyles[v.status]">{{ v.status_label }}</span>
+                        <span
+                            v-if="v.site"
+                            class="rounded-full px-2 py-0.5 text-xs font-medium"
+                            :class="multiSite ? 'bg-[var(--brand)]/10 text-[var(--brand)] ring-1 ring-[var(--brand)]/30' : 'bg-gray-100 text-gray-600'"
+                        >🏢 {{ v.site }}</span>
+                        <span v-else-if="multiSite" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs italic text-gray-400">Sans {{ siteWord.toLowerCase() }}</span>
                         <span v-if="v.center" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ v.center }}</span>
                     </div>
 

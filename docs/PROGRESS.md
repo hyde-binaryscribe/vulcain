@@ -21,6 +21,13 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Multi-site — mise en évidence du site en mode « tous les sites » (terminée)
+- En **affichage multi-site** (aucun site actif sélectionné + plusieurs sites accessibles),
+  chaque **véhicule** affiche un **badge de site** mis en évidence (couleur de marque) ;
+  « Sans site » signalé. En mode site unique, le badge reste discret.
+- (Rappel : accès par utilisateur = « Périmètre de sites » sur la fiche utilisateur ;
+  bascule / « Tous les sites » = sélecteur d'en-tête — déjà en place.)
+
 ## Durcissement autorisations Desk + commande reset-password (terminée)
 - **Correctif de sécurité** : un gestionnaire de groupe ne peut agir que sur les
   organisations **de son groupe** — `PlatformAdmin::canManageOrganisation()` appliqué à
