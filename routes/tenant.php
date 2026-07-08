@@ -9,6 +9,7 @@ use App\Http\Controllers\MaterialItemController;
 use App\Http\Controllers\PharmacyController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\ProtocolTemplateController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
@@ -17,6 +18,9 @@ use Illuminate\Support\Facades\Route;
 
 // Routes métier d'une organisation (sous-domaine résolu + authentification).
 Route::middleware(['tenant', 'auth'])->group(function () {
+
+    // Recherche globale (résultats filtrés par permissions dans le contrôleur).
+    Route::get('search', [SearchController::class, 'index'])->name('search.index');
 
     // Administration des utilisateurs.
     Route::middleware('permission:users.manage')->group(function () {

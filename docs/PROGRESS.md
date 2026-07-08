@@ -9,6 +9,14 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 5 — Recherche globale (terminée)
+- Barre de recherche dans l'en-tête + page de résultats (`/search`) groupés par catégorie
+  (Matériel, Véhicules, Protocoles, Événements). Chaque catégorie n'apparaît que si
+  l'utilisateur a la permission correspondante. **Tests (+2 = 101) : résultat matériel,
+  filtrage par permission.**
+- Correctif : `config/inertia.php` (`pages.paths` → `resources/js/Pages`, majuscule) — le
+  défaut du package pointait sur `js/pages` (casse), cassant la résolution des pages.
+
 ## Phase 5 (1/?) — Rapport imprimable / PDF d'un protocole (terminée)
 - Vue dédiée print-friendly (`protocols/report.blade.php`) : en-tête organisation, types,
   cible, vérificateur, compteurs, tableau par emplacement (anomalies surlignées),

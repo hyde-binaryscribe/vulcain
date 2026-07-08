@@ -67,6 +67,13 @@ function logout() {
     router.post('/logout');
 }
 
+const searchQuery = ref('');
+function goSearch() {
+    if (searchQuery.value.trim()) {
+        router.get('/search', { q: searchQuery.value });
+    }
+}
+
 const initials = computed(() => {
     const name = user.value?.name || '';
     return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -140,6 +147,14 @@ const initials = computed(() => {
                 </div>
 
                 <div class="flex items-center gap-3">
+                    <form class="hidden md:block" @submit.prevent="goSearch">
+                        <input
+                            v-model="searchQuery"
+                            type="search"
+                            placeholder="Rechercher…"
+                            class="w-48 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10 lg:w-64"
+                        />
+                    </form>
                     <div class="hidden text-right sm:block">
                         <p class="text-sm font-semibold text-gray-900">{{ user?.name }}</p>
                         <p class="text-xs text-gray-500">{{ tenant?.name }}</p>
