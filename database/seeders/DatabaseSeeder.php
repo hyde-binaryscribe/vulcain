@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Billing\Plan;
+use App\Domain\Billing\SubscriptionStatus;
 use App\Domain\Identity\RoleProvisioner;
 use App\Domain\Sectors\Sector;
 use App\Models\Organisation;
@@ -35,6 +37,14 @@ class DatabaseSeeder extends Seeder
             );
 
             $provisioner->provision($organisation);
+
+            // Abonnement par défaut (idempotent) — plan Découverte en essai.
+            $organisation->subscription()->firstOrCreate([], [
+                'plan' => Plan::DECOUVERTE->value,
+                'status' => SubscriptionStatus::TRIAL->value,
+                'trial_ends_at' => now()->addDays(30),
+                'current_period_end' => now()->addDays(30),
+            ]);
         }
 
         $this->call(DemoDataSeeder::class);

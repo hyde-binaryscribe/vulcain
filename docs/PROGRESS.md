@@ -21,6 +21,17 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
   **Tests (+2 = 103) : export matériel, refus vérificateur.**
 
+## Desk — Abonnements par organisation (terminée)
+- **Plans** (`Découverte` / `Standard` / `Pro`) avec limites (utilisateurs / véhicules /
+  sites) + prix indicatif ; **statuts** (essai / actif / impayé / suspendu / résilié).
+  Facturation (Stripe) toujours différée.
+- Table `subscriptions` (1:1 organisation), création automatique (provisioning + seed
+  idempotent, essai 30 j sur Découverte).
+- **Page de gestion dédiée** dans le Desk (`/platform/organisations/{id}/subscription`) :
+  plan, statut, échéance, notes commerciales, et **usage vs limites** (barres). Colonne
+  Abonnement + accès depuis le tableau de bord Desk.
+- **Tests (+4 = 114) : création auto à la provision, affichage, mise à jour, accès Desk requis.**
+
 ## Multi-sites (2/2) — Cloisonnement utilisateur + sélecteur de site (terminée)
 - **Rattachement utilisateur ↔ sites** (fiche utilisateur) : périmètre par site ; aucun
   coché = accès à tout (règle « mixte » : admins non rattachés voient tout).

@@ -18,6 +18,7 @@ class DashboardController extends Controller
         $organisations = $this->tenant->runCrossTenant(
             fn () => Organisation::query()
                 ->withCount('users')
+                ->with('subscription')
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Organisation $o) => [
@@ -29,6 +30,9 @@ class DashboardController extends Controller
                     'theme' => $o->profile()->themeColor,
                     'status' => $o->status,
                     'users_count' => $o->users_count,
+                    'plan_label' => $o->subscription?->plan->label(),
+                    'subscription_status' => $o->subscription?->status->value,
+                    'subscription_status_label' => $o->subscription?->status->label(),
                     'created_at' => $o->created_at?->format('Y-m-d'),
                 ])
                 ->values()

@@ -2,6 +2,8 @@
 
 namespace App\Domain\Identity;
 
+use App\Domain\Billing\Plan;
+use App\Domain\Billing\SubscriptionStatus;
 use App\Domain\Sectors\Sector;
 use App\Models\Organisation;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,15 @@ class OrganisationProvisioner
             ]);
 
             $this->roleProvisioner->provision($organisation);
+
+            // Abonnement par défaut : essai sur le plan Découverte (30 jours).
+            $organisation->subscription()->create([
+                'plan' => Plan::DECOUVERTE->value,
+                'status' => SubscriptionStatus::TRIAL->value,
+                'trial_ends_at' => now()->addDays(30),
+                'current_period_end' => now()->addDays(30),
+            ]);
+
             $this->invitations->invite($organisation, $adminEmail, Rbac::ADMIN);
 
             return $organisation;

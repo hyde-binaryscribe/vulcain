@@ -3,6 +3,7 @@
 use App\Http\Controllers\Platform\AuthenticatedPlatformSessionController;
 use App\Http\Controllers\Platform\DashboardController;
 use App\Http\Controllers\Platform\OrganisationController;
+use App\Http\Controllers\Platform\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 // Espace exploitant (Desk) — servi uniquement sur le domaine central.
@@ -20,5 +21,9 @@ Route::prefix('platform')->middleware('central')->group(function () {
         Route::get('organisations/create', [OrganisationController::class, 'create'])->name('platform.organisations.create');
         Route::post('organisations', [OrganisationController::class, 'store'])->name('platform.organisations.store');
         Route::post('organisations/{organisation}/toggle', [OrganisationController::class, 'toggle'])->name('platform.organisations.toggle');
+
+        // Gestion de l'abonnement d'une organisation.
+        Route::get('organisations/{organisation}/subscription', [SubscriptionController::class, 'show'])->name('platform.organisations.subscription');
+        Route::patch('organisations/{organisation}/subscription', [SubscriptionController::class, 'update'])->name('platform.organisations.subscription.update');
     });
 });

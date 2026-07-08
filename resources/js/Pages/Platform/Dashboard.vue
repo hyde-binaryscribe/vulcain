@@ -37,8 +37,9 @@ function toggle(org) {
                         <th class="px-4 py-3">Sous-domaine</th>
                         <th class="px-4 py-3">Secteur</th>
                         <th class="px-4 py-3">Utilisateurs</th>
+                        <th class="px-4 py-3">Abonnement</th>
                         <th class="px-4 py-3">Statut</th>
-                        <th class="px-4 py-3 text-right">Action</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -53,6 +54,12 @@ function toggle(org) {
                         </td>
                         <td class="px-4 py-3 text-slate-600">{{ org.users_count }}</td>
                         <td class="px-4 py-3">
+                            <Link :href="`/platform/organisations/${org.id}/subscription`" class="inline-flex items-center gap-1.5 text-slate-700 hover:text-indigo-600 hover:underline">
+                                <span class="font-medium">{{ org.plan_label ?? '—' }}</span>
+                                <span v-if="org.subscription_status_label" class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">{{ org.subscription_status_label }}</span>
+                            </Link>
+                        </td>
+                        <td class="px-4 py-3">
                             <span
                                 class="rounded-full px-2 py-0.5 text-xs font-medium"
                                 :class="org.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'"
@@ -60,10 +67,11 @@ function toggle(org) {
                                 {{ org.status === 'active' ? 'Active' : 'Suspendue' }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-right">
+                        <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <Link :href="`/platform/organisations/${org.id}/subscription`" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50">Abonnement</Link>
                             <button
                                 type="button"
-                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                                class="ml-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                                 @click="toggle(org)"
                             >
                                 {{ org.status === 'active' ? 'Suspendre' : 'Réactiver' }}
@@ -71,7 +79,7 @@ function toggle(org) {
                         </td>
                     </tr>
                     <tr v-if="organisations.length === 0">
-                        <td colspan="6" class="px-4 py-8 text-center text-slate-500">Aucune organisation pour le moment.</td>
+                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">Aucune organisation pour le moment.</td>
                     </tr>
                 </tbody>
             </table>
