@@ -54,6 +54,8 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::post('events', [EventController::class, 'store'])->name('events.store');
         Route::patch('events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::patch('events/{event}/move', [EventController::class, 'move'])->name('events.move');
+        Route::post('events/{event}/comments', [EventController::class, 'comment'])->name('events.comment');
+        Route::patch('events/{event}/material-status', [EventController::class, 'materialStatus'])->name('events.material-status');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
     });
 

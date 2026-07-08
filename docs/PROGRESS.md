@@ -9,6 +9,13 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 4 — Détail événement : assignation, commentaires, réparations (terminée)
+- Modale de détail sur les cartes Kanban : **assignation** (à un utilisateur), **fil de
+  commentaires** (table `event_comments`, additive), et — volet **réparations** — action de
+  changement de **statut du matériel rattaché** (en réparation / HS / à remplacer /
+  conforme…), tracée dans l'activity log.
+- **Tests (+2 = 98 au total, verts)** : ajout de commentaire, mise à jour du statut matériel.
+
 ## Phase 4 — Alertes stock / péremption + FEFO pharmacie (terminée)
 - Tableau de bord : cartes d'**alerte** cliquables (périmés, péremption < 30 j, stock bas,
   événements ouverts) — comptées côté serveur (`StockLot`, seuils matériel, événements).

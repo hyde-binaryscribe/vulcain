@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Catalog\MaterialStatus;
 use App\Domain\Events\EventStatus;
 use App\Domain\Events\EventType;
 use App\Models\Event;
@@ -22,7 +23,7 @@ class EventController extends Controller
     public function index(): Response
     {
         $events = Event::query()
-            ->with(['vehicle:id,name', 'material:id,name', 'assignee:id,name'])
+            ->with(['vehicle:id,name', 'material:id,name,status', 'assignee:id,name', 'comments.author:id,name'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (Event $e) => [
@@ -35,9 +36,18 @@ class EventController extends Controller
                 'priority' => $e->priority,
                 'vehicle' => $e->vehicle?->name,
                 'material' => $e->material?->name,
+                'material_id' => $e->material_id,
+                'material_status' => $e->material?->status?->value,
+                'material_status_label' => $e->material?->status?->label(),
                 'assignee' => $e->assignee?->name,
                 'assigned_to' => $e->assigned_to,
                 'created_at' => $e->created_at?->format('d/m/Y'),
+                'comments' => $e->comments->map(fn ($c) => [
+                    'id' => $c->id,
+                    'author' => $c->author?->name,
+                    'body' => $c->body,
+                    'at' => $c->created_at?->format('d/m/Y H:i'),
+                ])->values(),
             ]);
 
         // Kanban : une colonne par statut, dans l'ordre.
@@ -54,8 +64,39 @@ class EventController extends Controller
             'vehicles' => Vehicle::query()->orderBy('name')->get(['id', 'name']),
             'materials' => Material::query()->orderBy('name')->get(['id', 'name']),
             'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'materialStatuses' => MaterialStatus::options(),
             'status' => session('status'),
         ]);
+    }
+
+    /** Ajoute un commentaire au fil de l'événement. */
+    public function comment(Request $request, Event $event): RedirectResponse
+    {
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $event->comments()->create([
+            'user_id' => $request->user()->id,
+            'body' => $validated['body'],
+        ]);
+
+        return back(303)->with('status', 'Commentaire ajouté.');
+    }
+
+    /** Change le statut du matériel rattaché (volet réparation) — tracé par l'activity log. */
+    public function materialStatus(Request $request, Event $event): RedirectResponse
+    {
+        abort_if($event->material_id === null, 404, 'Aucun matériel rattaché.');
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::enum(MaterialStatus::class)],
+        ]);
+
+        // Via l'instance (et non la relation) pour déclencher l'activity log.
+        $event->material->update(['status' => $validated['status']]);
+
+        return back(303)->with('status', 'Statut du matériel mis à jour.');
     }
 
     public function store(Request $request): RedirectResponse
