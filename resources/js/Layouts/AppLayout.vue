@@ -74,6 +74,17 @@ function goSearch() {
     }
 }
 
+// Notifications
+const notifications = computed(() => page.props.notifications || { unread: 0, items: [] });
+const showNotifs = ref(false);
+function openNotif(item) {
+    showNotifs.value = false;
+    router.post(`/notifications/${item.id}/read`, {}, { preserveScroll: true });
+}
+function markAllRead() {
+    router.post('/notifications/read-all', {}, { preserveScroll: true, onSuccess: () => (showNotifs.value = false) });
+}
+
 const initials = computed(() => {
     const name = user.value?.name || '';
     return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -155,6 +166,33 @@ const initials = computed(() => {
                             class="w-48 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10 lg:w-64"
                         />
                     </form>
+                    <div class="relative">
+                        <button type="button" class="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100" @click="showNotifs = !showNotifs">
+                            <span class="text-lg">🔔</span>
+                            <span v-if="notifications.unread > 0" class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ notifications.unread }}</span>
+                        </button>
+                        <div v-if="showNotifs" class="fixed inset-0 z-20" @click="showNotifs = false" />
+                        <div v-if="showNotifs" class="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-4 py-2">
+                                <span class="text-sm font-semibold text-gray-900">Notifications</span>
+                                <button v-if="notifications.unread > 0" class="text-xs text-[var(--brand)] hover:underline" @click="markAllRead">Tout marquer lu</button>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto">
+                                <button
+                                    v-for="n in notifications.items"
+                                    :key="n.id"
+                                    type="button"
+                                    class="block w-full border-b border-gray-50 px-4 py-2.5 text-left hover:bg-gray-50"
+                                    :class="n.read ? 'opacity-60' : ''"
+                                    @click="openNotif(n)"
+                                >
+                                    <p class="text-sm text-gray-800">{{ n.message }}</p>
+                                    <p class="mt-0.5 text-[11px] text-gray-400">{{ n.at }}</p>
+                                </button>
+                                <p v-if="notifications.items.length === 0" class="px-4 py-6 text-center text-xs text-gray-400">Aucune notification.</p>
+                            </div>
+                        </div>
+                    </div>
                     <div class="hidden text-right sm:block">
                         <p class="text-sm font-semibold text-gray-900">{{ user?.name }}</p>
                         <p class="text-xs text-gray-500">{{ tenant?.name }}</p>

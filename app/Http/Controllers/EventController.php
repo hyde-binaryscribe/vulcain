@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\Material;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Notifications\EventAssigned;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,20 +104,35 @@ class EventController extends Controller
     {
         $validated = $this->validated($request);
 
-        Event::create([
+        $event = Event::create([
             ...$validated,
             'status' => EventStatus::A_TRAITER->value,
             'created_by' => $request->user()->id,
         ]);
+
+        $this->notifyAssignee($event, null, $request->user()->id);
 
         return back()->with('status', 'Événement créé.');
     }
 
     public function update(Request $request, Event $event): RedirectResponse
     {
+        $previous = $event->assigned_to;
         $event->update($this->validated($request));
+        $this->notifyAssignee($event, $previous, $request->user()->id);
 
         return back()->with('status', 'Événement mis à jour.');
+    }
+
+    /** Notifie le nouvel assigné (sauf s'il s'auto-assigne ou si inchangé). */
+    private function notifyAssignee(Event $event, ?int $previous, int $actorId): void
+    {
+        $assignee = $event->assigned_to;
+        if ($assignee === null || $assignee === $previous || $assignee === $actorId) {
+            return;
+        }
+
+        $event->assignee?->notify(new EventAssigned($event));
     }
 
     /** Déplacer une carte d'une colonne à l'autre (Kanban). */

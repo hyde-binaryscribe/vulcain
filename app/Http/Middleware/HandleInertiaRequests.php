@@ -69,6 +69,17 @@ class HandleInertiaRequests extends Middleware
                     'email' => Auth::guard('platform')->user()->email,
                 ] : null,
             ],
+            // Notifications in-app de l'utilisateur métier.
+            'notifications' => $user ? [
+                'unread' => $user->unreadNotifications()->count(),
+                'items' => $user->notifications()->latest()->limit(8)->get()->map(fn ($n) => [
+                    'id' => $n->id,
+                    'message' => $n->data['message'] ?? '',
+                    'url' => $n->data['url'] ?? null,
+                    'read' => $n->read_at !== null,
+                    'at' => $n->created_at?->diffForHumans(),
+                ]),
+            ] : ['unread' => 0, 'items' => []],
             // Messages flash (confirmation / erreur).
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),

@@ -7,6 +7,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialItemController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PharmacyController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\ProtocolTemplateController;
@@ -22,6 +23,10 @@ Route::middleware(['tenant', 'auth'])->group(function () {
 
     // Recherche globale (résultats filtrés par permissions dans le contrôleur).
     Route::get('search', [SearchController::class, 'index'])->name('search.index');
+
+    // Notifications in-app.
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
 
     // Exports CSV.
     Route::middleware('permission:exports.create')->group(function () {

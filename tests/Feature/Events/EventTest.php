@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\Material;
 use App\Models\Organisation;
 use App\Models\User;
+use App\Notifications\EventAssigned;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -93,6 +94,28 @@ class EventTest extends TestCase
             'event_id' => $event->id,
             'user_id' => $admin->id,
             'body' => 'Pièce commandée',
+        ]);
+    }
+
+    public function test_assigning_an_event_notifies_the_assignee(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+        $assignee = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::VERIFIER);
+
+            return $u;
+        });
+        $event = Event::factory()->create(['organisation_id' => $org->id]);
+
+        $this->actingAs($admin)->patch("http://caserne.localhost/events/{$event->id}", [
+            'type' => 'anomalie', 'title' => $event->title, 'priority' => 'normale',
+            'assigned_to' => $assignee->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_id' => $assignee->id,
+            'type' => EventAssigned::class,
         ]);
     }
 

@@ -9,6 +9,13 @@ Suivi vivant du développement (exigé par le cahier des charges, §35).
   affichage parent), cible d'un protocole, distinction matériel/consommable en exécution**,
   puis **Phase 3.3 — Autosave avancé + validation + verrouillage**.
 
+## Phase 5 — Notifications in-app (terminée)
+- Table `notifications` (base de données, additive). Cloche + compteur de non-lus dans
+  l'en-tête, panneau déroulant (marquer lu / tout marquer lu), redirection vers la cible.
+- Déclencheur : **assignation d'un événement** → notification à l'assigné (`EventAssigned`),
+  sauf auto-assignation. Partagé au front via `notifications` (Inertia).
+- **Tests (+1 = 104) : l'assignation notifie bien l'assigné.**
+
 ## Phase 5 — Exports CSV (terminée)
 - Export CSV (BOM UTF-8, séparateur `;`) du **catalogue matériel** et des **événements**,
   boutons « ⬇ CSV » sur les écrans concernés (visibles selon `exports.create`).
