@@ -4,6 +4,7 @@ namespace Tests\Feature\Site;
 
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
+use App\Domain\Sectors\Sector;
 use App\Models\Organisation;
 use App\Models\Site;
 use App\Models\User;
@@ -115,6 +116,39 @@ class SiteTest extends TestCase
         ])->assertSessionHas('error');
 
         $this->assertDatabaseMissing('sites', ['name' => 'Site en trop']);
+    }
+
+    public function test_site_kinds_follow_the_organisation_sector(): void
+    {
+        $org = Organisation::factory()->slug('ambu')->sector(Sector::AMBULANCE_PRIVEE)->create();
+        $admin = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::ADMIN);
+
+            return $u;
+        });
+
+        // La liste des types exposée est celle du secteur ambulancier.
+        $this->actingAs($admin)->get('http://ambu.localhost/sites')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Sites/Index')
+                ->where('kinds.0.value', 'site')
+                ->where('kinds.0.label', 'Site d’exploitation'));
+
+        // Un type d'un autre secteur (« centre » = pompiers) est refusé.
+        $this->actingAs($admin)->post('http://ambu.localhost/sites', [
+            'name' => 'Base Ouest',
+            'kind' => 'centre',
+        ])->assertSessionHasErrors('kind');
+
+        // Un type du secteur ambulancier est accepté.
+        $this->actingAs($admin)->post('http://ambu.localhost/sites', [
+            'name' => 'Base Ouest',
+            'kind' => 'site',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('sites', ['organisation_id' => $org->id, 'name' => 'Base Ouest', 'kind' => 'site']);
     }
 
     public function test_cannot_attach_a_site_from_another_organisation(): void

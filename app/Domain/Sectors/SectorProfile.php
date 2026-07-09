@@ -57,6 +57,43 @@ final class SectorProfile
         };
     }
 
+    /**
+     * Types de site proposés selon le secteur (le premier est la valeur par
+     * défaut). « autre » reste toujours disponible en repli.
+     *
+     * @return list<array{value:string,label:string}>
+     */
+    public function siteKinds(): array
+    {
+        $kinds = match ($this->sector) {
+            Sector::SDIS => [
+                ['value' => 'centre', 'label' => 'Centre de secours'],
+                ['value' => 'groupement', 'label' => 'Groupement'],
+                ['value' => 'depot', 'label' => 'Dépôt / magasin'],
+            ],
+            Sector::AMBULANCE_PRIVEE => [
+                ['value' => 'site', 'label' => 'Site d’exploitation'],
+                ['value' => 'antenne', 'label' => 'Antenne'],
+                ['value' => 'depot', 'label' => 'Dépôt / garage'],
+            ],
+            Sector::AASC => [
+                ['value' => 'antenne', 'label' => 'Antenne'],
+                ['value' => 'poste', 'label' => 'Poste de secours'],
+                ['value' => 'depot', 'label' => 'Local / dépôt'],
+            ],
+        };
+
+        $kinds[] = ['value' => 'autre', 'label' => 'Autre'];
+
+        return $kinds;
+    }
+
+    /** @return list<string> */
+    public function siteKindValues(): array
+    {
+        return array_map(fn (array $k) => $k['value'], $this->siteKinds());
+    }
+
     /** @return array<string, string> */
     public function toArray(): array
     {

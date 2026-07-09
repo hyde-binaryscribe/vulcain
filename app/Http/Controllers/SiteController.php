@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Billing\PlanLimits;
 use App\Models\Site;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,8 @@ use Inertia\Response;
 
 class SiteController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenant) {}
+
     public function index(): Response
     {
         $sites = Site::query()
@@ -28,7 +31,7 @@ class SiteController extends Controller
 
         return Inertia::render('Sites/Index', [
             'sites' => $sites,
-            'kinds' => Site::KINDS,
+            'kinds' => $this->tenant->organisation()->profile()->siteKinds(),
             'status' => session('status'),
         ]);
     }
@@ -87,9 +90,12 @@ class SiteController extends Controller
      */
     private function validated(Request $request): array
     {
+        // Types propres au secteur de l'organisation (+ « autre » en repli).
+        $allowedKinds = $this->tenant->organisation()->profile()->siteKindValues();
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'kind' => ['required', Rule::in(Site::KINDS)],
+            'kind' => ['required', Rule::in($allowedKinds)],
             'is_active' => ['boolean'],
         ]);
 

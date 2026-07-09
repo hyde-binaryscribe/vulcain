@@ -15,9 +15,14 @@ const profile = computed(() => usePage().props.tenant?.profile || {});
 const siteWord = computed(() => profile.value.site_label || 'Site');
 const siteWordPlural = computed(() => profile.value.site_label_plural || 'Sites');
 
-const kindLabels = { centre: 'Centre', depot: 'Dépôt', autre: 'Autre' };
+// Libellés de type propres au secteur, avec repli sur les valeurs héritées.
+const kindLabels = computed(() => {
+    const map = { centre: 'Centre', depot: 'Dépôt', autre: 'Autre' };
+    props.kinds.forEach((k) => { map[k.value] = k.label; });
+    return map;
+});
 
-const blank = { name: '', kind: 'centre', is_active: true };
+const blank = { name: '', kind: props.kinds[0]?.value ?? 'centre', is_active: true };
 const form = useForm({ ...blank });
 const editingId = ref(null);
 
@@ -86,7 +91,7 @@ function remove(s) {
                     <div>
                         <InputLabel value="Type" />
                         <select v-model="form.kind" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
-                            <option v-for="k in kinds" :key="k" :value="k">{{ kindLabels[k] ?? k }}</option>
+                            <option v-for="k in kinds" :key="k.value" :value="k.value">{{ k.label }}</option>
                         </select>
                     </div>
                     <label class="flex items-center gap-2 text-sm text-gray-700">

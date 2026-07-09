@@ -14,8 +14,6 @@ class Site extends Model
 {
     use BelongsToOrganisation, HasFactory, RecordsActivity, SoftDeletes;
 
-    public const KINDS = ['centre', 'depot', 'autre'];
-
     protected $fillable = [
         'name',
         'kind',
