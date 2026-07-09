@@ -16,28 +16,40 @@ const statusStyles = {
     hs: 'bg-red-100 text-red-800', a_remplacer: 'bg-orange-100 text-orange-800',
     en_reparation: 'bg-blue-100 text-blue-800', indisponible: 'bg-gray-200 text-gray-700',
 };
+// Statuts propres au véhicule (distincts des statuts matériel ci-dessus).
+const vehicleStatusStyles = {
+    disponible: 'bg-green-100 text-green-800', indisponible: 'bg-gray-200 text-gray-700',
+    maintenance: 'bg-amber-100 text-amber-800', reparation: 'bg-orange-100 text-orange-800',
+    reforme: 'bg-red-100 text-red-800',
+};
 const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
 </script>
 
 <template>
     <AppLayout>
-        <Head :title="vehicle.name" />
-        <template #title>{{ vehicle.name }}</template>
+        <Head :title="vehicle.callsign || vehicle.name" />
+        <template #title>{{ vehicle.callsign || vehicle.name }}</template>
 
         <Link href="/vehicles" class="text-sm text-[var(--brand)] hover:underline">← Véhicules</Link>
 
-        <!-- En-tête -->
-        <div class="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between bg-[var(--brand)] px-6 py-4 text-white">
-                <div>
-                    <p class="text-2xl font-bold tracking-wide">{{ vehicle.type || 'ENGIN' }}</p>
-                    <p class="text-sm text-white/80">{{ vehicle.name }} · {{ vehicle.callsign || '—' }} · {{ vehicle.registration || '—' }}</p>
+        <!-- En-tête : indicatif en avant, type en badge, nom seulement s'il diffère -->
+        <div class="mt-3 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-6 py-5">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-2xl font-bold text-gray-900">{{ vehicle.callsign || vehicle.name }}</h2>
+                        <span v-if="vehicle.type" class="rounded-md bg-[var(--brand)]/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--brand)]">{{ vehicle.type }}</span>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">
+                        <span v-if="vehicle.callsign && vehicle.name && vehicle.name !== vehicle.callsign">{{ vehicle.name }} · </span>
+                        🔖 {{ vehicle.registration || '—' }}
+                    </p>
                 </div>
-                <span class="rounded-full bg-white/20 px-3 py-1 text-sm">{{ vehicle.status_label }}</span>
+                <span class="shrink-0 rounded-full px-3 py-1 text-sm font-medium" :class="vehicleStatusStyles[vehicle.status] || 'bg-gray-100 text-gray-700'">{{ vehicle.status_label }}</span>
             </div>
             <div class="flex flex-wrap gap-6 px-6 py-4 text-sm">
                 <div><span class="text-gray-500">Centre :</span> <span class="font-medium">{{ vehicle.center || '—' }}</span></div>
-                <div><span class="text-gray-500">Kilométrage :</span> <span class="font-medium">{{ vehicle.mileage ?? '—' }}</span></div>
+                <div><span class="text-gray-500">Kilométrage :</span> <span class="font-medium">{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span></div>
                 <div><span class="text-gray-500">Autorisés :</span> <span class="font-medium">{{ assigned.length ? assigned.join(', ') : '—' }}</span></div>
             </div>
         </div>

@@ -17,6 +17,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
 // Routes métier d'une organisation (sous-domaine résolu + authentification).
@@ -64,6 +65,13 @@ Route::middleware(['tenant', 'auth'])->group(function () {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
         Route::delete('vehicles/{vehicle}', [VehicleController::class, 'destroy'])->name('vehicles.destroy');
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
+
+        // Catalogue des types de véhicule (VSAV, Ambulance type A…).
+        Route::get('vehicle-types', [VehicleTypeController::class, 'index'])->name('vehicle-types.index');
+        Route::post('vehicle-types', [VehicleTypeController::class, 'store'])->name('vehicle-types.store');
+        Route::patch('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'update'])->name('vehicle-types.update');
+        Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
+        Route::delete('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'destroy'])->name('vehicle-types.destroy');
     });
 
     // Historique des actions (journal d'activité).

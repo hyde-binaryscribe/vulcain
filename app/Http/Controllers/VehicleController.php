@@ -10,6 +10,7 @@ use App\Models\Material;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -123,6 +124,8 @@ class VehicleController extends Controller
 
     public function index(Request $request): Response
     {
+        VehicleType::ensureSeeded($this->tenant->organisation());
+
         $siteIds = SiteScope::forUser($request->user(), session('current_site_id'));
 
         $vehicles = Vehicle::query()
@@ -159,7 +162,11 @@ class VehicleController extends Controller
             'users' => $users,
             'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => VehicleStatus::options(),
-            'vehicleTypes' => $this->tenant->organisation()->profile()->vehicleTypes(),
+            'vehicleTypes' => VehicleType::query()
+                ->where('is_active', true)
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->pluck('name'),
             'status' => session('status'),
         ]);
     }

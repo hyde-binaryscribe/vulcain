@@ -15,6 +15,13 @@ const props = defineProps({
 });
 
 const siteWord = computed(() => usePage().props.tenant?.profile?.site_label || 'Site');
+// Types proposés : le catalogue + la valeur courante si elle n'y figure plus
+// (on ne perd pas un type hérité lors d'une modification).
+const typeOptions = computed(() => {
+    const list = [...props.vehicleTypes];
+    if (form.type && !list.includes(form.type)) list.unshift(form.type);
+    return list;
+});
 // Mode multi-site : aucun site actif sélectionné et plusieurs sites accessibles.
 const siteContext = computed(() => usePage().props.siteContext || { options: [], current: null });
 const multiSite = computed(() => !siteContext.value.current && siteContext.value.options.length > 1);
@@ -100,16 +107,13 @@ function saveAssign() {
                 <div class="flex items-start justify-between gap-3 border-b border-gray-100 p-5">
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
-                            <Link :href="`/vehicles/${v.id}`" class="truncate text-base font-semibold text-gray-900 hover:text-[var(--brand)] hover:underline">{{ v.name }}</Link>
+                            <Link :href="`/vehicles/${v.id}`" class="truncate text-lg font-bold text-gray-900 hover:text-[var(--brand)] hover:underline">{{ v.callsign || v.name }}</Link>
                             <span v-if="v.type" class="shrink-0 rounded-md bg-[var(--brand)]/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--brand)]">{{ v.type }}</span>
                         </div>
                         <p class="mt-1 truncate text-xs text-gray-500">
-                            <template v-if="v.callsign || v.registration">
-                                <span v-if="v.callsign">📻 {{ v.callsign }}</span>
-                                <span v-if="v.callsign && v.registration"> · </span>
-                                <span v-if="v.registration">🔖 {{ v.registration }}</span>
-                            </template>
-                            <span v-else>Ni indicatif ni immatriculation</span>
+                            <!-- Nom affiché seulement s'il diffère de l'indicatif (sinon doublon). -->
+                            <span v-if="v.callsign && v.name && v.name !== v.callsign">{{ v.name }} · </span>
+                            <span>🔖 {{ v.registration || '—' }}</span>
                         </p>
                     </div>
                     <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusStyles[v.status]">{{ v.status_label }}</span>
@@ -156,11 +160,13 @@ function saveAssign() {
                     </div>
                     <div>
                         <InputLabel value="Type" />
-                        <TextInput v-model="form.type" list="vehicle-types" placeholder="VSAV, Ambulance type A…" />
-                        <datalist id="vehicle-types">
-                            <option v-for="t in vehicleTypes" :key="t" :value="t" />
-                        </datalist>
-                        <p class="mt-1 text-xs text-gray-400">Choisissez une suggestion ou saisissez librement.</p>
+                        <select v-model="form.type" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
+                            <option value="">—</option>
+                            <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-400">
+                            Géré dans <Link href="/vehicle-types" class="text-[var(--brand)] hover:underline">Types de véhicule</Link>.
+                        </p>
                     </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>
                     <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
