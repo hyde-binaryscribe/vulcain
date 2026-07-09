@@ -159,6 +159,7 @@ class VehicleController extends Controller
             'users' => $users,
             'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => VehicleStatus::options(),
+            'vehicleTypes' => $this->tenant->organisation()->profile()->vehicleTypes(),
             'status' => session('status'),
         ]);
     }

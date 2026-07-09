@@ -11,6 +11,7 @@ const props = defineProps({
     users: { type: Array, default: () => [] },
     sites: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
+    vehicleTypes: { type: Array, default: () => [] },
 });
 
 const siteWord = computed(() => usePage().props.tenant?.profile?.site_label || 'Site');
@@ -94,17 +95,28 @@ function saveAssign() {
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <article v-for="v in vehicles" :key="v.id" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <div class="flex items-center justify-between bg-[var(--brand)] px-5 py-3 text-white">
-                    <span class="text-lg font-bold tracking-wide">{{ v.type || 'ENGIN' }}</span>
-                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">{{ v.status_label }}</span>
+            <article v-for="v in vehicles" :key="v.id" class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
+                <!-- En-tête : le nom du véhicule prime, le type devient un badge discret -->
+                <div class="flex items-start justify-between gap-3 border-b border-gray-100 p-5">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Link :href="`/vehicles/${v.id}`" class="truncate text-base font-semibold text-gray-900 hover:text-[var(--brand)] hover:underline">{{ v.name }}</Link>
+                            <span v-if="v.type" class="shrink-0 rounded-md bg-[var(--brand)]/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--brand)]">{{ v.type }}</span>
+                        </div>
+                        <p class="mt-1 truncate text-xs text-gray-500">
+                            <template v-if="v.callsign || v.registration">
+                                <span v-if="v.callsign">📻 {{ v.callsign }}</span>
+                                <span v-if="v.callsign && v.registration"> · </span>
+                                <span v-if="v.registration">🔖 {{ v.registration }}</span>
+                            </template>
+                            <span v-else>Ni indicatif ni immatriculation</span>
+                        </p>
+                    </div>
+                    <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusStyles[v.status]">{{ v.status_label }}</span>
                 </div>
-                <div class="p-5">
-                    <Link :href="`/vehicles/${v.id}`" class="text-base font-semibold text-gray-900 hover:text-[var(--brand)] hover:underline">{{ v.name }}</Link>
-                    <p class="text-xs text-gray-500">{{ v.callsign || '—' }} · {{ v.registration || '—' }}</p>
 
-                    <div class="mt-3 flex flex-wrap gap-1.5">
-                        <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusStyles[v.status]">{{ v.status_label }}</span>
+                <div class="flex flex-1 flex-col p-5 pt-4">
+                    <div class="flex flex-wrap gap-1.5">
                         <span
                             v-if="v.site"
                             class="rounded-full px-2 py-0.5 text-xs font-medium"
@@ -112,6 +124,7 @@ function saveAssign() {
                         >🏢 {{ v.site }}</span>
                         <span v-else-if="multiSite" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs italic text-gray-400">Sans {{ siteWord.toLowerCase() }}</span>
                         <span v-if="v.center" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ v.center }}</span>
+                        <span v-if="v.mileage" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ Number(v.mileage).toLocaleString('fr-FR') }} km</span>
                     </div>
 
                     <p class="mt-3 text-xs text-gray-500">
@@ -119,7 +132,7 @@ function saveAssign() {
                         <span v-if="v.assigned_names.length"> : {{ v.assigned_names.join(', ') }}</span>
                     </p>
 
-                    <div class="mt-4 flex flex-wrap gap-2">
+                    <div class="mt-4 flex flex-wrap gap-2 pt-2">
                         <Link :href="`/vehicles/${v.id}`" class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800">Voir la fiche</Link>
                         <button class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openEdit(v)">Modifier</button>
                         <button class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openAssign(v)">Affecter</button>
@@ -141,7 +154,14 @@ function saveAssign() {
                     <div class="col-span-2">
                         <InputLabel value="Nom" /><TextInput v-model="form.name" /><InputError :message="form.errors.name" />
                     </div>
-                    <div><InputLabel value="Type" /><TextInput v-model="form.type" /></div>
+                    <div>
+                        <InputLabel value="Type" />
+                        <TextInput v-model="form.type" list="vehicle-types" placeholder="VSAV, Ambulance type A…" />
+                        <datalist id="vehicle-types">
+                            <option v-for="t in vehicleTypes" :key="t" :value="t" />
+                        </datalist>
+                        <p class="mt-1 text-xs text-gray-400">Choisissez une suggestion ou saisissez librement.</p>
+                    </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>
                     <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
                     <div><InputLabel value="Centre" /><TextInput v-model="form.center" /></div>

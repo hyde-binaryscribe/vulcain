@@ -94,6 +94,21 @@ final class SectorProfile
         return array_map(fn (array $k) => $k['value'], $this->siteKinds());
     }
 
+    /**
+     * Types de véhicule suggérés selon le secteur. Le champ reste libre :
+     * ce sont des propositions (liste déroulante), pas une contrainte.
+     *
+     * @return list<string>
+     */
+    public function vehicleTypes(): array
+    {
+        return match ($this->sector) {
+            Sector::SDIS => ['VSAV', 'FPT', 'FPTL', 'CCF', 'VSR', 'EPA', 'VTU', 'VLCG', 'VL'],
+            Sector::AMBULANCE_PRIVEE => ['Ambulance type A', 'Ambulance type B', 'Ambulance type C', 'VSL', 'ASSU'],
+            Sector::AASC => ['VPSP', 'VL', 'VLHR', 'VTP', 'Poste de secours mobile'],
+        };
+    }
+
     /** @return array<string, string> */
     public function toArray(): array
     {
