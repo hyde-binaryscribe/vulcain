@@ -8,6 +8,7 @@ use App\Models\Location;
 use App\Models\Material;
 use App\Models\MaterialCategory;
 use App\Models\MaterialItem;
+use App\Models\MaterialType;
 use App\Models\StockLot;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -26,9 +27,10 @@ class MaterialController extends Controller
         $search = trim((string) $request->query('q', ''));
 
         $materials = Material::query()
-            ->with(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id'])
+            ->with(['category:id,name', 'type:id,name,tracking_mode', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id'])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
+                ->orWhere('brand', 'like', "%{$search}%")
                 ->orWhere('reference', 'like', "%{$search}%")))
             ->orderBy('name')
             ->get()
@@ -36,9 +38,12 @@ class MaterialController extends Controller
                 'id' => $m->id,
                 'reference' => $m->reference,
                 'name' => $m->name,
+                'brand' => $m->brand,
                 'description' => $m->description,
                 'category' => $m->category?->name,
                 'category_id' => $m->category_id,
+                'type' => $m->type?->name,
+                'material_type_id' => $m->material_type_id,
                 'location' => $m->location?->fullPath(),
                 'location_id' => $m->location_id,
                 'tracking_mode' => $m->tracking_mode,
@@ -55,6 +60,11 @@ class MaterialController extends Controller
         return Inertia::render('Materials/Index', [
             'materials' => $materials,
             'categories' => MaterialCategory::query()->orderBy('name')->get(['id', 'name']),
+            'materialTypes' => MaterialType::query()
+                ->where('is_active', true)
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'tracking_mode']),
             'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => MaterialStatus::options(),
             'trackingModes' => collect(Material::TRACKING_MODES)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
@@ -65,7 +75,7 @@ class MaterialController extends Controller
 
     public function show(Material $material): Response
     {
-        $material->load(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id']);
+        $material->load(['category:id,name', 'type:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id']);
 
         $itemLocationLoad = ['location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id'];
 
@@ -203,11 +213,15 @@ class MaterialController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
+            'brand' => ['nullable', 'string', 'max:100'],
             'reference' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:2000'],
             'category_id' => ['nullable', Rule::exists('material_categories', 'id')->where('organisation_id', $orgId)],
+            'material_type_id' => ['nullable', Rule::exists('material_types', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
             'location_id' => ['nullable', Rule::exists('locations', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
-            'tracking_mode' => ['required', Rule::in(array_keys(Material::TRACKING_MODES))],
+            // Le mode de suivi est imposé par le type quand il est renseigné ;
+            // sinon il reste saisi directement (compatibilité).
+            'tracking_mode' => ['required_without:material_type_id', 'nullable', Rule::in(array_keys(Material::TRACKING_MODES))],
             'theoretical_qty' => ['nullable', 'integer', 'min:0'],
             'minimum_qty' => ['nullable', 'integer', 'min:0'],
             'serial_number' => ['nullable', 'string', 'max:100'],
@@ -216,6 +230,15 @@ class MaterialController extends Controller
             'status' => ['required', Rule::enum(MaterialStatus::class)],
             'observations' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        // Un type sélectionné impose son mode de suivi au modèle.
+        if (! empty($data['material_type_id'])) {
+            $mode = MaterialType::query()->whereKey($data['material_type_id'])->value('tracking_mode');
+            if ($mode !== null) {
+                $data['tracking_mode'] = $mode;
+            }
+        }
+        $data['tracking_mode'] ??= Material::MODE_QUANTITY;
 
         $data['theoretical_qty'] ??= 0;
         $data['minimum_qty'] ??= 0;

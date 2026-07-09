@@ -7,6 +7,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialItemController;
+use App\Http\Controllers\MaterialTypeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PharmacyController;
 use App\Http\Controllers\ProtocolController;
@@ -152,5 +153,12 @@ Route::middleware(['tenant', 'auth'])->group(function () {
 
         Route::post('material-categories', [MaterialCategoryController::class, 'store'])->name('material-categories.store');
         Route::delete('material-categories/{category}', [MaterialCategoryController::class, 'destroy'])->name('material-categories.destroy');
+
+        // Catalogue des types de matériel (Thermomètre, Compresse 5×5…).
+        Route::get('material-types', [MaterialTypeController::class, 'index'])->name('material-types.index');
+        Route::post('material-types', [MaterialTypeController::class, 'store'])->name('material-types.store');
+        Route::patch('material-types/{materialType}', [MaterialTypeController::class, 'update'])->name('material-types.update');
+        Route::post('material-types/{materialType}/toggle', [MaterialTypeController::class, 'toggle'])->name('material-types.toggle');
+        Route::delete('material-types/{materialType}', [MaterialTypeController::class, 'destroy'])->name('material-types.destroy');
     });
 });

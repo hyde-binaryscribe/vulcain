@@ -31,6 +31,8 @@ class Material extends Model
 
     protected $fillable = [
         'category_id',
+        'material_type_id',
+        'brand',
         'location_id',
         'reference',
         'name',
@@ -59,6 +61,12 @@ class Material extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(MaterialCategory::class, 'category_id');
+    }
+
+    /** Type de matériel (Thermomètre, Compresse 5×5…) — porte le mode de suivi. */
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(MaterialType::class, 'material_type_id');
     }
 
     public function location(): BelongsTo

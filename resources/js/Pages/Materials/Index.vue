@@ -9,11 +9,19 @@ import InputError from '@/Components/InputError.vue';
 const props = defineProps({
     materials: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
+    materialTypes: { type: Array, default: () => [] },
     locations: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     trackingModes: { type: Array, default: () => [] },
     search: { type: String, default: '' },
 });
+
+// Libellé du mode de suivi (série / lot / quantité) d'un type donné.
+const modeLabels = computed(() => Object.fromEntries(props.trackingModes.map((m) => [m.value, m.label])));
+function typeMode(id) {
+    const t = props.materialTypes.find((x) => x.id === id);
+    return t ? modeLabels.value[t.tracking_mode] ?? t.tracking_mode : null;
+}
 
 const canExport = computed(() => (usePage().props.auth?.user?.permissions || []).includes('exports.create'));
 
@@ -41,11 +49,11 @@ function saveQuick(m) {
 
 // Ajout
 const addForm = useForm({
-    name: '', reference: '', category_id: '', location_id: '',
+    name: '', brand: '', reference: '', category_id: '', material_type_id: '', location_id: '',
     tracking_mode: props.trackingModes[0]?.value ?? 'quantity', theoretical_qty: 0, minimum_qty: 0, status: 'conforme',
 });
 function add() {
-    addForm.transform((d) => ({ ...d, category_id: d.category_id || null, location_id: d.location_id || null }))
+    addForm.transform((d) => ({ ...d, category_id: d.category_id || null, material_type_id: d.material_type_id || null, location_id: d.location_id || null }))
         .post('/materials', { preserveScroll: true, onSuccess: () => addForm.reset() });
 }
 
@@ -63,7 +71,7 @@ function removeCategory(c) {
 // Édition complète
 const editing = ref(null);
 const editForm = useForm({
-    name: '', reference: '', description: '', category_id: '', location_id: '',
+    name: '', brand: '', reference: '', description: '', category_id: '', material_type_id: '', location_id: '',
     tracking_mode: 'quantity', theoretical_qty: 0, minimum_qty: 0, serial_number: '',
     expiry_date: '', next_check_date: '', status: 'conforme', observations: '',
 });
@@ -71,15 +79,15 @@ function openEdit(m) {
     editing.value = m;
     editForm.clearErrors();
     Object.assign(editForm, {
-        name: m.name, reference: m.reference ?? '', description: m.description ?? '',
-        category_id: m.category_id ?? '', location_id: m.location_id ?? '',
+        name: m.name, brand: m.brand ?? '', reference: m.reference ?? '', description: m.description ?? '',
+        category_id: m.category_id ?? '', material_type_id: m.material_type_id ?? '', location_id: m.location_id ?? '',
         tracking_mode: m.tracking_mode, theoretical_qty: m.theoretical_qty, minimum_qty: m.minimum_qty,
         serial_number: m.serial_number ?? '', expiry_date: m.expiry_date ?? '', next_check_date: m.next_check_date ?? '',
         status: m.status, observations: m.observations ?? '',
     });
 }
 function saveEdit() {
-    editForm.transform((d) => ({ ...d, category_id: d.category_id || null, location_id: d.location_id || null }))
+    editForm.transform((d) => ({ ...d, category_id: d.category_id || null, material_type_id: d.material_type_id || null, location_id: d.location_id || null }))
         .patch(`/materials/${editing.value.id}`, { preserveScroll: true, onSuccess: () => (editing.value = null) });
 }
 function remove(m) {
@@ -152,9 +160,20 @@ function remove(m) {
             <section class="space-y-6">
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                     <h2 class="text-base font-semibold text-gray-900">Nouveau matériel</h2>
+                    <p class="mt-1 text-xs text-gray-500">Un modèle = marque + modèle, rattaché à un type. Le type fixe le mode de suivi.</p>
                     <form class="mt-4 space-y-3" @submit.prevent="add">
                         <div>
-                            <InputLabel value="Nom" /><TextInput v-model="addForm.name" /><InputError :message="addForm.errors.name" />
+                            <InputLabel value="Modèle" /><TextInput v-model="addForm.name" placeholder="ThermoScan 7, X Series…" /><InputError :message="addForm.errors.name" />
+                        </div>
+                        <div><InputLabel value="Marque" /><TextInput v-model="addForm.brand" placeholder="Braun, Zoll…" /></div>
+                        <div>
+                            <InputLabel value="Type de matériel" />
+                            <select v-model="addForm.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
+                                <option value="">— (mode libre)</option>
+                                <option v-for="t in materialTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                            </select>
+                            <p v-if="typeMode(addForm.material_type_id)" class="mt-1 text-xs text-gray-400">Suivi : {{ typeMode(addForm.material_type_id) }}</p>
+                            <p v-else class="mt-1 text-xs text-gray-400"><Link href="/material-types" class="text-[var(--brand)] hover:underline">Gérer les types</Link></p>
                         </div>
                         <div><InputLabel value="Référence" /><TextInput v-model="addForm.reference" /></div>
                         <div>
@@ -172,7 +191,7 @@ function remove(m) {
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <div>
+                            <div v-if="!addForm.material_type_id">
                                 <InputLabel value="Mode suivi" />
                                 <select v-model="addForm.tracking_mode" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
                                     <option v-for="t in trackingModes" :key="t.value" :value="t.value">{{ t.label }}</option>
@@ -207,7 +226,22 @@ function remove(m) {
             <div class="my-8 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
                 <h3 class="text-lg font-semibold text-gray-900">Modifier {{ editing.name }}</h3>
                 <form class="mt-4 grid grid-cols-2 gap-4" @submit.prevent="saveEdit">
-                    <div class="col-span-2"><InputLabel value="Nom" /><TextInput v-model="editForm.name" /><InputError :message="editForm.errors.name" /></div>
+                    <div><InputLabel value="Modèle" /><TextInput v-model="editForm.name" /><InputError :message="editForm.errors.name" /></div>
+                    <div><InputLabel value="Marque" /><TextInput v-model="editForm.brand" /></div>
+                    <div>
+                        <InputLabel value="Type de matériel" />
+                        <select v-model="editForm.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
+                            <option value="">— (mode libre)</option>
+                            <option v-for="t in materialTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                        </select>
+                        <p v-if="typeMode(editForm.material_type_id)" class="mt-1 text-xs text-gray-400">Suivi : {{ typeMode(editForm.material_type_id) }}</p>
+                    </div>
+                    <div v-if="!editForm.material_type_id">
+                        <InputLabel value="Mode suivi" />
+                        <select v-model="editForm.tracking_mode" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
+                            <option v-for="t in trackingModes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                        </select>
+                    </div>
                     <div><InputLabel value="Référence" /><TextInput v-model="editForm.reference" /></div>
                     <div><InputLabel value="N° de série" /><TextInput v-model="editForm.serial_number" /></div>
                     <div>
@@ -222,12 +256,6 @@ function remove(m) {
                         <select v-model="editForm.location_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
                             <option value="">Non défini</option>
                             <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <InputLabel value="Mode suivi" />
-                        <select v-model="editForm.tracking_mode" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
-                            <option v-for="t in trackingModes" :key="t.value" :value="t.value">{{ t.label }}</option>
                         </select>
                     </div>
                     <div>

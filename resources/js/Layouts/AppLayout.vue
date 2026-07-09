@@ -46,6 +46,7 @@ const navGroups = computed(() =>
             items: [
                 { label: 'Modèles de protocole', href: '/templates', icon: '📋', permission: 'templates.manage' },
                 { label: 'Types de véhicule', href: '/vehicle-types', icon: '🏷', permission: 'vehicles.manage' },
+                { label: 'Types de matériel', href: '/material-types', icon: '🏷', permission: 'catalog.manage' },
                 { label: 'Utilisateurs', href: '/users', icon: '👥', permission: 'users.manage' },
                 { label: 'Réglages', href: '/settings', icon: '⚙', permission: 'settings.manage' },
             ],
