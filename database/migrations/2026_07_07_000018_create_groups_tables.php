@@ -13,20 +13,28 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('groups', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        // Idempotent : une exécution partielle antérieure (table absente mais
+        // colonnes group_id déjà ajoutées) ne doit pas faire échouer la reprise.
+        if (! Schema::hasTable('groups')) {
+            Schema::create('groups', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('organisations', function (Blueprint $table) {
-            $table->foreignId('group_id')->nullable()->after('id')->constrained('groups')->nullOnDelete();
-        });
+        if (! Schema::hasColumn('organisations', 'group_id')) {
+            Schema::table('organisations', function (Blueprint $table) {
+                $table->foreignId('group_id')->nullable()->after('id')->constrained('groups')->nullOnDelete();
+            });
+        }
 
-        Schema::table('platform_admins', function (Blueprint $table) {
-            $table->foreignId('group_id')->nullable()->after('id')->constrained('groups')->nullOnDelete();
-        });
+        if (! Schema::hasColumn('platform_admins', 'group_id')) {
+            Schema::table('platform_admins', function (Blueprint $table) {
+                $table->foreignId('group_id')->nullable()->after('id')->constrained('groups')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void
