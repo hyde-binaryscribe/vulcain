@@ -32,9 +32,10 @@ function edit(s) {
     Object.assign(form, { name: s.name, kind: s.kind, is_active: s.is_active });
 }
 function submit() {
+    // form.post/patch pour que les erreurs de validation s'affichent (form.errors).
     const opts = { preserveScroll: true, onSuccess: () => resetForm() };
-    if (editingId.value) router.patch(`/sites/${editingId.value}`, form.data(), opts);
-    else router.post('/sites', form.data(), opts);
+    if (editingId.value) form.patch(`/sites/${editingId.value}`, opts);
+    else form.post('/sites', opts);
 }
 function remove(s) {
     if (confirm(`Supprimer le site « ${s.name} » ?`)) {

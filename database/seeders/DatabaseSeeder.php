@@ -38,10 +38,12 @@ class DatabaseSeeder extends Seeder
 
             $provisioner->provision($organisation);
 
-            // Abonnement par défaut (idempotent) — plan Découverte en essai.
+            // Abonnement (idempotent). L'organisation de démonstration est en plan Pro
+            // (illimité) pour permettre d'explorer sans buter sur les quotas.
+            $plan = $data['slug'] === 'demo' ? Plan::PRO : Plan::DECOUVERTE;
             $organisation->subscription()->firstOrCreate([], [
-                'plan' => Plan::DECOUVERTE->value,
-                'status' => SubscriptionStatus::TRIAL->value,
+                'plan' => $plan->value,
+                'status' => $plan === Plan::PRO ? SubscriptionStatus::ACTIVE->value : SubscriptionStatus::TRIAL->value,
                 'trial_ends_at' => now()->addDays(30),
                 'current_period_end' => now()->addDays(30),
             ]);
