@@ -168,14 +168,15 @@ const initials = computed(() => {
                         <h1 class="text-lg font-semibold text-gray-900"><slot name="title">Tableau de bord</slot></h1>
                     </div>
                     <select
-                        v-if="siteContext.options.length > 1"
-                        :value="siteContext.current ?? ''"
-                        class="ml-2 hidden rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-700 sm:block"
+                        v-if="siteContext.options.length"
+                        :value="siteContext.options.length === 1 ? siteContext.options[0].id : (siteContext.current ?? '')"
+                        :disabled="siteContext.options.length === 1"
+                        class="ml-2 hidden rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-700 disabled:cursor-default disabled:bg-gray-50 disabled:text-gray-500 sm:block"
                         title="Site actif"
                         @change="switchSite"
                     >
-                        <option value="">🏢 Tous les {{ (profile?.site_label_plural || 'sites').toLowerCase() }}</option>
-                        <option v-for="s in siteContext.options" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        <option v-if="siteContext.options.length > 1" value="">🏢 Tous les {{ (profile?.site_label_plural || 'sites').toLowerCase() }}</option>
+                        <option v-for="s in siteContext.options" :key="s.id" :value="s.id">🏢 {{ s.name }}</option>
                     </select>
                 </div>
 

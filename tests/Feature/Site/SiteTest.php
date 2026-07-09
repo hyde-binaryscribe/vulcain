@@ -112,7 +112,7 @@ class SiteTest extends TestCase
         $this->actingAs($admin)->post('http://caserne.localhost/sites', [
             'name' => 'Site en trop',
             'kind' => 'centre',
-        ])->assertSessionHasErrors('name');
+        ])->assertSessionHas('error');
 
         $this->assertDatabaseMissing('sites', ['name' => 'Site en trop']);
     }

@@ -87,7 +87,7 @@ class UserController extends Controller
         $count = User::query()->count()
             + Invitation::query()->where('organisation_id', $this->tenant->id())->whereNull('accepted_at')->count();
         if ($message = $limits->check('users', $count)) {
-            throw ValidationException::withMessages(['email' => $message]);
+            return back()->with('error', $message);
         }
 
         $invitations->invite($this->tenant->organisation(), $email, $validated['role']);

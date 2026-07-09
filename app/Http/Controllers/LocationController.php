@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Domain\Storage\LocationKind;
 use App\Models\Location;
 use App\Models\Material;
+use App\Models\Site;
 use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +34,8 @@ class LocationController extends Controller
                 'full_path' => $l->fullPath(),
                 'vehicle' => $l->vehicle?->name,
                 'vehicle_id' => $l->vehicle_id,
+                'site' => $l->site?->name,
+                'site_id' => $l->site_id,
                 'parent' => $l->parent?->name,
                 'parent_id' => $l->parent_id,
                 'holder' => $l->holder?->name,
@@ -46,6 +49,7 @@ class LocationController extends Controller
             'vehicles' => Vehicle::query()->orderBy('name')->get(['id', 'name']),
             'parents' => Location::query()->orderBy('name')->get(['id', 'name']),
             'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'reference']),
+            'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'kinds' => LocationKind::options(),
             'status' => session('status'),
         ]);
@@ -103,6 +107,10 @@ class LocationController extends Controller
             'holder_material_id' => [
                 'nullable',
                 Rule::exists('materials', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at'),
+            ],
+            'site_id' => [
+                'nullable',
+                Rule::exists('sites', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at'),
             ],
             'display_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],

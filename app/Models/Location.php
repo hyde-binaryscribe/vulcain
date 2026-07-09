@@ -19,6 +19,7 @@ class Location extends Model
 
     protected $fillable = [
         'vehicle_id',
+        'site_id',
         'kind',
         'parent_id',
         'holder_material_id',
@@ -38,6 +39,11 @@ class Location extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
     }
 
     public function parent(): BelongsTo

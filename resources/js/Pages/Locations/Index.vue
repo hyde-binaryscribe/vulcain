@@ -11,10 +11,11 @@ const props = defineProps({
     vehicles: { type: Array, default: () => [] },
     parents: { type: Array, default: () => [] },
     materials: { type: Array, default: () => [] },
+    sites: { type: Array, default: () => [] },
     kinds: { type: Array, default: () => [] },
 });
 
-const blank = { name: '', kind: 'mobile', vehicle_id: '', parent_id: '', holder_material_id: '', display_order: 0, is_active: true };
+const blank = { name: '', kind: 'mobile', vehicle_id: '', site_id: '', parent_id: '', holder_material_id: '', display_order: 0, is_active: true };
 const form = useForm({ ...blank });
 const editingId = ref(null);
 
@@ -32,6 +33,7 @@ function edit(l) {
         name: l.name,
         kind: l.kind ?? 'mobile',
         vehicle_id: l.vehicle_id ?? '',
+        site_id: l.site_id ?? '',
         parent_id: l.parent_id ?? '',
         holder_material_id: l.holder_material_id ?? '',
         display_order: l.display_order,
@@ -42,6 +44,7 @@ function submit() {
     const payload = {
         ...form.data(),
         vehicle_id: isMobile.value ? (form.vehicle_id || null) : null,
+        site_id: form.site_id || null,
         parent_id: form.parent_id || null,
         holder_material_id: form.holder_material_id || null,
     };
@@ -76,6 +79,7 @@ function remove(l) {
                             <tr>
                                 <th class="px-4 py-3">Emplacement</th>
                                 <th class="px-4 py-3">Nature</th>
+                                <th v-if="sites.length" class="px-4 py-3">Site</th>
                                 <th class="px-4 py-3">Matériel hôte</th>
                                 <th class="px-4 py-3">Ordre</th>
                                 <th class="px-4 py-3">Actif</th>
@@ -93,6 +97,10 @@ function remove(l) {
                                         {{ l.kind_label }}
                                     </span>
                                 </td>
+                                <td v-if="sites.length" class="px-4 py-3">
+                                    <span v-if="l.site" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">🏢 {{ l.site }}</span>
+                                    <span v-else class="text-gray-400">—</span>
+                                </td>
                                 <td class="px-4 py-3 text-gray-600">{{ l.holder ?? '—' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ l.display_order }}</td>
                                 <td class="px-4 py-3">
@@ -106,7 +114,7 @@ function remove(l) {
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="remove(l)">Suppr.</button>
                                 </td>
                             </tr>
-                            <tr v-if="locations.length === 0"><td colspan="6" class="px-4 py-8 text-center text-gray-500">Aucun emplacement.</td></tr>
+                            <tr v-if="locations.length === 0"><td :colspan="sites.length ? 7 : 6" class="px-4 py-8 text-center text-gray-500">Aucun emplacement.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -146,6 +154,14 @@ function remove(l) {
                             <option v-for="p in parents" :key="p.id" :value="p.id" :disabled="p.id === editingId">{{ p.name }}</option>
                         </select>
                         <InputError :message="form.errors.parent_id" />
+                    </div>
+                    <div v-if="sites.length">
+                        <InputLabel value="Site (optionnel)" />
+                        <select v-model="form.site_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
+                            <option value="">Aucun</option>
+                            <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                        <InputError :message="form.errors.site_id" />
                     </div>
                     <div>
                         <InputLabel value="Matériel hôte (optionnel)" />

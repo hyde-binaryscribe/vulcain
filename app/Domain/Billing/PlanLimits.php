@@ -13,9 +13,9 @@ class PlanLimits
     public function __construct(private readonly TenantContext $tenant) {}
 
     private const NOUNS = [
-        'users' => 'utilisateurs',
-        'vehicles' => 'véhicules',
-        'sites' => 'sites',
+        'users' => ['utilisateur', 'utilisateurs'],
+        'vehicles' => ['véhicule', 'véhicules'],
+        'sites' => ['site', 'sites'],
     ];
 
     public function limitFor(string $resource): ?int
@@ -44,9 +44,10 @@ class PlanLimits
         }
 
         $plan = $this->tenant->organisation()->subscription->plan;
-        $noun = self::NOUNS[$resource] ?? $resource;
+        [$singular, $plural] = self::NOUNS[$resource] ?? [$resource, $resource];
+        $noun = $limit > 1 ? $plural : $singular;
 
-        return "Limite du plan {$plan->label()} atteinte ({$limit} {$noun}). "
-            .'Faites évoluer l’abonnement pour en ajouter davantage.';
+        return "Plan {$plan->label()} : limite de {$limit} {$noun} atteinte. "
+            .'Faites évoluer l’abonnement pour en ajouter.';
     }
 }
