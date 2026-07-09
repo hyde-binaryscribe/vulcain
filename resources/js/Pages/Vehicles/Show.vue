@@ -86,6 +86,8 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                             <tr v-for="m in loc.materials" :key="m.id">
                                 <td class="px-4 py-2">
                                     <Link :href="`/materials/${m.id}`" class="font-medium text-gray-900 hover:text-[var(--brand)] hover:underline">{{ m.name }}</Link>
+                                    <span v-if="m.brand" class="text-gray-500"> · {{ m.brand }}</span>
+                                    <span v-if="m.type" class="ml-1 rounded bg-gray-100 px-1 py-0.5 text-[11px] text-gray-600">{{ m.type }}</span>
                                     <span class="ml-1 text-xs text-gray-400">{{ m.reference }}</span>
                                 </td>
                                 <td class="px-4 py-2 text-gray-500">{{ modeLabels[m.tracking_mode] }}</td>

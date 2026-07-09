@@ -128,7 +128,11 @@ function remove(m) {
                             <tr v-for="m in materials" :key="m.id">
                                 <td class="px-4 py-3">
                                     <Link :href="`/materials/${m.id}`" class="font-medium text-gray-900 hover:text-[var(--brand)] hover:underline">{{ m.name }}</Link>
-                                    <div class="text-xs text-gray-500">{{ m.reference || '—' }}</div>
+                                    <span v-if="m.brand" class="text-gray-500"> · {{ m.brand }}</span>
+                                    <div class="text-xs text-gray-500">
+                                        <span v-if="m.type" class="rounded bg-gray-100 px-1 py-0.5 font-medium text-gray-600">{{ m.type }}</span>
+                                        <span v-if="m.reference"> {{ m.reference }}</span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ m.category ?? '—' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ m.theoretical_qty }}</td>

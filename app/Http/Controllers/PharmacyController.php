@@ -6,6 +6,7 @@ use App\Domain\Catalog\MaterialStatus;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\MaterialCategory;
+use App\Models\MaterialType;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class PharmacyController extends Controller
 
         $consumables = Material::query()
             ->where('tracking_mode', Material::MODE_LOT)
-            ->with(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id', 'lots:id,material_id,quantity,expiry_date'])
+            ->with(['category:id,name', 'type:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id', 'lots:id,material_id,quantity,expiry_date'])
             ->orderBy('name')
             ->get()
             ->map(function (Material $m) use ($today) {
@@ -37,7 +38,9 @@ class PharmacyController extends Controller
                 return [
                     'id' => $m->id,
                     'name' => $m->name,
+                    'brand' => $m->brand,
                     'reference' => $m->reference,
+                    'type' => $m->type?->name,
                     'category' => $m->category?->name,
                     'location' => $m->location?->fullPath(),
                     'stock' => $m->stockQuantity(),
@@ -56,6 +59,12 @@ class PharmacyController extends Controller
         return Inertia::render('Pharmacy/Index', [
             'consumables' => $consumables,
             'categories' => MaterialCategory::query()->orderBy('name')->get(['id', 'name']),
+            // Types de matériel consommables (suivi par lot) pour la déclaration rapide.
+            'materialTypes' => MaterialType::query()
+                ->where('is_active', true)
+                ->where('tracking_mode', Material::MODE_LOT)
+                ->orderBy('display_order')->orderBy('name')
+                ->get(['id', 'name']),
             'locations' => Location::query()->where('is_active', true)
                 ->with(['vehicle:id,name', 'parent:id,name,parent_id,vehicle_id'])
                 ->orderBy('name')->get()
@@ -70,16 +79,21 @@ class PharmacyController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
+            'brand' => ['nullable', 'string', 'max:100'],
             'reference' => ['nullable', 'string', 'max:100'],
             'category_id' => ['nullable', Rule::exists('material_categories', 'id')->where('organisation_id', $orgId)],
+            // Un type consommable (suivi par lot) peut être rattaché à la déclaration.
+            'material_type_id' => ['nullable', Rule::exists('material_types', 'id')->where('organisation_id', $orgId)->where('tracking_mode', Material::MODE_LOT)->whereNull('deleted_at')],
             'location_id' => ['nullable', Rule::exists('locations', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
             'minimum_qty' => ['nullable', 'integer', 'min:0'],
         ]);
 
         Material::create([
             'name' => $validated['name'],
+            'brand' => $validated['brand'] ?? null,
             'reference' => $validated['reference'] ?? null,
             'category_id' => $validated['category_id'] ?? null,
+            'material_type_id' => $validated['material_type_id'] ?? null,
             'location_id' => $validated['location_id'] ?? null,
             'tracking_mode' => Material::MODE_LOT,
             'minimum_qty' => $validated['minimum_qty'] ?? 0,

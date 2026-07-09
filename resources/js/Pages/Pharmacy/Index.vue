@@ -8,13 +8,16 @@ import InputError from '@/Components/InputError.vue';
 defineProps({
     consumables: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
+    materialTypes: { type: Array, default: () => [] },
     locations: { type: Array, default: () => [] },
 });
 
 const form = useForm({
     name: '',
+    brand: '',
     reference: '',
     category_id: '',
+    material_type_id: '',
     location_id: '',
     minimum_qty: 0,
 });
@@ -23,6 +26,7 @@ function declare() {
     form.transform((d) => ({
         ...d,
         category_id: d.category_id || null,
+        material_type_id: d.material_type_id || null,
         location_id: d.location_id || null,
     })).post('/pharmacy/consumables', { preserveScroll: true, onSuccess: () => form.reset() });
 }
@@ -45,7 +49,12 @@ function declare() {
                             <tr v-for="c in consumables" :key="c.id" :class="c.expired ? 'bg-red-50' : (c.expiring_soon ? 'bg-amber-50' : '')">
                                 <td class="px-4 py-3">
                                     <Link :href="`/materials/${c.id}`" class="font-medium text-gray-900 hover:text-[var(--brand)] hover:underline">{{ c.name }}</Link>
-                                    <div class="text-xs text-gray-400">{{ c.reference }}<span v-if="c.category"> · {{ c.category }}</span></div>
+                                    <span v-if="c.brand" class="text-gray-500"> · {{ c.brand }}</span>
+                                    <div class="text-xs text-gray-400">
+                                        <span v-if="c.type" class="rounded bg-gray-100 px-1 py-0.5 text-gray-600">{{ c.type }}</span>
+                                        <span v-if="c.reference"> {{ c.reference }}</span>
+                                        <span v-if="c.category"> · {{ c.category }}</span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ c.location ?? '—' }}</td>
                                 <td class="px-4 py-3">
@@ -71,9 +80,23 @@ function declare() {
                 <p class="mt-1 text-xs text-gray-500">Crée un matériel suivi par lot / péremption.</p>
                 <form class="mt-4 space-y-4" @submit.prevent="declare">
                     <div>
-                        <InputLabel value="Nom" />
+                        <InputLabel value="Nom / modèle" />
                         <TextInput v-model="form.name" placeholder="Sérum physiologique 500 ml" />
                         <InputError :message="form.errors.name" />
+                    </div>
+                    <div>
+                        <InputLabel value="Type consommable (optionnel)" />
+                        <select v-model="form.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
+                            <option value="">—</option>
+                            <option v-for="t in materialTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                        </select>
+                        <p v-if="materialTypes.length === 0" class="mt-1 text-xs text-gray-400">
+                            Aucun type consommable. <Link href="/material-types" class="text-[var(--brand)] hover:underline">En créer un</Link> (suivi par lot).
+                        </p>
+                    </div>
+                    <div>
+                        <InputLabel value="Marque / labo (optionnel)" />
+                        <TextInput v-model="form.brand" placeholder="Hartmann, B. Braun…" />
                     </div>
                     <div>
                         <InputLabel value="Référence (optionnel)" />

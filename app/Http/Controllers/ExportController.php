@@ -15,14 +15,16 @@ class ExportController extends Controller
     public function materials(): StreamedResponse
     {
         $rows = Material::query()
-            ->with(['category:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id', 'lots:id,material_id,quantity', 'items:id,material_id'])
+            ->with(['category:id,name', 'type:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id', 'lots:id,material_id,quantity', 'items:id,material_id'])
             ->orderBy('name')
             ->get();
 
-        return $this->stream('materiel.csv', ['Nom', 'Référence', 'Catégorie', 'Emplacement', 'Suivi', 'Stock', 'Seuil', 'Statut'], function ($out) use ($rows) {
+        return $this->stream('materiel.csv', ['Type', 'Modèle', 'Marque', 'Référence', 'Catégorie', 'Emplacement', 'Suivi', 'Stock', 'Seuil', 'Statut'], function ($out) use ($rows) {
             foreach ($rows as $m) {
                 fputcsv($out, [
+                    $m->type?->name,
                     $m->name,
+                    $m->brand,
                     $m->reference,
                     $m->category?->name,
                     $m->location?->fullPath(),

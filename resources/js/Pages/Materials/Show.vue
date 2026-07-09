@@ -60,7 +60,11 @@ function removeLot(l) {
         <div class="mt-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">{{ material.name }}</h2>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-lg font-semibold text-gray-900">{{ material.name }}</h2>
+                        <span v-if="material.brand" class="text-sm text-gray-500">· {{ material.brand }}</span>
+                        <span v-if="material.type" class="rounded-md bg-[var(--brand)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--brand)]">{{ material.type }}</span>
+                    </div>
                     <p class="text-sm text-gray-500">{{ material.reference || '—' }} · {{ material.category || 'Sans catégorie' }} · {{ material.location || 'Emplacement non défini' }}</p>
                     <p class="mt-1 text-xs text-gray-500">Suivi : <span class="font-medium text-gray-700">{{ material.tracking_label }}</span></p>
                 </div>

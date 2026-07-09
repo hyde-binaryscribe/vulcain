@@ -34,7 +34,7 @@ class VehicleController extends Controller
 
         $materials = Material::query()
             ->whereIn('location_id', $locations->pluck('id'))
-            ->with(['category:id,name', 'items', 'lots'])
+            ->with(['category:id,name', 'type:id,name', 'items', 'lots'])
             ->orderBy('name')
             ->get()
             ->map(fn (Material $m) => $this->materialSummary($m));
@@ -106,7 +106,9 @@ class VehicleController extends Controller
             'id' => $m->id,
             'location_id' => $m->location_id,
             'name' => $m->name,
+            'brand' => $m->brand,
             'reference' => $m->reference,
+            'type' => $m->type?->name,
             'category' => $m->category?->name,
             'tracking_mode' => $m->tracking_mode,
             'stock' => $stock,

@@ -111,8 +111,10 @@ class MaterialController extends Controller
             'material' => [
                 'id' => $material->id,
                 'name' => $material->name,
+                'brand' => $material->brand,
                 'reference' => $material->reference,
                 'description' => $material->description,
+                'type' => $material->type?->name,
                 'category' => $material->category?->name,
                 'location' => $material->location?->name,
                 'tracking_mode' => $material->tracking_mode,
