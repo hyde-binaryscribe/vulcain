@@ -2,6 +2,7 @@
 
 namespace App\Domain\Protocol;
 
+use App\Models\Location;
 use App\Models\Material;
 use App\Models\Protocol;
 use App\Models\ProtocolTemplate;
@@ -77,11 +78,20 @@ class ProtocolSnapshot
         }
 
         if ($material->tracking_mode === Material::MODE_LOT) {
+            // Lots effectivement présents dans le périmètre (déjà filtrés par le scope).
+            $lots = $material->lots;
+            if ($lots->isEmpty()) {
+                return $order;
+            }
+
+            $lotLocation = $lots->first()->location ?? $material->location;
+
             $protocol->items()->create([
                 ...$base,
-                'expected_qty' => (int) $material->stockQuantity(),
+                'location_name' => $lotLocation?->fullPath() ?? $material->location?->fullPath(),
+                'expected_qty' => (int) $lots->sum('quantity'),
                 'last_known_expiry' => $this->nearestExpiry($material),
-                'expiry_required' => $this->expiryRequired($material, $trackExpiryInMobile),
+                'expiry_required' => $this->expiryRequired($lotLocation, $trackExpiryInMobile),
                 'display_order' => $order += 10,
             ]);
 
@@ -114,9 +124,9 @@ class ProtocolSnapshot
      * La péremption doit-elle être saisie ? Toujours pour un emplacement fixe ;
      * en mobile (véhicule), seulement si l'organisation suit les péremptions à bord.
      */
-    private function expiryRequired(Material $material, bool $trackExpiryInMobile): bool
+    private function expiryRequired(?Location $location, bool $trackExpiryInMobile): bool
     {
-        if ($material->location?->isMobile()) {
+        if ($location?->isMobile()) {
             return $trackExpiryInMobile;
         }
 

@@ -4,7 +4,9 @@ namespace App\Domain\Protocol;
 
 use App\Models\Location;
 use App\Models\Material;
+use App\Models\MaterialItem;
 use App\Models\ProtocolTemplate;
+use App\Models\StockLot;
 use App\Models\Vehicle;
 use Illuminate\Support\Collection;
 
@@ -45,6 +47,11 @@ class ProtocolScope
     /**
      * Matériels du périmètre (hors exclusions), triés par emplacement puis nom.
      *
+     * Un matériel est « présent » dans le périmètre s'il y possède un exemplaire
+     * (n° de série), un lot (consommable), ou s'il y est lui-même rattaché
+     * (mode quantité, ou exemplaires/lots héritant de l'emplacement du modèle).
+     * Les exemplaires / lots retournés sont filtrés à ceux effectivement présents.
+     *
      * @return Collection<int, Material>
      */
     public function materials(ProtocolTemplate $template): Collection
@@ -62,19 +69,40 @@ class ProtocolScope
             'location.parent:id,name,parent_id,vehicle_id',
         ];
 
-        return Material::query()
-            ->whereIn('location_id', $locationIds)
-            ->when($excluded !== [], fn ($q) => $q->whereNotIn('id', $excluded))
+        $serialIds = MaterialItem::query()->whereIn('location_id', $locationIds)->pluck('material_id');
+        $lotIds = StockLot::query()->whereIn('location_id', $locationIds)->pluck('material_id');
+        $directIds = Material::query()->whereIn('location_id', $locationIds)->pluck('id');
+
+        $ids = $serialIds->merge($lotIds)->merge($directIds)->unique()->diff($excluded)->values();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $materials = Material::query()
+            ->whereIn('id', $ids)
             ->with([
                 ...$locationLoad,
                 // Exemplaires série (une ligne de contrôle par n° de série) et lots
                 // consommables (péremption la plus proche connue).
                 'items' => fn ($q) => $q->with($locationLoad)->orderBy('serial_number'),
-                'lots:id,material_id,quantity,expiry_date',
+                'lots' => fn ($q) => $q->with($locationLoad)->orderByRaw('expiry_date is null')->orderBy('expiry_date'),
             ])
             ->orderBy('location_id')
             ->orderBy('name')
             ->get();
+
+        // On ne conserve que les exemplaires / lots effectivement dans le périmètre
+        // (emplacement propre, ou à défaut celui du modèle).
+        foreach ($materials as $material) {
+            $material->setRelation('items', $material->items
+                ->filter(fn (MaterialItem $it) => in_array($it->location_id ?? $material->location_id, $locationIds, true))
+                ->values());
+            $material->setRelation('lots', $material->lots
+                ->filter(fn (StockLot $l) => in_array($l->location_id ?? $material->location_id, $locationIds, true))
+                ->values());
+        }
+
+        return $materials;
     }
 
     /** Véhicule déduit du périmètre (null pour un emplacement fixe / dépôt). */

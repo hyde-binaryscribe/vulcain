@@ -158,6 +158,34 @@ class ProtocolRealizationTest extends TestCase
         $this->assertSame('absent', $unit->refresh()->state);
     }
 
+    public function test_perimeter_follows_exemplaire_location_not_the_model(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $template = $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $inside = Location::create(['organisation_id' => $org->id, 'vehicle_id' => $vehicle->id, 'kind' => 'mobile', 'name' => 'Cellule']);
+            // Un dépôt hors du véhicule (hors périmètre).
+            $depot = Location::create(['organisation_id' => $org->id, 'kind' => 'fixe', 'name' => 'Dépôt']);
+
+            // Le modèle est « rangé » au dépôt (hors périmètre) mais un exemplaire
+            // est physiquement à bord : il doit être capté, l'autre non.
+            $dsa = Material::factory()->create(['organisation_id' => $org->id, 'location_id' => $depot->id, 'name' => 'DSA', 'tracking_mode' => 'serial']);
+            $dsa->items()->create(['serial_number' => 'DSA-BORD', 'location_id' => $inside->id, 'status' => 'conforme']);
+            $dsa->items()->create(['serial_number' => 'DSA-DEPOT', 'location_id' => $depot->id, 'status' => 'conforme']);
+
+            return ProtocolTemplate::factory()->forVehicle($vehicle)->create(['organisation_id' => $org->id]);
+        });
+        $admin = $this->userWithRole($org, Rbac::ADMIN);
+
+        $this->actingAs($admin)->post('http://caserne.localhost/protocols', ['protocol_template_id' => $template->id]);
+
+        $protocol = $this->tenant()->runFor($org, fn () => Protocol::with('items')->latest('id')->first());
+        $serials = $protocol->items->where('tracking_mode', 'serial');
+        // Seul l'exemplaire à bord entre dans le périmètre.
+        $this->assertCount(1, $serials);
+        $this->assertSame('DSA-BORD', $serials->first()->serial_number);
+    }
+
     public function test_consumable_expiry_requirement_follows_mobile_setting(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
