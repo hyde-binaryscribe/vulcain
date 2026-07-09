@@ -32,7 +32,7 @@ class DemoDataSeeder extends Seeder
 
             $vsav = Vehicle::create([
                 'name' => 'VSAV 01', 'type' => 'VSAV', 'callsign' => 'VSAV-01',
-                'registration' => 'AA-000-AA', 'center' => 'Centre de secours', 'status' => 'disponible',
+                'registration' => 'AA-000-AA', 'status' => 'disponible',
             ]);
 
             $cellule = Location::create(['vehicle_id' => $vsav->id, 'name' => 'Cellule sanitaire', 'display_order' => 10]);

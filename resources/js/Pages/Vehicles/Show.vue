@@ -48,7 +48,6 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 <span class="shrink-0 rounded-full px-3 py-1 text-sm font-medium" :class="vehicleStatusStyles[vehicle.status] || 'bg-gray-100 text-gray-700'">{{ vehicle.status_label }}</span>
             </div>
             <div class="flex flex-wrap gap-6 px-6 py-4 text-sm">
-                <div><span class="text-gray-500">Centre :</span> <span class="font-medium">{{ vehicle.center || '—' }}</span></div>
                 <div><span class="text-gray-500">Kilométrage :</span> <span class="font-medium">{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span></div>
                 <div><span class="text-gray-500">Autorisés :</span> <span class="font-medium">{{ assigned.length ? assigned.join(', ') : '—' }}</span></div>
             </div>

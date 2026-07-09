@@ -24,7 +24,6 @@ class VehicleFactory extends Factory
             'type' => $type,
             'callsign' => strtoupper($type).'-'.fake()->numberBetween(10, 99),
             'registration' => strtoupper(fake()->bothify('??-###-??')),
-            'center' => 'Centre de secours',
             'status' => VehicleStatus::DISPONIBLE->value,
             'mileage' => fake()->numberBetween(0, 150000),
         ];

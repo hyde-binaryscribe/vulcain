@@ -38,7 +38,7 @@ const statusStyles = {
 const showForm = ref(false);
 const editingId = ref(null);
 const form = useForm({
-    name: '', type: '', callsign: '', registration: '', center: '', site_id: '',
+    name: '', type: '', callsign: '', registration: '', site_id: '',
     status: 'disponible', commissioned_at: '', mileage: '', observations: '',
 });
 
@@ -53,7 +53,7 @@ function openEdit(v) {
     form.clearErrors();
     Object.assign(form, {
         name: v.name, type: v.type ?? '', callsign: v.callsign ?? '', registration: v.registration ?? '',
-        center: v.center ?? '', site_id: v.site_id ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
+        site_id: v.site_id ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
         mileage: v.mileage ?? '', observations: v.observations ?? '',
     });
     showForm.value = true;
@@ -127,7 +127,6 @@ function saveAssign() {
                             :class="multiSite ? 'bg-[var(--brand)]/10 text-[var(--brand)] ring-1 ring-[var(--brand)]/30' : 'bg-gray-100 text-gray-600'"
                         >🏢 {{ v.site }}</span>
                         <span v-else-if="multiSite" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs italic text-gray-400">Sans {{ siteWord.toLowerCase() }}</span>
-                        <span v-if="v.center" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ v.center }}</span>
                         <span v-if="v.mileage" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ Number(v.mileage).toLocaleString('fr-FR') }} km</span>
                     </div>
 
@@ -170,7 +169,6 @@ function saveAssign() {
                     </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>
                     <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
-                    <div><InputLabel value="Centre" /><TextInput v-model="form.center" /></div>
                     <div v-if="sites.length">
                         <InputLabel :value="siteWord" />
                         <select v-model="form.site_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">

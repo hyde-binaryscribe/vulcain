@@ -24,7 +24,6 @@ class Vehicle extends Model
         'type',
         'callsign',
         'registration',
-        'center',
         'photo_path',
         'status',
         'commissioned_at',
