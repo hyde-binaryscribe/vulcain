@@ -42,15 +42,16 @@ Deux options.
 1. **Domaine > Git** > *Ajouter un dépôt*.
 2. URL : `https://github.com/hyde-binaryscribe/vulcain` — branche à déployer
    (ex. `main` une fois la branche de travail fusionnée).
-3. Répertoire de déploiement : **`httpdocs`** (racine du dépôt).
+3. Répertoire de déploiement : **`vulkain.eu`** (dossier dédié à l'app sous la
+   racine de l'abonnement — permet d'héberger plusieurs applications côte à côte).
 4. Mode : *Déploiement automatique* (à chaque push) ou manuel.
 5. Renseigner les **actions de déploiement** (§8) qui lanceront composer, les
    migrations et la mise en cache après chaque pull.
 
 ### Option B — SSH manuel
 ```bash
-cd ~/mondomaine.fr
-git clone https://github.com/hyde-binaryscribe/vulcain httpdocs
+cd ~                      # racine de l'abonnement (où cohabitent tes apps)
+git clone https://github.com/hyde-binaryscribe/vulcain vulkain.eu
 ```
 
 ---
@@ -68,7 +69,7 @@ Le cœur du multi-tenant. Topologie retenue en production :
 | domaine perso du client | Une organisation cliente (formule supérieure) — voir §12 |
 
 Dans Plesk, sur **un seul abonnement**, avec **la même racine de documents**
-(`httpdocs/public`) pour tous :
+(`vulkain.eu/public`) pour tous :
 
 1. **Domaine principal** `vulkain.eu` (+ **`www`** en alias) → vitrine.
 2. **Sous-domaine** `desk.vulkain.eu` → Desk.
@@ -116,7 +117,7 @@ npm run build
 **Ou en local puis upload** :
 ```bash
 npm ci && npm run build
-# puis upload du dossier public/build/ vers httpdocs/public/build/
+# puis upload du dossier public/build/ vers vulkain.eu/public/build/
 ```
 
 ---
@@ -197,7 +198,7 @@ MAIL_FROM_NAME="Vulcain"
 
 ### Racine de documents
 Le point d'entrée web de Laravel est **`public/`**. Dans Plesk :
-*Domaine > Hébergement & DNS > Racine des documents* → `httpdocs/public`
+*Domaine > Hébergement & DNS > Racine des documents* → `vulkain.eu/public`
 (à faire **aussi** pour `desk`, `app` et le sous-domaine générique `*.app`).
 
 ### Certificats SSL (obligatoire)
@@ -209,7 +210,7 @@ Le point d'entrée web de Laravel est **`public/`**. Dans Plesk :
     automatique si ton DNS est géré par Plesk).
 - Active la **redirection HTTP → HTTPS**.
 
-### Initialisation applicative (SSH, depuis `httpdocs`)
+### Initialisation applicative (SSH, depuis `vulkain.eu`)
 ```bash
 composer install --no-dev --optimize-autoloader
 php artisan key:generate --force        # renseigne APP_KEY
@@ -262,7 +263,7 @@ Si tu passes la file en `database` (`QUEUE_CONNECTION=database` +
 `php artisan queue:table && php artisan migrate --force`), ajoute une **tâche
 planifiée** Plesk (*Outils & Paramètres > Tâches planifiées*), toutes les minutes :
 ```bash
-cd ~/mondomaine.fr/httpdocs && php artisan queue:work --stop-when-empty --max-time=55
+cd ~/vulkain.eu && php artisan queue:work --stop-when-empty --max-time=55
 ```
 (Plesk mutualisé n'a pas Supervisor ; ce cron « une salve par minute » le remplace.)
 
