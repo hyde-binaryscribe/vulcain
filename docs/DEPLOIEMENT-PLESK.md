@@ -55,19 +55,34 @@ git clone https://github.com/hyde-binaryscribe/vulcain httpdocs
 
 ---
 
-## 3. Domaine, sous-domaine générique et DNS
+## 3. Domaines, sous-domaine générique et DNS (topologie vulkain.eu)
 
-Le cœur du multi-tenant.
+Le cœur du multi-tenant. Topologie retenue en production :
 
-1. Le **domaine principal** `mondomaine.fr` = le **Desk plateforme** (super-admin,
-   gestion des organisations / abonnements / groupes).
-2. Ajoute un **sous-domaine générique** : Plesk > *Sous-domaines* > *Ajouter*,
-   nom **`*`** → `*.mondomaine.fr`. Fais pointer sa **racine de documents sur le
-   même dossier** que le domaine principal (`httpdocs/public`). Chaque organisation
-   est servie par la même application, qui lit le sous-domaine pour résoudre le
-   tenant.
-3. **DNS** : ajoute un enregistrement **A wildcard** `*.mondomaine.fr` vers l'IP du
-   serveur (Plesk > *DNS*). Sans ça, `caserne.mondomaine.fr` ne résout pas.
+| Hôte | Rôle |
+|---|---|
+| `vulkain.eu` / `www.vulkain.eu` | Site vitrine public |
+| `desk.vulkain.eu` | Desk (super-admin) |
+| `app.vulkain.eu` | Entrée application (inscription / recherche d'organisation) |
+| `<slug>.app.vulkain.eu` | Une organisation cliente (formule de base) |
+| domaine perso du client | Une organisation cliente (formule supérieure) — voir §12 |
+
+Dans Plesk, sur **un seul abonnement**, avec **la même racine de documents**
+(`httpdocs/public`) pour tous :
+
+1. **Domaine principal** `vulkain.eu` (+ **`www`** en alias) → vitrine.
+2. **Sous-domaine** `desk.vulkain.eu` → Desk.
+3. **Sous-domaine** `app.vulkain.eu` → entrée application.
+4. **Sous-domaine générique** `*.app.vulkain.eu` : Plesk > *Sous-domaines* >
+   *Ajouter*, nom **`*.app`**. C'est lui qui sert **toutes les organisations**.
+5. **DNS** : enregistrement **A wildcard** `*.app.vulkain.eu` → IP du serveur
+   (Plesk > *DNS*). Sans ça, `caserne.app.vulkain.eu` ne résout pas.
+
+> Résolution : `config/tenancy.php` lit `APP_CENTRAL_DOMAIN` (les 4 hôtes
+> ci-dessus) ; tout `<slug>.app.vulkain.eu` hors de cette liste devient le slug
+> de l'organisation. Le middleware teste le domaine central **le plus long
+> d'abord**, donc `caserne.app.vulkain.eu` donne bien le slug `caserne`.
+
 
 > Résolution du tenant : `config/tenancy.php` lit `APP_CENTRAL_DOMAIN`. Tout
 > sous-domaine **hors** de cette liste est traité comme le slug d'une organisation.
@@ -115,10 +130,12 @@ APP_NAME=Vulcain
 APP_ENV=production
 APP_KEY=                      # généré à l'étape 7
 APP_DEBUG=false
-APP_URL=https://mondomaine.fr
+APP_URL=https://vulkain.eu
 
-# Domaine racine = Desk plateforme ; les autres sous-domaines = organisations
-APP_CENTRAL_DOMAIN=mondomaine.fr
+# Répartition des hôtes (topologie §3)
+APP_CENTRAL_DOMAIN=vulkain.eu,www.vulkain.eu,desk.vulkain.eu,app.vulkain.eu
+APP_VITRINE_DOMAIN=vulkain.eu,www.vulkain.eu
+APP_APP_DOMAIN=app.vulkain.eu
 
 APP_LOCALE=fr
 APP_FALLBACK_LOCALE=fr
@@ -144,7 +161,7 @@ DB_PASSWORD=********
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
 SESSION_ENCRYPT=true
-SESSION_DOMAIN=.mondomaine.fr     # le point initial = valable sur *.mondomaine.fr
+SESSION_DOMAIN=.vulkain.eu        # le point initial = valable sur *.vulkain.eu
 SESSION_SECURE_COOKIE=true        # HTTPS obligatoire en prod
 SESSION_SAME_SITE=lax
 
@@ -157,16 +174,17 @@ FILESYSTEM_DISK=local
 
 # E-mail (invitations, réinitialisation) — renseigne un vrai SMTP
 MAIL_MAILER=smtp
-MAIL_HOST=smtp.mondomaine.fr
+MAIL_HOST=smtp.vulkain.eu
 MAIL_PORT=587
-MAIL_USERNAME=no-reply@mondomaine.fr
+MAIL_USERNAME=no-reply@vulkain.eu
 MAIL_PASSWORD=********
-MAIL_FROM_ADDRESS="no-reply@mondomaine.fr"
+MAIL_FROM_ADDRESS="no-reply@vulkain.eu"
 MAIL_FROM_NAME="Vulcain"
 ```
 
-> **Cookie de session** : `SESSION_DOMAIN=.mondomaine.fr` (avec le point) est ce
-> qui permet de rester connecté en passant du Desk à `caserne.mondomaine.fr`.
+> **Cookie de session** : `SESSION_DOMAIN=.vulkain.eu` (avec le point) est ce
+> qui permet de rester connecté en passant de l'inscription (`app.vulkain.eu`)
+> à son espace `caserne.app.vulkain.eu`.
 > Sans ça, chaque sous-domaine redemande une connexion.
 
 > **File d'attente** : `QUEUE_CONNECTION=sync` suffit pour démarrer (les
@@ -180,13 +198,15 @@ MAIL_FROM_NAME="Vulcain"
 ### Racine de documents
 Le point d'entrée web de Laravel est **`public/`**. Dans Plesk :
 *Domaine > Hébergement & DNS > Racine des documents* → `httpdocs/public`
-(à faire **aussi** pour le sous-domaine générique `*`).
+(à faire **aussi** pour `desk`, `app` et le sous-domaine générique `*.app`).
 
-### Certificat SSL wildcard (obligatoire)
-- Extension **SSL It!** > *Let's Encrypt* > coche **« Émettre un certificat
-  wildcard »** (`*.mondomaine.fr`). Le wildcard exige une **validation DNS-01** :
-  Plesk t'affiche un enregistrement TXT à ajouter (automatique si ton DNS est géré
-  par Plesk).
+### Certificats SSL (obligatoire)
+- Extension **SSL It!** > *Let's Encrypt* :
+  - certificat standard pour `vulkain.eu`, `www.vulkain.eu`, `desk.vulkain.eu`,
+    `app.vulkain.eu` (validation HTTP-01 automatique) ;
+  - certificat **wildcard `*.app.vulkain.eu`** pour les organisations — le
+    wildcard exige une **validation DNS-01** (Plesk affiche un TXT à ajouter,
+    automatique si ton DNS est géré par Plesk).
 - Active la **redirection HTTP → HTTPS**.
 
 ### Initialisation applicative (SSH, depuis `httpdocs`)
@@ -250,8 +270,9 @@ cd ~/mondomaine.fr/httpdocs && php artisan queue:work --stop-when-empty --max-ti
 
 ## 10. Vérifications post-déploiement
 
-- [ ] `https://mondomaine.fr` affiche le Desk / la page d'accueil (HTTPS vert).
-- [ ] `https://<slug>.mondomaine.fr` charge l'organisation (wildcard DNS + SSL OK).
+- [ ] `https://vulkain.eu` affiche la vitrine (HTTPS vert).
+- [ ] `https://app.vulkain.eu/inscription` permet de créer une organisation.
+- [ ] `https://<slug>.app.vulkain.eu` charge l'organisation (wildcard DNS + SSL OK).
 - [ ] Connexion, puis navigation Desk ↔ sous-domaine **sans reconnexion**
       (cookie `SESSION_DOMAIN` OK).
 - [ ] Création d'un utilisateur → e-mail d'invitation reçu (SMTP OK).
@@ -268,3 +289,26 @@ cd ~/mondomaine.fr/httpdocs && php artisan queue:work --stop-when-empty --max-ti
 - Mots de passe DB/SMTP forts, jamais commités (`.env` hors Git — déjà `.gitignore`).
 - Sauvegardes Plesk planifiées (base + `storage/app`).
 - Voir `docs/security.md` pour le durcissement applicatif déjà en place.
+
+---
+
+## 12. Domaine personnalisé (formule supérieure)
+
+Un client premium peut utiliser son propre domaine (ex. `inventaire.sdis63.fr`)
+au lieu de `<slug>.app.vulkain.eu`. Prévu côté applicatif au **lot V4**
+(champ `custom_domain` sur l'organisation + résolution par hôte). Côté Plesk,
+par client, en manuel (volume faible) :
+
+1. **Le client** crée un enregistrement DNS `A` (ou `CNAME`) de son domaine vers
+   l'IP du serveur.
+2. **Toi dans Plesk** : sur l'abonnement `vulkain.eu`, *Sites & domaines >
+   Ajouter un alias de domaine* → le domaine du client, **même racine de
+   documents**.
+3. **SSL** : *SSL It!* émet un Let's Encrypt (HTTP-01) pour ce domaine une fois
+   le DNS pointé.
+4. L'application reconnaît l'hôte via `custom_domain` et charge la bonne
+   organisation.
+
+> Automatisable plus tard via l'API Plesk (`plesk bin domalias` / XML-RPC) si le
+> nombre de clients premium le justifie.
+
