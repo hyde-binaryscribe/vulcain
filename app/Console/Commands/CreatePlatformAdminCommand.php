@@ -14,16 +14,23 @@ use Illuminate\Validation\Rules\Password;
  */
 class CreatePlatformAdminCommand extends Command
 {
-    protected $signature = 'vulcain:create-platform-admin {--name=} {--email=}';
+    protected $signature = 'vulcain:create-platform-admin {--name=} {--email=} {--password=}';
 
-    protected $description = 'Crée un administrateur de la plateforme (mot de passe saisi masqué).';
+    protected $description = 'Crée un administrateur de la plateforme (mot de passe saisi masqué ou --password).';
 
     public function handle(): int
     {
         $name = $this->option('name') ?: $this->ask('Nom');
         $email = mb_strtolower(trim($this->option('email') ?: $this->ask('E-mail')));
-        $password = $this->secret('Mot de passe (saisie masquée)');
-        $confirmation = $this->secret('Confirmez le mot de passe');
+
+        // --password permet une exécution non-interactive (hébergement sans terminal :
+        // extension Laravel / tâche planifiée Plesk). Sinon saisie masquée.
+        if ($password = (string) $this->option('password')) {
+            $confirmation = $password;
+        } else {
+            $password = $this->secret('Mot de passe (saisie masquée)');
+            $confirmation = $this->secret('Confirmez le mot de passe');
+        }
 
         $validator = Validator::make([
             'name' => $name,
