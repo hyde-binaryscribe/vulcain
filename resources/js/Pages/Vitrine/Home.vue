@@ -3,7 +3,8 @@ import { Head } from '@inertiajs/vue3';
 
 const props = defineProps({
     plans: { type: Array, default: () => [] },
-    appUrl: { type: String, default: '/login' },
+    registerUrl: { type: String, default: '/inscription' },
+    appHomeUrl: { type: String, default: '/' },
 });
 
 const brand = '#991b1b';
@@ -45,9 +46,9 @@ function limit(v) {
                 <nav class="hidden items-center gap-8 text-sm font-medium text-gray-600 md:flex">
                     <a href="#fonctionnalites" class="hover:text-gray-900">Fonctionnalités</a>
                     <a href="#tarifs" class="hover:text-gray-900">Tarifs</a>
-                    <a :href="appUrl" class="hover:text-gray-900">Se connecter</a>
+                    <a :href="appHomeUrl" class="hover:text-gray-900">Se connecter</a>
                 </nav>
-                <a :href="appUrl" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110">
+                <a :href="registerUrl" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110">
                     Essai gratuit
                 </a>
             </div>
@@ -67,7 +68,7 @@ function limit(v) {
                     gestion des anomalies de vos véhicules et de vos sites — pompiers, ambulanciers, sécurité civile.
                 </p>
                 <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-                    <a :href="appUrl" class="rounded-lg bg-[var(--brand)] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110">
+                    <a :href="registerUrl" class="rounded-lg bg-[var(--brand)] px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110">
                         Démarrer l’essai gratuit
                     </a>
                     <a href="#fonctionnalites" class="rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
@@ -125,7 +126,7 @@ function limit(v) {
                             <li class="flex items-center gap-2"><span class="text-[var(--brand)]">✓</span> Protocoles, matériel, événements</li>
                         </ul>
                         <a
-                            :href="appUrl"
+                            :href="registerUrl"
                             class="mt-8 rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition"
                             :class="i === 1 ? 'bg-[var(--brand)] text-white hover:brightness-110' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'"
                         >
@@ -144,7 +145,7 @@ function limit(v) {
             <div class="mx-auto max-w-3xl px-6 text-center">
                 <h2 class="text-3xl font-bold tracking-tight">Prêt à fiabiliser vos inventaires ?</h2>
                 <p class="mt-3 text-white/80">Lancez votre organisation en quelques minutes, sans carte bancaire.</p>
-                <a :href="appUrl" class="mt-8 inline-block rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[var(--brand)] transition hover:bg-white/90">
+                <a :href="registerUrl" class="mt-8 inline-block rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[var(--brand)] transition hover:bg-white/90">
                     Démarrer l’essai gratuit
                 </a>
             </div>
@@ -160,7 +161,7 @@ function limit(v) {
                 <div class="flex items-center gap-6">
                     <a href="#fonctionnalites" class="hover:text-gray-900">Fonctionnalités</a>
                     <a href="#tarifs" class="hover:text-gray-900">Tarifs</a>
-                    <a :href="appUrl" class="hover:text-gray-900">Se connecter</a>
+                    <a :href="appHomeUrl" class="hover:text-gray-900">Se connecter</a>
                 </div>
             </div>
         </footer>

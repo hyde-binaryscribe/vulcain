@@ -22,6 +22,11 @@ class HomeController extends Controller
             return $vitrine->home();
         }
 
+        // Hôte applicatif (app.vulkain.eu) : entrée / recherche d'organisation.
+        if (in_array($request->getHost(), config('tenancy.app_domains', []), true)) {
+            return $vitrine->entry();
+        }
+
         // Autre hôte central : Desk (exploitant / plateforme).
         return redirect()->route('platform.dashboard');
     }
