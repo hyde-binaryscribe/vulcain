@@ -14,7 +14,8 @@
 /.zed
 /auth.json
 /node_modules
-/public/build
+# /public/build  — versionné volontairement : l'hébergement Plesk client ne
+# peut pas compiler (pas de Node). Les assets sont buildés puis commités.
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
