@@ -49,7 +49,13 @@ class ResolveTenant
             return null;
         }
 
-        foreach ($central as $domain) {
+        // On teste le domaine central le plus spécifique (le plus long) d'abord :
+        // sinon « caserne.app.vulkain.eu » matcherait « vulkain.eu » et donnerait
+        // le slug « caserne.app » au lieu de « caserne ».
+        $byLength = $central;
+        usort($byLength, fn (string $a, string $b) => strlen($b) <=> strlen($a));
+
+        foreach ($byLength as $domain) {
             if (str_ends_with($host, '.'.$domain)) {
                 $slug = substr($host, 0, -strlen('.'.$domain));
 
