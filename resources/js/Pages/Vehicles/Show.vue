@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import HistoryList from '@/Components/HistoryList.vue';
+import Icon from '@/Components/Icon.vue';
 
 defineProps({
     vehicle: { type: Object, required: true },
@@ -30,7 +31,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         <Head :title="vehicle.callsign || vehicle.name" />
         <template #title>{{ vehicle.callsign || vehicle.name }}</template>
 
-        <Link href="/vehicles" class="text-sm text-[var(--brand)] hover:underline">← Véhicules</Link>
+        <Link href="/vehicles" class="inline-flex items-center gap-1.5 text-sm text-[var(--brand)] hover:underline"><Icon name="arrow-left" :size="16" /> Véhicules</Link>
 
         <!-- En-tête : indicatif en avant, type en badge, nom seulement s'il diffère -->
         <div class="mt-3 rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -42,7 +43,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                     </div>
                     <p class="mt-1 text-sm text-gray-500">
                         <span v-if="vehicle.callsign && vehicle.name && vehicle.name !== vehicle.callsign">{{ vehicle.name }} · </span>
-                        🔖 {{ vehicle.registration || '—' }}
+                        <span class="inline-flex items-center gap-1"><Icon name="tag" :size="14" /> {{ vehicle.registration || '—' }}</span>
                     </p>
                 </div>
                 <span class="shrink-0 rounded-full px-3 py-1 text-sm font-medium" :class="vehicleStatusStyles[vehicle.status] || 'bg-gray-100 text-gray-700'">{{ vehicle.status_label }}</span>

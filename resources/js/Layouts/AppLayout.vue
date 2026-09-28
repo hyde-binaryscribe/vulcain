@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import SearchPalette from '@/Components/SearchPalette.vue';
 import Logo from '@/Components/Logo.vue';
+import Icon from '@/Components/Icon.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -31,36 +32,36 @@ const navGroups = computed(() =>
         {
             label: 'Exploitation',
             items: [
-                { label: 'Tableau de bord', href: '/dashboard', icon: '🏠', permission: null },
-                { label: 'Protocoles', href: '/protocols', icon: '✅', permission: 'protocols.perform' },
-                { label: 'Événements', href: '/events', icon: '🗂', permission: 'anomalies.manage' },
+                { label: 'Tableau de bord', href: '/dashboard', icon: 'dashboard', permission: null },
+                { label: 'Protocoles', href: '/protocols', icon: 'protocol', permission: 'protocols.perform' },
+                { label: 'Événements', href: '/events', icon: 'events', permission: 'anomalies.manage' },
             ],
         },
         {
             label: 'Parc & stock',
             items: [
-                { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: '🏢', permission: 'sites.manage' },
-                { label: 'Véhicules', href: '/vehicles', icon: '🚑', permission: 'vehicles.manage' },
-                { label: 'Emplacements', href: '/locations', icon: '📍', permission: 'locations.manage' },
-                { label: 'Matériel', href: '/materials', icon: '🧰', permission: 'catalog.manage' },
-                { label: 'Pharmacie', href: '/pharmacy', icon: '💊', permission: 'pharmacy.manage' },
+                { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: 'building', permission: 'sites.manage' },
+                { label: 'Véhicules', href: '/vehicles', icon: 'vehicle', permission: 'vehicles.manage' },
+                { label: 'Emplacements', href: '/locations', icon: 'pin', permission: 'locations.manage' },
+                { label: 'Matériel', href: '/materials', icon: 'materials', permission: 'catalog.manage' },
+                { label: 'Pharmacie', href: '/pharmacy', icon: 'pharmacy', permission: 'pharmacy.manage' },
             ],
         },
         {
             label: 'Configuration',
             items: [
-                { label: 'Modèles de protocole', href: '/templates', icon: '📋', permission: 'templates.manage' },
-                { label: 'Types de véhicule', href: '/vehicle-types', icon: '🏷', permission: 'vehicles.manage' },
-                { label: 'Types de matériel', href: '/material-types', icon: '🏷', permission: 'catalog.manage' },
-                { label: 'Utilisateurs', href: '/users', icon: '👥', permission: 'users.manage' },
-                { label: 'Réglages', href: '/settings', icon: '⚙', permission: 'settings.manage' },
+                { label: 'Modèles de protocole', href: '/templates', icon: 'template', permission: 'templates.manage' },
+                { label: 'Types de véhicule', href: '/vehicle-types', icon: 'tag', permission: 'vehicles.manage' },
+                { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
+                { label: 'Utilisateurs', href: '/users', icon: 'users', permission: 'users.manage' },
+                { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
             ],
         },
         {
             label: 'Suivi',
             items: [
-                { label: 'Historique', href: '/activity', icon: '🕓', permission: 'history.view' },
-                { label: 'Profil', href: '/profile', icon: '👤', permission: null },
+                { label: 'Historique', href: '/activity', icon: 'clock', permission: 'history.view' },
+                { label: 'Profil', href: '/profile', icon: 'user', permission: null },
             ],
         },
     ]
@@ -137,7 +138,7 @@ const initials = computed(() => {
                             :class="isActive(item.href) ? 'bg-[var(--brand)] text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white'"
                             @click="sidebarOpen = false"
                         >
-                            <span class="w-4 text-center text-xs opacity-80">{{ item.icon }}</span>
+                            <Icon :name="item.icon" :size="17" class="shrink-0 opacity-90" />
                             {{ item.label }}
                         </Link>
                     </div>
@@ -182,8 +183,8 @@ const initials = computed(() => {
                         title="Site actif"
                         @change="switchSite"
                     >
-                        <option v-if="siteContext.options.length > 1" value="">🏢 Tous les {{ (profile?.site_label_plural || 'sites').toLowerCase() }}</option>
-                        <option v-for="s in siteContext.options" :key="s.id" :value="s.id">🏢 {{ s.name }}</option>
+                        <option v-if="siteContext.options.length > 1" value="">Tous les {{ (profile?.site_label_plural || 'sites').toLowerCase() }}</option>
+                        <option v-for="s in siteContext.options" :key="s.id" :value="s.id">{{ s.name }}</option>
                     </select>
                 </div>
 
@@ -193,13 +194,13 @@ const initials = computed(() => {
                         class="hidden items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-50 md:flex"
                         @click="paletteOpen = true"
                     >
-                        <span>🔍</span>
+                        <Icon name="search" :size="16" />
                         <span>Rechercher…</span>
                         <kbd class="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] text-gray-400">⌘K</kbd>
                     </button>
                     <div class="relative">
                         <button type="button" class="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100" @click="showNotifs = !showNotifs">
-                            <span class="text-lg">🔔</span>
+                            <Icon name="bell" :size="20" />
                             <span v-if="notifications.unread > 0" class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ notifications.unread }}</span>
                         </button>
                         <div v-if="showNotifs" class="fixed inset-0 z-20" @click="showNotifs = false" />
@@ -237,7 +238,7 @@ const initials = computed(() => {
                     v-if="impersonator"
                     class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
                 >
-                    <span>👁 Vous êtes connecté en tant qu'utilisateur de cette organisation (support Desk — {{ impersonator.name }}).</span>
+                    <span class="flex items-center gap-2"><Icon name="eye" :size="16" /> Session support en cours sur cette organisation ({{ impersonator.name }}).</span>
                     <button class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700" @click="stopImpersonation">Revenir au Desk</button>
                 </div>
                 <div

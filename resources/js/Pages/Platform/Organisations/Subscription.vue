@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import PlatformLayout from '@/Layouts/PlatformLayout.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     organisation: { type: Object, required: true },
@@ -45,7 +46,7 @@ function save() {
     <PlatformLayout>
         <Head :title="`Abonnement — ${organisation.name}`" />
 
-        <Link href="/platform" class="text-sm text-indigo-600 hover:underline">← Organisations</Link>
+        <Link href="/platform" class="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline"><Icon name="arrow-left" :size="16" /> Organisations</Link>
 
         <div class="mt-3 mb-6">
             <h1 class="text-xl font-semibold text-slate-900">Abonnement — {{ organisation.name }}</h1>

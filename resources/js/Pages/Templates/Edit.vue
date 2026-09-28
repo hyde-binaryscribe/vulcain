@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     template: { type: Object, required: true },
@@ -55,7 +56,7 @@ function saveExclusions() {
         <Head :title="template.name" />
         <template #title>{{ template.name }}</template>
 
-        <Link href="/templates" class="text-sm text-[var(--brand)] hover:underline">← Modèles</Link>
+        <Link href="/templates" class="inline-flex items-center gap-1.5 text-sm text-[var(--brand)] hover:underline"><Icon name="arrow-left" :size="16" /> Modèles</Link>
 
         <div class="mt-3 grid gap-6 lg:grid-cols-3">
             <!-- Réglages -->

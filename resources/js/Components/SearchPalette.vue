@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     open: { type: Boolean, default: false },
@@ -88,7 +89,7 @@ function flatIndex(groupIdx, resIdx) {
     <div v-if="open" class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[10vh]" @click.self="emit('close')">
         <div class="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div class="flex items-center gap-2 border-b border-gray-100 px-4">
-                <span class="text-gray-400">🔍</span>
+                <span class="inline-flex items-center text-gray-400"><Icon name="search" :size="16" /></span>
                 <input
                     ref="inputRef"
                     v-model="query"
@@ -123,7 +124,7 @@ function flatIndex(groupIdx, resIdx) {
                     Aucun résultat pour « {{ query }} ».
                 </div>
                 <div v-if="!query" class="px-4 py-6 text-center text-xs text-gray-400">
-                    Tape pour rechercher. ↑↓ pour naviguer, Entrée pour ouvrir.
+                    Tape pour rechercher. Flèches pour naviguer, Entrée pour ouvrir.
                 </div>
             </div>
         </div>

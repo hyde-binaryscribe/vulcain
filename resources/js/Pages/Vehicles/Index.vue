@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     vehicles: { type: Array, default: () => [] },
@@ -113,7 +114,7 @@ function saveAssign() {
                         <p class="mt-1 truncate text-xs text-gray-500">
                             <!-- Nom affiché seulement s'il diffère de l'indicatif (sinon doublon). -->
                             <span v-if="v.callsign && v.name && v.name !== v.callsign">{{ v.name }} · </span>
-                            <span>🔖 {{ v.registration || '—' }}</span>
+                            <span class="inline-flex items-center gap-1"><Icon name="tag" :size="14" /> {{ v.registration || '—' }}</span>
                         </p>
                     </div>
                     <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="statusStyles[v.status]">{{ v.status_label }}</span>
@@ -123,9 +124,9 @@ function saveAssign() {
                     <div class="flex flex-wrap gap-1.5">
                         <span
                             v-if="v.site"
-                            class="rounded-full px-2 py-0.5 text-xs font-medium"
+                            class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                             :class="multiSite ? 'bg-[var(--brand)]/10 text-[var(--brand)] ring-1 ring-[var(--brand)]/30' : 'bg-gray-100 text-gray-600'"
-                        >🏢 {{ v.site }}</span>
+                        ><Icon name="building" :size="14" /> {{ v.site }}</span>
                         <span v-else-if="multiSite" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs italic text-gray-400">Sans {{ siteWord.toLowerCase() }}</span>
                         <span v-if="v.mileage" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{{ Number(v.mileage).toLocaleString('fr-FR') }} km</span>
                     </div>

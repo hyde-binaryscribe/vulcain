@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import Logo from '@/Components/Logo.vue';
+import Icon from '@/Components/Icon.vue';
 
 defineProps({
     plans: { type: Array, default: () => [] },
@@ -9,18 +10,18 @@ defineProps({
 });
 
 const sectors = [
-    { emoji: '🚒', label: 'Sapeurs-pompiers' },
-    { emoji: '🚑', label: 'Ambulanciers' },
-    { emoji: '⛑️', label: 'Sécurité civile' },
+    { icon: 'vehicle', label: 'Sapeurs-pompiers' },
+    { icon: 'vehicle', label: 'Ambulanciers' },
+    { icon: 'shield', label: 'Sécurité civile' },
 ];
 
 const features = [
-    { icon: '✅', title: 'Protocoles sur mesure', text: 'Inventaires, vérifications et contrôles véhicule déduits du périmètre — optimisé pour les admins, simple pour les équipes.' },
-    { icon: '🧰', title: 'Matériel & consommables', text: 'Catalogue Type → Modèle → Exemplaire : n° de série pour le durable, lot et péremption pour le consommable.' },
-    { icon: '🗂', title: 'Événements & réparations', text: 'Chaque anomalie relevée alimente un Kanban : assignation, commentaires, suivi jusqu’à résolution.' },
-    { icon: '🏢', title: 'Multi-sites', text: 'Centres, dépôts, antennes : véhicules et emplacements rattachés à leur site, bascule et vue consolidée.' },
-    { icon: '🔔', title: 'Alertes & péremptions', text: 'Stocks sous le seuil et lots proches de la péremption remontés en temps réel (FEFO).' },
-    { icon: '🕓', title: 'Traçabilité complète', text: 'Historique horodaté, protocoles figés et verrouillés, exports CSV — conformité et sérénité.' },
+    { icon: 'protocol', title: 'Protocoles sur mesure', text: 'Inventaires, vérifications et contrôles véhicule déduits du périmètre — optimisé pour les admins, simple pour les équipes.' },
+    { icon: 'materials', title: 'Matériel & consommables', text: 'Catalogue Type, Modèle, Exemplaire : n° de série pour le durable, lot et péremption pour le consommable.' },
+    { icon: 'events', title: 'Événements & réparations', text: 'Chaque anomalie relevée alimente un Kanban : assignation, commentaires, suivi jusqu’à résolution.' },
+    { icon: 'building', title: 'Multi-sites', text: 'Centres, dépôts, antennes : véhicules et emplacements rattachés à leur site, bascule et vue consolidée.' },
+    { icon: 'bell', title: 'Alertes & péremptions', text: 'Stocks sous le seuil et lots proches de la péremption remontés en temps réel (FEFO).' },
+    { icon: 'clock', title: 'Traçabilité complète', text: 'Historique horodaté, protocoles figés et verrouillés, exports CSV — conformité et sérénité.' },
 ];
 
 function priceLabel(p) {
@@ -74,7 +75,7 @@ function limit(v) {
                     </a>
                 </div>
                 <div class="mt-12 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-gray-400">
-                    <span v-for="s in sectors" :key="s.label" class="inline-flex items-center gap-2"><span class="text-lg">{{ s.emoji }}</span> {{ s.label }}</span>
+                    <span v-for="s in sectors" :key="s.label" class="inline-flex items-center gap-2"><Icon :name="s.icon" :size="18" /> {{ s.label }}</span>
                 </div>
             </div>
             <!-- Bandeau de preuve -->
@@ -94,7 +95,7 @@ function limit(v) {
                 <p class="mx-auto mt-3 max-w-2xl text-center text-gray-600">Du catalogue à la vérification terrain, jusqu’à la réparation — une seule plateforme.</p>
                 <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <article v-for="f in features" :key="f.title" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand)]/10 text-xl">{{ f.icon }}</div>
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand)]/10 text-[var(--brand)]"><Icon :name="f.icon" :size="22" /></div>
                         <h3 class="mt-4 text-base font-semibold">{{ f.title }}</h3>
                         <p class="mt-2 text-sm leading-relaxed text-gray-600">{{ f.text }}</p>
                     </article>
@@ -117,10 +118,10 @@ function limit(v) {
                         </div>
                         <p class="mt-4 font-display text-3xl font-extrabold">{{ priceLabel(p) }}</p>
                         <ul class="mt-6 space-y-2 text-sm text-gray-600">
-                            <li class="flex items-center gap-2"><span class="text-[var(--brand)]">✓</span> {{ limit(p.limits.users) }} utilisateurs</li>
-                            <li class="flex items-center gap-2"><span class="text-[var(--brand)]">✓</span> {{ limit(p.limits.vehicles) }} véhicules</li>
-                            <li class="flex items-center gap-2"><span class="text-[var(--brand)]">✓</span> {{ limit(p.limits.sites) }} site(s)</li>
-                            <li class="flex items-center gap-2"><span class="text-[var(--brand)]">✓</span> Protocoles, matériel, événements</li>
+                            <li class="flex items-center gap-2"><Icon name="check" :size="16" class="text-[var(--brand)]" /> {{ limit(p.limits.users) }} utilisateurs</li>
+                            <li class="flex items-center gap-2"><Icon name="check" :size="16" class="text-[var(--brand)]" /> {{ limit(p.limits.vehicles) }} véhicules</li>
+                            <li class="flex items-center gap-2"><Icon name="check" :size="16" class="text-[var(--brand)]" /> {{ limit(p.limits.sites) }} site(s)</li>
+                            <li class="flex items-center gap-2"><Icon name="check" :size="16" class="text-[var(--brand)]" /> Protocoles, matériel, événements</li>
                         </ul>
                         <a :href="registerUrl" class="mt-8 rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition"
                             :class="i === 1 ? 'bg-[var(--brand)] text-white hover:brightness-110' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'">

@@ -6,6 +6,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import HistoryList from '@/Components/HistoryList.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     material: { type: Object, required: true },
@@ -54,7 +55,7 @@ function removeLot(l) {
         <Head :title="material.name" />
         <template #title>{{ material.name }}</template>
 
-        <Link href="/materials" class="text-sm text-[var(--brand)] hover:underline">← Catalogue</Link>
+        <Link href="/materials" class="inline-flex items-center gap-1.5 text-sm text-[var(--brand)] hover:underline"><Icon name="arrow-left" :size="16" /> Catalogue</Link>
 
         <!-- En-tête -->
         <div class="mt-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">

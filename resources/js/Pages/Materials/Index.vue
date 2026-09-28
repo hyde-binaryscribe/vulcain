@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     materials: { type: Array, default: () => [] },
@@ -108,7 +109,7 @@ function remove(m) {
                 <div class="mb-3 flex gap-2">
                     <TextInput v-model="searchTerm" placeholder="Rechercher nom ou référence…" @keyup.enter="runSearch" />
                     <button class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white" @click="runSearch">Rechercher</button>
-                    <a v-if="canExport" href="/exports/materiel.csv" class="whitespace-nowrap rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">⬇ CSV</a>
+                    <a v-if="canExport" href="/exports/materiel.csv" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"><Icon name="download" :size="16" /> CSV</a>
                 </div>
 
                 <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -217,7 +218,7 @@ function remove(m) {
                     <ul class="mt-3 flex flex-wrap gap-2">
                         <li v-for="c in categories" :key="c.id" class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs">
                             {{ c.name }}
-                            <button class="text-gray-400 hover:text-red-600" @click="removeCategory(c)">✕</button>
+                            <button class="inline-flex items-center text-gray-400 hover:text-red-600" @click="removeCategory(c)"><Icon name="x" :size="14" /></button>
                         </li>
                         <li v-if="categories.length === 0" class="text-xs text-gray-500">Aucune catégorie.</li>
                     </ul>

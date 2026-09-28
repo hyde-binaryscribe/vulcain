@@ -74,7 +74,7 @@ function remove(s) {
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="remove(s)">Suppr.</button>
                                 </td>
                             </tr>
-                            <tr v-if="sites.length === 0"><td colspan="5" class="px-4 py-8 text-center text-gray-500">Aucun site. Créez-en un →</td></tr>
+                            <tr v-if="sites.length === 0"><td colspan="5" class="px-4 py-8 text-center text-gray-500">Aucun site. Créez-en un.</td></tr>
                         </tbody>
                     </table>
                 </div>

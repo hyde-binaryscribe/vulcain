@@ -5,6 +5,7 @@ import PlatformLayout from '@/Layouts/PlatformLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     sectors: { type: Array, default: () => [] },
@@ -45,7 +46,7 @@ function submit() {
         <Head title="Desk — Nouvelle organisation" />
 
         <div class="mb-6">
-            <Link href="/platform" class="text-sm text-indigo-600 hover:underline">← Retour</Link>
+            <Link href="/platform" class="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline"><Icon name="arrow-left" :size="16" /> Retour</Link>
             <h1 class="mt-2 text-xl font-semibold text-slate-900">Nouvelle organisation</h1>
             <p class="text-sm text-slate-500">Crée le client, provisionne ses rôles et met en route son premier administrateur.</p>
         </div>

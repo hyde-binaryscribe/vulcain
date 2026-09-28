@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import PlatformLayout from '@/Layouts/PlatformLayout.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     org: { type: Object, required: true },
@@ -52,7 +53,7 @@ function impersonate() {
     <PlatformLayout>
         <Head :title="`Desk — ${org.name}`" />
 
-        <Link href="/platform" class="text-sm text-indigo-600 hover:underline">← Tableau de bord</Link>
+        <Link href="/platform" class="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline"><Icon name="arrow-left" :size="16" /> Tableau de bord</Link>
 
         <div v-if="flash" class="mt-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ flash }}</div>
         <div v-if="flashError" class="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ flashError }}</div>
@@ -95,7 +96,7 @@ function impersonate() {
                         <span v-if="org.group"> · groupe {{ org.group }}</span> · créée le {{ org.created_at }}
                     </p>
                 </div>
-                <a :href="org.app_url" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Ouvrir l'espace ↗</a>
+                <a :href="org.app_url" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Ouvrir l'espace <Icon name="external" :size="16" /></a>
             </div>
 
             <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">

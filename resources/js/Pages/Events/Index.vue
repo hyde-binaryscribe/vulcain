@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     columns: { type: Array, default: () => [] },
@@ -107,7 +108,7 @@ function remove(event) {
         <div class="mb-4 flex items-center justify-between">
             <p class="text-sm text-gray-500">Anomalies et réparations à suivre. Déplace les cartes selon leur avancement.</p>
             <div class="flex gap-2">
-                <a v-if="canExport" href="/exports/evenements.csv" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">⬇ CSV</a>
+                <a v-if="canExport" href="/exports/evenements.csv" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"><Icon name="download" :size="16" /> CSV</a>
                 <button class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110" @click="showForm = !showForm">
                     {{ showForm ? 'Fermer' : 'Nouvel événement' }}
                 </button>
@@ -182,26 +183,26 @@ function remove(event) {
                         <p class="mt-1.5 text-sm font-semibold text-gray-900">{{ e.title }}</p>
                         <p v-if="e.description" class="mt-0.5 line-clamp-2 text-xs text-gray-500">{{ e.description }}</p>
                         <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">
-                            <span v-if="e.vehicle">🚑 {{ e.vehicle }}</span>
-                            <span v-if="e.material">🧰 {{ e.material }}</span>
-                            <span v-if="e.assignee">👤 {{ e.assignee }}</span>
-                            <span v-if="e.comments && e.comments.length">💬 {{ e.comments.length }}</span>
+                            <span v-if="e.vehicle" class="inline-flex items-center gap-1"><Icon name="vehicle" :size="14" /> {{ e.vehicle }}</span>
+                            <span v-if="e.material" class="inline-flex items-center gap-1"><Icon name="materials" :size="14" /> {{ e.material }}</span>
+                            <span v-if="e.assignee" class="inline-flex items-center gap-1"><Icon name="user" :size="14" /> {{ e.assignee }}</span>
+                            <span v-if="e.comments && e.comments.length" class="inline-flex items-center gap-1"><Icon name="message" :size="14" /> {{ e.comments.length }}</span>
                         </div>
 
                         <div class="mt-2 flex items-center justify-between">
                             <div class="flex gap-1">
                                 <button
-                                    class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-30"
+                                    class="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-30"
                                     :disabled="statusOrder.indexOf(e.status) === 0"
                                     title="Reculer"
                                     @click.stop="move(e, -1)"
-                                >←</button>
+                                ><Icon name="arrow-left" :size="14" /></button>
                                 <button
-                                    class="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-30"
+                                    class="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-30"
                                     :disabled="statusOrder.indexOf(e.status) === statusOrder.length - 1"
                                     title="Avancer"
                                     @click.stop="move(e, 1)"
-                                >→</button>
+                                ><Icon name="arrow-right" :size="14" /></button>
                             </div>
                             <button class="text-xs text-red-500 hover:underline" @click.stop="remove(e)">Suppr.</button>
                         </div>
@@ -224,15 +225,15 @@ function remove(event) {
                         <h2 class="mt-2 text-lg font-semibold text-gray-900">{{ selectedEvent.title }}</h2>
                         <p class="text-xs text-gray-400">Créé le {{ selectedEvent.created_at }}</p>
                     </div>
-                    <button class="text-gray-400 hover:text-gray-600" @click="selectedId = null">✕</button>
+                    <button class="inline-flex items-center text-gray-400 hover:text-gray-600" @click="selectedId = null"><Icon name="x" :size="16" /></button>
                 </div>
 
                 <div class="space-y-5 overflow-y-auto p-5">
                     <p v-if="selectedEvent.description" class="whitespace-pre-line text-sm text-gray-600">{{ selectedEvent.description }}</p>
 
                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                        <span v-if="selectedEvent.vehicle">🚑 {{ selectedEvent.vehicle }}</span>
-                        <span v-if="selectedEvent.material">🧰 {{ selectedEvent.material }}</span>
+                        <span v-if="selectedEvent.vehicle" class="inline-flex items-center gap-1"><Icon name="vehicle" :size="14" /> {{ selectedEvent.vehicle }}</span>
+                        <span v-if="selectedEvent.material" class="inline-flex items-center gap-1"><Icon name="materials" :size="14" /> {{ selectedEvent.material }}</span>
                     </div>
 
                     <!-- Assignation -->

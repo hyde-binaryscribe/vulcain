@@ -63,7 +63,7 @@ function createManager() {
                         Gestionnaires : <span v-for="(m, i) in g.managers" :key="m.id">{{ m.email }}<span v-if="i < g.managers.length - 1">, </span></span>
                     </div>
                 </div>
-                <p v-if="groups.length === 0" class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Aucun groupe. Créez-en un →</p>
+                <p v-if="groups.length === 0" class="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Aucun groupe. Créez-en un.</p>
             </section>
 
             <!-- Nouveau groupe + rattachement -->

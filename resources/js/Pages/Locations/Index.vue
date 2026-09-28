@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     locations: { type: Array, default: () => [] },
@@ -98,7 +99,7 @@ function remove(l) {
                                     </span>
                                 </td>
                                 <td v-if="sites.length" class="px-4 py-3">
-                                    <span v-if="l.site" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">🏢 {{ l.site }}</span>
+                                    <span v-if="l.site" class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700"><Icon name="building" :size="14" /> {{ l.site }}</span>
                                     <span v-else class="text-gray-400">—</span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ l.holder ?? '—' }}</td>

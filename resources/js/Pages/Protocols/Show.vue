@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     protocol: { type: Object, required: true },
@@ -120,8 +121,8 @@ function fmt(date) {
         <template #title>Protocole — {{ protocol.vehicle_name }}</template>
 
         <div class="flex items-center justify-between">
-            <Link href="/protocols" class="text-sm text-[var(--brand)] hover:underline">← Protocoles</Link>
-            <a :href="`/protocols/${protocol.id}/report`" target="_blank" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">🖨️ Imprimer / PDF</a>
+            <Link href="/protocols" class="inline-flex items-center gap-1.5 text-sm text-[var(--brand)] hover:underline"><Icon name="arrow-left" :size="16" /> Protocoles</Link>
+            <a :href="`/protocols/${protocol.id}/report`" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"><Icon name="printer" :size="16" /> Imprimer / PDF</a>
         </div>
 
         <!-- En-tête + progression -->
@@ -240,8 +241,8 @@ function fmt(date) {
                                     @change="save(item)"
                                 />
                                 <div class="flex items-center gap-3">
-                                    <label class="cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
-                                        📷 Photo (facultative)
+                                    <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                                        <Icon name="camera" :size="16" /> Photo (facultative)
                                         <input type="file" accept="image/*" class="hidden" :disabled="!editable" @change="onPhoto(item, $event)" />
                                     </label>
                                     <a v-if="item.photo_url" :href="item.photo_url" target="_blank" class="text-xs text-[var(--brand)] hover:underline">Voir la photo</a>
