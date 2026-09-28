@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Vulkain">
+  <defs>
+    <linearGradient id="vk-ember" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7883A"/>
+      <stop offset="1" stop-color="#C6362B"/>
+    </linearGradient>
+    <linearGradient id="vk-plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#20272F"/>
+      <stop offset="1" stop-color="#0C0F13"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="15" fill="url(#vk-plate)"/>
+  <rect x="3" y="3" width="58" height="58" rx="15" fill="none" stroke="#2A333D" stroke-width="1"/>
+  <path d="M17 21 L32 45 L47 21" fill="none" stroke="url(#vk-ember)" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 9 l4.4 6.6 -4.4 4.4 -4.4 -4.4 z" fill="#F7883A"/>
+</svg>
