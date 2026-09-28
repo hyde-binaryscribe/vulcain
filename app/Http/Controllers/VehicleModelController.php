@@ -10,7 +10,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -39,6 +39,10 @@ class VehicleModelController extends Controller
             ->map(fn (VehicleModel $m) => [
                 'id' => $m->id,
                 'name' => $m->name,
+                'brand' => $m->brand,
+                'model' => $m->model,
+                'year' => $m->year,
+                'coachbuilder' => $m->coachbuilder,
                 'display_order' => $m->display_order,
                 'is_active' => $m->is_active,
                 'template' => $m->templateTree(),
@@ -57,11 +61,7 @@ class VehicleModelController extends Controller
     {
         $data = $this->validated($request);
 
-        $model = VehicleModel::create([
-            'name' => $data['name'],
-            'display_order' => $data['display_order'],
-            'is_active' => true,
-        ]);
+        $model = VehicleModel::create($data + ['is_active' => true]);
 
         $this->syncTemplate($model, $request->input('template', []));
 
@@ -72,10 +72,7 @@ class VehicleModelController extends Controller
     {
         $data = $this->validated($request, $vehicleModel);
 
-        $vehicleModel->update([
-            'name' => $data['name'],
-            'display_order' => $data['display_order'],
-        ]);
+        $vehicleModel->update($data);
 
         $this->syncTemplate($vehicleModel, $request->input('template', []));
 
@@ -100,24 +97,44 @@ class VehicleModelController extends Controller
     }
 
     /**
-     * @return array{name:string, display_order:int}
+     * @return array{name:string, brand:string, model:string, year:?int, coachbuilder:?string, display_order:int}
      */
     private function validated(Request $request, ?VehicleModel $current = null): array
     {
         $data = $request->validate([
-            'name' => [
-                'required', 'string', 'max:100',
-                Rule::unique('vehicle_models', 'name')
-                    ->where('organisation_id', $this->tenant->id())
-                    ->whereNull('deleted_at')
-                    ->ignore($current?->id),
-            ],
+            'brand' => ['required', 'string', 'max:100'],
+            'model' => ['required', 'string', 'max:100'],
+            'year' => ['nullable', 'integer', 'min:1950', 'max:'.((int) date('Y') + 1)],
+            'coachbuilder' => ['nullable', 'string', 'max:100'],
             'display_order' => ['nullable', 'integer', 'min:0'],
             'template' => ['array'],
         ]);
 
+        $name = VehicleModel::composeName(
+            $data['brand'],
+            $data['model'],
+            $data['year'] ?? null,
+            $data['coachbuilder'] ?? null,
+        );
+
+        // Unicité du libellé composé au sein de l'organisation.
+        $exists = VehicleModel::query()
+            ->where('name', $name)
+            ->when($current !== null, fn ($q) => $q->whereKeyNot($current->id))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'brand' => 'Un modèle identique (marque / modèle / année / carrossier) existe déjà.',
+            ]);
+        }
+
         return [
-            'name' => $data['name'],
+            'name' => $name,
+            'brand' => $data['brand'],
+            'model' => $data['model'],
+            'year' => $data['year'] ?? null,
+            'coachbuilder' => $data['coachbuilder'] ?? null,
             'display_order' => $data['display_order'] ?? 0,
         ];
     }

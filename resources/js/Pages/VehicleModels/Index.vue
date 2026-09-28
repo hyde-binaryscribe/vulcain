@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -14,12 +14,15 @@ const props = defineProps({
 });
 
 const editingId = ref(null);
-const form = useForm({ name: '', display_order: 0, template: [] });
+const form = useForm({ brand: '', model: '', year: '', coachbuilder: '', display_order: 0, template: [] });
 
 function resetForm() {
     editingId.value = null;
     form.clearErrors();
-    form.name = '';
+    form.brand = '';
+    form.model = '';
+    form.year = '';
+    form.coachbuilder = '';
     form.display_order = 0;
     form.template = [];
 }
@@ -32,10 +35,20 @@ function cloneTree(nodes) {
 function edit(m) {
     editingId.value = m.id;
     form.clearErrors();
-    form.name = m.name;
+    form.brand = m.brand ?? '';
+    form.model = m.model ?? '';
+    form.year = m.year ?? '';
+    form.coachbuilder = m.coachbuilder ?? '';
     form.display_order = m.display_order;
     form.template = cloneTree(m.template);
 }
+
+// Aperçu du libellé composé (identique au serveur).
+const previewName = computed(() => {
+    const head = [form.brand, form.model, form.year].map((v) => String(v ?? '').trim()).filter(Boolean).join(' ');
+    const cb = String(form.coachbuilder ?? '').trim();
+    return cb ? (head ? `${head} · ${cb}` : cb) : head;
+});
 function addEmplacement() {
     form.template.push({ name: '', kind: 'mobile', children: [] });
 }
@@ -82,7 +95,13 @@ function kindLabel(value) {
                                 {{ m.name }}
                                 <span v-if="!m.is_active" class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">Inactif</span>
                             </h3>
-                            <p class="mt-0.5 text-xs text-gray-500">
+                            <p class="mt-1 flex flex-wrap gap-1.5 text-xs">
+                                <span v-if="m.brand" class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">Marque : <span class="font-medium text-gray-800">{{ m.brand }}</span></span>
+                                <span v-if="m.model" class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">Modèle : <span class="font-medium text-gray-800">{{ m.model }}</span></span>
+                                <span v-if="m.year" class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">Année : <span class="font-medium text-gray-800">{{ m.year }}</span></span>
+                                <span v-if="m.coachbuilder" class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">Carrossier : <span class="font-medium text-gray-800">{{ m.coachbuilder }}</span></span>
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500">
                                 {{ m.emplacements_count }} emplacement(s) · {{ m.vehicles_count }} véhicule(s) créé(s)
                             </p>
                         </div>
@@ -111,11 +130,31 @@ function kindLabel(value) {
             <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Modifier le modèle' : 'Nouveau modèle' }}</h2>
                 <form class="mt-4 space-y-4" @submit.prevent="submit">
-                    <div>
-                        <InputLabel value="Nom du modèle" />
-                        <TextInput v-model="form.name" placeholder="Renault Master ASSU, VSL Trafic…" />
-                        <InputError :message="form.errors.name" />
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <InputLabel value="Marque" />
+                            <TextInput v-model="form.brand" placeholder="Renault" />
+                            <InputError :message="form.errors.brand" />
+                        </div>
+                        <div>
+                            <InputLabel value="Modèle" />
+                            <TextInput v-model="form.model" placeholder="Master" />
+                            <InputError :message="form.errors.model" />
+                        </div>
+                        <div>
+                            <InputLabel value="Année" />
+                            <TextInput v-model="form.year" type="number" min="1950" placeholder="2023" />
+                            <InputError :message="form.errors.year" />
+                        </div>
+                        <div>
+                            <InputLabel value="Carrossier" />
+                            <TextInput v-model="form.coachbuilder" placeholder="Gruau, Petit…" />
+                            <InputError :message="form.errors.coachbuilder" />
+                        </div>
                     </div>
+                    <p v-if="previewName" class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                        Libellé : <span class="font-medium text-gray-700">{{ previewName }}</span>
+                    </p>
                     <div>
                         <InputLabel value="Ordre d’affichage" />
                         <TextInput v-model="form.display_order" type="number" />

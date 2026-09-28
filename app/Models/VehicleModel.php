@@ -19,6 +19,10 @@ class VehicleModel extends Model
 
     protected $fillable = [
         'name',
+        'brand',
+        'model',
+        'year',
+        'coachbuilder',
         'display_order',
         'is_active',
     ];
@@ -28,7 +32,28 @@ class VehicleModel extends Model
         return [
             'is_active' => 'boolean',
             'display_order' => 'integer',
+            'year' => 'integer',
         ];
+    }
+
+    /**
+     * Libellé lisible composé à partir des champs structurés :
+     * « Renault Master 2023 · Gruau ». Sert de valeur pour la colonne name.
+     */
+    public static function composeName(?string $brand, ?string $model, ?int $year, ?string $coachbuilder): string
+    {
+        $head = trim(implode(' ', array_filter([
+            trim((string) $brand),
+            trim((string) $model),
+            $year !== null ? (string) $year : null,
+        ])));
+
+        $coachbuilder = trim((string) $coachbuilder);
+        if ($coachbuilder !== '') {
+            $head = $head !== '' ? "{$head} · {$coachbuilder}" : $coachbuilder;
+        }
+
+        return $head;
     }
 
     /** Emplacements du gabarit (tous niveaux confondus). */

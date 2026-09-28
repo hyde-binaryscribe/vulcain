@@ -1,0 +1,1 @@
+import{E as e,_ as t,v as n,z as r}from"./app-BkKIJC7W.js";var i={key:0,class:`mt-1 text-sm text-red-700`},a={__name:`InputError`,props:{message:{type:String,default:``}},setup(a){return(o,s)=>a.message?(e(),n(`p`,i,r(a.message),1)):t(``,!0)}};export{a as t};

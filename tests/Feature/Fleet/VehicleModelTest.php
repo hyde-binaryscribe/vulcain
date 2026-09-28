@@ -113,7 +113,10 @@ class VehicleModelTest extends TestCase
         });
 
         $this->actingAs($admin)->post('http://caserne.localhost/vehicle-models', [
-            'name' => 'VSL Trafic',
+            'brand' => 'Renault',
+            'model' => 'Trafic',
+            'year' => 2023,
+            'coachbuilder' => 'Gruau',
             'display_order' => 0,
             'template' => [
                 ['name' => 'Coffre', 'kind' => 'mobile', 'children' => [
@@ -124,7 +127,13 @@ class VehicleModelTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->tenant()->runFor($org, function () {
-            $model = VehicleModel::query()->where('name', 'VSL Trafic')->firstOrFail();
+            // Le libellé est composé à partir des champs structurés.
+            $model = VehicleModel::query()->where('name', 'Renault Trafic 2023 · Gruau')->firstOrFail();
+            $this->assertSame('Renault', $model->brand);
+            $this->assertSame('Trafic', $model->model);
+            $this->assertSame(2023, $model->year);
+            $this->assertSame('Gruau', $model->coachbuilder);
+
             $locations = $model->templateLocations()->get();
 
             // La ligne vide est ignorée ; les deux emplacements réels sont créés.
