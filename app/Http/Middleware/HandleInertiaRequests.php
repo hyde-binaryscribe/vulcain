@@ -107,6 +107,7 @@ class HandleInertiaRequests extends Middleware
                     'url' => $n->data['url'] ?? null,
                     'read' => $n->read_at !== null,
                     'at' => $n->created_at?->diffForHumans(),
+                    'level' => $n->data['level'] ?? 'watch',
                 ]),
             ] : ['unread' => 0, 'items' => []],
             // Incarnation en cours (support Desk) : bannière + retour.

@@ -38,6 +38,7 @@ final class Rbac
         'pharmacy.manage',
         'anomalies.manage',
         'repairs.manage',
+        'disinfections.record',
         'history.view',
         'history.view_all',
         'audit.view',
@@ -68,15 +69,17 @@ final class Rbac
                 'pharmacy.manage',
                 'anomalies.manage',
                 'repairs.manage',
+                'disinfections.record',
                 'history.view',
                 'stats.view',
                 'exports.create',
             ],
 
-            // Réalisation des protocoles + déclaration d'anomalies.
+            // Réalisation des protocoles + déclaration d'anomalies + désinfections.
             self::VERIFIER => [
                 'protocols.perform',
                 'anomalies.manage',
+                'disinfections.record',
                 'history.view',
             ],
         ];

@@ -35,6 +35,7 @@ class VehicleTypeController extends Controller
                 'name' => $t->name,
                 'display_order' => $t->display_order,
                 'is_active' => $t->is_active,
+                'disinfection_interval_days' => $t->disinfection_interval_days,
                 'vehicles_count' => (int) ($usage[$t->name] ?? 0),
             ]);
 
@@ -94,10 +95,13 @@ class VehicleTypeController extends Controller
             ],
             'display_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            // Périodicité de désinfection (jours) ; vide = pas d'échéance.
+            'disinfection_interval_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
         ]);
 
         $data['display_order'] ??= 0;
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['disinfection_interval_days'] = $data['disinfection_interval_days'] ?? null;
 
         return $data;
     }

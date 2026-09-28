@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Domain\Support\Severity;
 use App\Models\Event;
 use Illuminate\Notifications\Notification;
 
@@ -26,6 +27,8 @@ class EventAssigned extends Notification
             'title' => $this->event->title,
             'message' => 'Un événement vous a été assigné : '.$this->event->title,
             'url' => '/events',
+            // Niveau d'urgence (rouge/orange/jaune) dérivé de la priorité.
+            'level' => Severity::fromEventPriority((string) $this->event->priority)->value,
         ];
     }
 }

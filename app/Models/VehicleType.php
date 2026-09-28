@@ -21,12 +21,14 @@ class VehicleType extends Model
         'name',
         'display_order',
         'is_active',
+        'disinfection_interval_days',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'disinfection_interval_days' => 'integer',
         ];
     }
 

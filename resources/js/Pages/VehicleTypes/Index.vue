@@ -10,7 +10,7 @@ const props = defineProps({
     types: { type: Array, default: () => [] },
 });
 
-const blank = { name: '', display_order: 0, is_active: true };
+const blank = { name: '', display_order: 0, is_active: true, disinfection_interval_days: null };
 const form = useForm({ ...blank });
 const editingId = ref(null);
 
@@ -22,7 +22,7 @@ function resetForm() {
 function edit(t) {
     editingId.value = t.id;
     form.clearErrors();
-    Object.assign(form, { name: t.name, display_order: t.display_order, is_active: t.is_active });
+    Object.assign(form, { name: t.name, display_order: t.display_order, is_active: t.is_active, disinfection_interval_days: t.disinfection_interval_days });
 }
 function submit() {
     const opts = { preserveScroll: true, onSuccess: () => resetForm() };
@@ -57,6 +57,7 @@ function remove(t) {
                             <tr>
                                 <th class="px-4 py-3">Type</th>
                                 <th class="px-4 py-3">Véhicules</th>
+                                <th class="px-4 py-3">Désinf.</th>
                                 <th class="px-4 py-3">Ordre</th>
                                 <th class="px-4 py-3">Actif</th>
                                 <th class="px-4 py-3 text-right">Actions</th>
@@ -66,6 +67,7 @@ function remove(t) {
                             <tr v-for="t in types" :key="t.id">
                                 <td class="px-4 py-3 font-medium text-gray-900">{{ t.name }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.vehicles_count }}</td>
+                                <td class="px-4 py-3 text-gray-600">{{ t.disinfection_interval_days ? t.disinfection_interval_days + ' j' : '—' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.display_order }}</td>
                                 <td class="px-4 py-3">
                                     <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="t.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'">{{ t.is_active ? 'Oui' : 'Non' }}</span>
@@ -76,7 +78,7 @@ function remove(t) {
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="remove(t)">Suppr.</button>
                                 </td>
                             </tr>
-                            <tr v-if="types.length === 0"><td colspan="5" class="px-4 py-8 text-center text-gray-500">Aucun type de véhicule.</td></tr>
+                            <tr v-if="types.length === 0"><td colspan="6" class="px-4 py-8 text-center text-gray-500">Aucun type de véhicule.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -93,6 +95,12 @@ function remove(t) {
                     <div>
                         <InputLabel value="Ordre d’affichage" />
                         <TextInput v-model="form.display_order" type="number" />
+                    </div>
+                    <div>
+                        <InputLabel value="Périodicité de désinfection (jours)" />
+                        <TextInput v-model="form.disinfection_interval_days" type="number" min="1" placeholder="ex. 7 — laisser vide si aucune" />
+                        <InputError :message="form.errors.disinfection_interval_days" />
+                        <p class="mt-1 text-xs text-gray-500">Déclenche une alerte (orange puis rouge) quand la désinfection est à prévoir ou en retard.</p>
                     </div>
                     <label class="flex items-center gap-2 text-sm text-gray-700">
                         <input v-model="form.is_active" type="checkbox" class="rounded border-gray-300" /> Actif

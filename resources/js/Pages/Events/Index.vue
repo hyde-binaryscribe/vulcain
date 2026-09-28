@@ -50,10 +50,11 @@ function addComment(e) {
     });
 }
 
+// Priorité alignée sur l'échelle d'urgence unifiée : rouge / orange / jaune.
 const priorityStyles = {
     haute: 'bg-red-100 text-red-700',
-    normale: 'bg-gray-100 text-gray-600',
-    basse: 'bg-blue-100 text-blue-700',
+    normale: 'bg-orange-100 text-orange-700',
+    basse: 'bg-yellow-100 text-yellow-800',
 };
 const typeStyles = {
     anomalie: 'bg-red-50 text-red-700 border-red-200',

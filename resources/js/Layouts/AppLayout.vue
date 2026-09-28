@@ -105,6 +105,9 @@ function markAllRead() {
     router.post('/notifications/read-all', {}, { preserveScroll: true, onSuccess: () => (showNotifs.value = false) });
 }
 
+// Couleur de la pastille de notification selon le niveau d'urgence.
+const levelDot = { critical: 'bg-red-500', warning: 'bg-orange-500', watch: 'bg-yellow-400' };
+
 const initials = computed(() => {
     const name = user.value?.name || '';
     return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -214,12 +217,15 @@ const initials = computed(() => {
                                     v-for="n in notifications.items"
                                     :key="n.id"
                                     type="button"
-                                    class="block w-full border-b border-gray-50 px-4 py-2.5 text-left hover:bg-gray-50"
+                                    class="flex w-full items-start gap-2.5 border-b border-gray-50 px-4 py-2.5 text-left hover:bg-gray-50"
                                     :class="n.read ? 'opacity-60' : ''"
                                     @click="openNotif(n)"
                                 >
-                                    <p class="text-sm text-gray-800">{{ n.message }}</p>
-                                    <p class="mt-0.5 text-[11px] text-gray-400">{{ n.at }}</p>
+                                    <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="levelDot[n.level] || levelDot.watch"></span>
+                                    <span class="min-w-0">
+                                        <span class="block text-sm text-gray-800">{{ n.message }}</span>
+                                        <span class="mt-0.5 block text-[11px] text-gray-400">{{ n.at }}</span>
+                                    </span>
                                 </button>
                                 <p v-if="notifications.items.length === 0" class="px-4 py-6 text-center text-xs text-gray-400">Aucune notification.</p>
                             </div>

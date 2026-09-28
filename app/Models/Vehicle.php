@@ -55,4 +55,10 @@ class Vehicle extends Model
     {
         return $this->hasMany(Location::class);
     }
+
+    /** Journal des désinfections / nettoyages (plus récent d'abord). */
+    public function disinfections(): HasMany
+    {
+        return $this->hasMany(DisinfectionRecord::class)->latest('performed_at');
+    }
 }

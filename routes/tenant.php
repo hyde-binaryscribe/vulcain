@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\DisinfectionController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\LocationController;
@@ -73,6 +74,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'update'])->name('vehicle-types.update');
         Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
         Route::delete('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'destroy'])->name('vehicle-types.destroy');
+    });
+
+    // Traçabilité des désinfections / nettoyages (accessible aux opérateurs habilités).
+    Route::middleware('permission:disinfections.record')->group(function () {
+        Route::post('vehicles/{vehicle}/disinfections', [DisinfectionController::class, 'store'])->name('vehicles.disinfections.store');
+        Route::delete('vehicles/{vehicle}/disinfections/{disinfection}', [DisinfectionController::class, 'destroy'])->name('vehicles.disinfections.destroy');
     });
 
     // Historique des actions (journal d'activité).

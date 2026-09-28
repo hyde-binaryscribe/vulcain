@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Billing\PlanLimits;
+use App\Domain\Fleet\DisinfectionStatus;
+use App\Domain\Fleet\DisinfectionType;
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\ActivityLog;
+use App\Models\DisinfectionRecord;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\Site;
@@ -45,6 +48,11 @@ class VehicleController extends Controller
             'materials' => $materials->where('location_id', $l->id)->values(),
         ]);
 
+        // Traçabilité des désinfections : périodicité (via le type), historique et statut.
+        $intervalDays = VehicleType::query()->where('name', $vehicle->type)->value('disinfection_interval_days');
+        $disinfections = $vehicle->disinfections()->with('user:id,name')->limit(50)->get();
+        $disinfectionStatus = DisinfectionStatus::compute($disinfections->first()?->performed_at, $intervalDays);
+
         return Inertia::render('Vehicles/Show', [
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -63,6 +71,23 @@ class VehicleController extends Controller
                 'expiring_soon' => $materials->where('expiring_soon', true)->count(),
                 'below_threshold' => $materials->where('below_threshold', true)->count(),
                 'anomalies' => $materials->whereNotIn('status', ['conforme'])->count(),
+            ],
+            'disinfection' => [
+                'interval_days' => $intervalDays,
+                'last_at' => $disinfectionStatus->lastAt?->format('d/m/Y H:i'),
+                'due_at' => $disinfectionStatus->dueAt?->format('d/m/Y'),
+                'state' => $disinfectionStatus->state,
+                'state_label' => $disinfectionStatus->label(),
+                'severity' => $disinfectionStatus->severity?->value,
+                'types' => DisinfectionType::options(),
+                'can_record' => auth()->user()?->can('disinfections.record') ?? false,
+                'records' => $disinfections->map(fn (DisinfectionRecord $d) => [
+                    'id' => $d->id,
+                    'type_label' => $d->type->label(),
+                    'performed_at' => $d->performed_at?->format('d/m/Y H:i'),
+                    'user' => $d->user?->name,
+                    'notes' => $d->notes,
+                ]),
             ],
             'history' => ActivityLog::query()
                 ->forSubjects([

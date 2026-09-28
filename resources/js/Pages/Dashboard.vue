@@ -5,21 +5,25 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     stats: { type: Object, default: () => ({ vehicles: 0, vehicles_available: 0, users: 0 }) },
-    alerts: { type: Object, default: () => ({ expired: 0, expiring_soon: 0, low_stock: 0, open_events: 0 }) },
+    alerts: { type: Object, default: () => ({}) },
 });
 
+// Échelle de gravité unifiée : rouge (critique) / orange (important) / jaune (à surveiller).
 const alertCards = computed(() => [
-    { label: 'Périmés', value: props.alerts.expired, tone: 'red', href: '/pharmacy' },
-    { label: 'Péremption < 30 j', value: props.alerts.expiring_soon, tone: 'amber', href: '/pharmacy' },
-    { label: 'Stock bas', value: props.alerts.low_stock, tone: 'amber', href: '/pharmacy' },
-    { label: 'Événements ouverts', value: props.alerts.open_events, tone: 'blue', href: '/events' },
+    { label: 'Désinfections en retard', value: props.alerts.disinfection_overdue ?? 0, tone: 'red', href: '/vehicles' },
+    { label: 'Périmés', value: props.alerts.expired ?? 0, tone: 'red', href: '/pharmacy' },
+    { label: 'Désinfections à prévoir', value: props.alerts.disinfection_soon ?? 0, tone: 'orange', href: '/vehicles' },
+    { label: 'Péremption < 30 j', value: props.alerts.expiring_soon ?? 0, tone: 'orange', href: '/pharmacy' },
+    { label: 'Stock bas', value: props.alerts.low_stock ?? 0, tone: 'orange', href: '/pharmacy' },
+    { label: 'Événements ouverts', value: props.alerts.open_events ?? 0, tone: 'yellow', href: '/events' },
 ]);
 
 const toneStyles = {
     red: 'border-red-200 bg-red-50 text-red-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    orange: 'border-orange-200 bg-orange-50 text-orange-700',
+    yellow: 'border-yellow-200 bg-yellow-50 text-yellow-800',
 };
+const dotStyles = { red: 'bg-red-500', orange: 'bg-orange-500', yellow: 'bg-yellow-400' };
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -54,17 +58,27 @@ const tenant = computed(() => page.props.tenant);
         </div>
 
         <!-- Alertes -->
-        <h2 class="mt-8 mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Alertes</h2>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="mt-8 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Alertes</h2>
+            <div class="flex items-center gap-4 text-xs text-gray-500">
+                <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span> Critique</span>
+                <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span> Important</span>
+                <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-yellow-400"></span> À surveiller</span>
+            </div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Link
                 v-for="a in alertCards"
                 :key="a.label"
                 :href="a.href"
-                class="rounded-2xl border p-5 shadow-sm transition hover:brightness-[0.98]"
+                class="flex items-center justify-between rounded-2xl border p-5 shadow-sm transition hover:brightness-[0.98]"
                 :class="a.value > 0 ? toneStyles[a.tone] : 'border-gray-200 bg-white text-gray-400'"
             >
-                <p class="text-3xl font-bold">{{ a.value }}</p>
-                <p class="mt-1 text-xs font-medium uppercase tracking-wide">{{ a.label }}</p>
+                <div>
+                    <p class="text-3xl font-bold">{{ a.value }}</p>
+                    <p class="mt-1 text-xs font-medium uppercase tracking-wide">{{ a.label }}</p>
+                </div>
+                <span v-if="a.value > 0" class="h-3 w-3 rounded-full" :class="dotStyles[a.tone]"></span>
             </Link>
         </div>
     </AppLayout>
