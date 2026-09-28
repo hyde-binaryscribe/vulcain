@@ -78,4 +78,13 @@ class Organisation extends Model
     {
         return (bool) ($this->settings['track_expiry_in_mobile'] ?? true);
     }
+
+    /**
+     * Active la nature d'emplacement « Sac » (sacs de secours à bord).
+     * Désactivée par défaut : à activer par l'organisation qui en a l'usage.
+     */
+    public function bagsEnabled(): bool
+    {
+        return (bool) ($this->settings['bags_enabled'] ?? false);
+    }
 }

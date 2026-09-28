@@ -19,6 +19,7 @@ class SettingsController extends Controller
         return Inertia::render('Settings/Index', [
             'settings' => [
                 'track_expiry_in_mobile' => $org->tracksExpiryInMobile(),
+                'bags_enabled' => $org->bagsEnabled(),
             ],
             'status' => session('status'),
         ]);
@@ -28,11 +29,13 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'track_expiry_in_mobile' => ['boolean'],
+            'bags_enabled' => ['boolean'],
         ]);
 
         $org = $this->tenant->organisation();
         $org->settings = array_merge($org->settings ?? [], [
             'track_expiry_in_mobile' => (bool) ($validated['track_expiry_in_mobile'] ?? false),
+            'bags_enabled' => (bool) ($validated['bags_enabled'] ?? false),
         ]);
         $org->save();
 

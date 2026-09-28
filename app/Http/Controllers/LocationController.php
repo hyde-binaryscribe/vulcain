@@ -50,7 +50,7 @@ class LocationController extends Controller
             'parents' => Location::query()->orderBy('name')->get(['id', 'name']),
             'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'reference']),
             'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'kinds' => LocationKind::options(),
+            'kinds' => LocationKind::options($this->tenant->organisation()->bagsEnabled()),
             'status' => session('status'),
         ]);
     }
@@ -96,7 +96,8 @@ class LocationController extends Controller
             'kind' => ['required', Rule::enum(LocationKind::class)],
             'vehicle_id' => [
                 'nullable',
-                'required_if:kind,mobile',
+                // Un emplacement mobile ou un sac est rattaché à un véhicule.
+                Rule::requiredIf(fn () => in_array($request->input('kind'), ['mobile', 'sac'], true)),
                 Rule::exists('vehicles', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at'),
             ],
             'parent_id' => [

@@ -20,7 +20,8 @@ const blank = { name: '', kind: 'mobile', vehicle_id: '', site_id: '', parent_id
 const form = useForm({ ...blank });
 const editingId = ref(null);
 
-const isMobile = computed(() => form.kind === 'mobile');
+// Mobile et Sac sont rattachés à un véhicule.
+const needsVehicle = computed(() => form.kind === 'mobile' || form.kind === 'sac');
 
 function resetForm() {
     editingId.value = null;
@@ -44,7 +45,7 @@ function edit(l) {
 function submit() {
     const payload = {
         ...form.data(),
-        vehicle_id: isMobile.value ? (form.vehicle_id || null) : null,
+        vehicle_id: needsVehicle.value ? (form.vehicle_id || null) : null,
         site_id: form.site_id || null,
         parent_id: form.parent_id || null,
         holder_material_id: form.holder_material_id || null,
@@ -94,7 +95,7 @@ function remove(l) {
                                     <div class="text-xs text-gray-400">{{ l.full_path }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="l.kind === 'mobile' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'">
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="{ 'bg-blue-100 text-blue-800': l.kind === 'mobile', 'bg-indigo-100 text-indigo-800': l.kind === 'sac', 'bg-amber-100 text-amber-800': l.kind === 'fixe' }">
                                         {{ l.kind_label }}
                                     </span>
                                 </td>
@@ -140,7 +141,7 @@ function remove(l) {
                         </div>
                         <p class="mt-1 text-xs text-gray-400">Mobile = à bord d'un véhicule · Fixe = dépôt, pièce de stock.</p>
                     </div>
-                    <div v-if="isMobile">
+                    <div v-if="needsVehicle">
                         <InputLabel value="Véhicule" />
                         <select v-model="form.vehicle_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
                             <option value="">Choisir un véhicule…</option>

@@ -11,18 +11,32 @@ enum LocationKind: string
 {
     case MOBILE = 'mobile';
     case FIXE = 'fixe';
+    case SAC = 'sac';
 
     public function label(): string
     {
         return match ($this) {
             self::MOBILE => 'Mobile (véhicule)',
             self::FIXE => 'Fixe (dépôt / stock)',
+            self::SAC => 'Sac',
         };
     }
 
-    /** @return list<array{value:string,label:string}> */
-    public static function options(): array
+    /** Natures rattachées à un véhicule (exigent un véhicule). */
+    public function requiresVehicle(): bool
     {
-        return array_map(fn (self $k) => ['value' => $k->value, 'label' => $k->label()], self::cases());
+        return $this === self::MOBILE || $this === self::SAC;
+    }
+
+    /**
+     * @param  bool  $withBags  inclure la nature « Sac » (activée par l'organisation)
+     * @return list<array{value:string,label:string}>
+     */
+    public static function options(bool $withBags = true): array
+    {
+        return array_values(array_map(
+            fn (self $k) => ['value' => $k->value, 'label' => $k->label()],
+            array_filter(self::cases(), fn (self $k) => $withBags || $k !== self::SAC),
+        ));
     }
 }
