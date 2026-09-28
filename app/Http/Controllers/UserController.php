@@ -37,6 +37,7 @@ class UserController extends Controller
                 'email' => $u->email,
                 'grade' => $u->grade,
                 'job_role' => $u->job_role,
+                'hire_date' => $u->hire_date?->toDateString(),
                 'role' => $u->getRoleNames()->first(),
                 'is_active' => $u->is_active,
                 'site_ids' => $u->sites->pluck('id'),
@@ -103,6 +104,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'grade' => ['nullable', 'string', 'max:100'],
             'job_role' => ['nullable', 'string', 'max:50', Rule::in($this->tenant->organisation()->profile()->jobRoleValues())],
+            'hire_date' => ['nullable', 'date'],
             'role' => ['required', Rule::in(Rbac::roles())],
             'is_active' => ['required', 'boolean'],
             'site_ids' => ['array'],
@@ -119,6 +121,7 @@ class UserController extends Controller
 
         $user->grade = $validated['grade'] ?: null;
         $user->job_role = $validated['job_role'] ?? null;
+        $user->hire_date = $validated['hire_date'] ?? null;
         $user->is_active = $validated['is_active'];
         $user->save();
         $user->syncRoles([$validated['role']]);

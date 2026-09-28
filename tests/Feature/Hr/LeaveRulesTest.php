@@ -109,4 +109,25 @@ class LeaveRulesTest extends TestCase
                 ->where('myBalance.annual_days', 25)
                 ->where('myBalance.remaining', 20));
     }
+
+    public function test_entitlement_is_prorated_from_hire_date(): void
+    {
+        [$org, $manager] = $this->orgWithManager();
+        $year = Carbon::now()->year;
+
+        $employee = $this->tenant()->runFor($org, function () use ($org, $year) {
+            LeaveRule::create(['job_role' => 'ade', 'annual_days' => 24]);
+
+            return User::factory()->create([
+                'organisation_id' => $org->id,
+                'job_role' => 'ade',
+                'hire_date' => Carbon::create($year, 7, 1), // arrivé à mi-année
+            ]);
+        });
+
+        $this->actingAs($employee)->get('http://ambu.localhost/leave')
+            ->assertInertia(fn (AssertableInertia $p) => $p
+                ->where('myBalance.annual_full', 24)
+                ->where('myBalance.annual_days', fn ($v) => $v > 0 && $v < 24));
+    }
 }

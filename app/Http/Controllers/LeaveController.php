@@ -195,18 +195,47 @@ class LeaveController extends Controller
     private function balanceFor(User $user): array
     {
         $year = Carbon::now()->year;
-        $annual = $user->job_role
+        $full = $user->job_role
             ? LeaveRule::query()->where('job_role', $user->job_role)->value('annual_days')
             : null;
 
+        $annual = $this->effectiveAnnualDays($full, $user->hire_date, $year);
         $consumed = $this->consumedDays($user->id, $year);
 
         return [
             'job_role' => $user->job_role,
+            'annual_full' => $full,
             'annual_days' => $annual,
+            'hire_date' => $user->hire_date?->format('d/m/Y'),
             'consumed' => $consumed,
             'remaining' => $annual !== null ? max(0, $annual - $consumed) : null,
         ];
+    }
+
+    /**
+     * Droits annuels effectifs, au prorata de la présence dans l'année depuis la
+     * date d'arrivée (année complète si arrivé avant le 1er janvier).
+     */
+    private function effectiveAnnualDays(?int $annualFull, ?Carbon $hireDate, int $year): ?int
+    {
+        if ($annualFull === null) {
+            return null;
+        }
+
+        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
+        $yearEnd = Carbon::create($year, 12, 31)->startOfDay();
+
+        if ($hireDate === null || $hireDate->lessThanOrEqualTo($yearStart)) {
+            return $annualFull;
+        }
+        if ($hireDate->greaterThan($yearEnd)) {
+            return 0;
+        }
+
+        $daysInYear = $yearStart->diffInDays($yearEnd) + 1;
+        $presentDays = $hireDate->copy()->startOfDay()->diffInDays($yearEnd) + 1;
+
+        return (int) round($annualFull * $presentDays / $daysInYear);
     }
 
     /** Jours de congés payés approuvés consommés par un utilisateur sur une année. */
@@ -245,14 +274,16 @@ class LeaveController extends Controller
         $rules = $this->rulesByRole();
 
         return User::query()->where('is_active', true)->whereNotNull('job_role')
-            ->orderBy('name')->get(['id', 'name', 'job_role'])
+            ->orderBy('name')->get(['id', 'name', 'job_role', 'hire_date'])
             ->map(function (User $u) use ($year, $rules, $roleLabels) {
-                $annual = $rules[$u->job_role]->annual_days ?? null;
+                $full = $rules[$u->job_role]->annual_days ?? null;
+                $annual = $this->effectiveAnnualDays($full, $u->hire_date, $year);
                 $consumed = $this->consumedDays($u->id, $year);
 
                 return [
                     'name' => $u->name,
                     'job_role_label' => $roleLabels[$u->job_role] ?? $u->job_role,
+                    'hire_date' => $u->hire_date?->format('d/m/Y'),
                     'annual_days' => $annual,
                     'consumed' => $consumed,
                     'remaining' => $annual !== null ? max(0, $annual - $consumed) : null,

@@ -106,4 +106,22 @@ class MaintenanceTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('alerts.maintenance_overdue', 1));
     }
+
+    public function test_mileage_due_surfaces_on_dashboard(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+
+        $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'mileage' => 100000]);
+            $vehicle->maintenances()->create([
+                'type' => 'vidange',
+                'performed_at' => now()->subMonths(6),
+                'next_due_mileage' => 95000, // compteur (100000) déjà au-delà
+            ]);
+        });
+
+        $this->actingAs($admin)->get('http://caserne.localhost/dashboard')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('alerts.maintenance_overdue', 1));
+    }
 }

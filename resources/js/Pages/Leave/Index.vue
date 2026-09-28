@@ -205,17 +205,18 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                 <h2 class="border-b border-gray-100 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Soldes de l'équipe ({{ new Date().getFullYear() }})</h2>
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                        <tr><th class="px-5 py-2">Nom</th><th class="px-4 py-2">Métier</th><th class="px-4 py-2">Consommés</th><th class="px-4 py-2">Droits</th><th class="px-4 py-2">Restant</th></tr>
+                        <tr><th class="px-5 py-2">Nom</th><th class="px-4 py-2">Métier</th><th class="px-4 py-2">Arrivée</th><th class="px-4 py-2">Consommés</th><th class="px-4 py-2">Droits</th><th class="px-4 py-2">Restant</th></tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <tr v-for="(t, i) in team" :key="i">
                             <td class="px-5 py-2 font-medium text-gray-900">{{ t.name }}</td>
                             <td class="px-4 py-2 text-gray-600">{{ t.job_role_label }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ t.hire_date ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-600">{{ t.consumed }} j</td>
                             <td class="px-4 py-2 text-gray-600">{{ t.annual_days ?? '—' }}</td>
                             <td class="px-4 py-2 font-medium" :class="t.remaining === 0 ? 'text-red-600' : 'text-gray-800'">{{ t.remaining ?? '—' }}</td>
                         </tr>
-                        <tr v-if="team.length === 0"><td colspan="5" class="px-5 py-6 text-center text-gray-400">Aucun métier renseigné sur les comptes.</td></tr>
+                        <tr v-if="team.length === 0"><td colspan="6" class="px-5 py-6 text-center text-gray-400">Aucun métier renseigné sur les comptes.</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -255,6 +256,9 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                     <p class="text-xs uppercase tracking-wide text-gray-400">Mon solde {{ new Date().getFullYear() }}</p>
                     <p class="mt-1 font-semibold text-gray-900">{{ myBalance.remaining }} j restants</p>
                     <p class="text-xs text-gray-500">{{ myBalance.consumed }} consommés / {{ myBalance.annual_days }} droits</p>
+                    <p v-if="myBalance.hire_date && myBalance.annual_full != null && myBalance.annual_days !== myBalance.annual_full" class="mt-1 text-xs text-gray-400">
+                        Au prorata depuis le {{ myBalance.hire_date }} (droits pleins : {{ myBalance.annual_full }} j).
+                    </p>
                 </div>
             </section>
 
