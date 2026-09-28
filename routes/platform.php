@@ -8,8 +8,12 @@ use App\Http\Controllers\Platform\OrganisationController;
 use App\Http\Controllers\Platform\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
-// Espace exploitant (Desk) — servi uniquement sur le domaine central.
-Route::prefix('platform')->middleware('central')->group(function () {
+// Espace exploitant (Desk). Protégé par le guard « platform » (séparé du guard
+// métier « web »). On n'applique PAS le middleware « central » ici : en mode
+// hôte unique, une session web peut coexister dans le navigateur (impersonation,
+// ou app ouverte sur le même domaine parent) ; « central » ferait alors un 404
+// sur tout le Desk. Le guard plateforme suffit à protéger ces routes.
+Route::prefix('platform')->group(function () {
     Route::middleware('guest:platform')->group(function () {
         Route::get('login', [AuthenticatedPlatformSessionController::class, 'create'])->name('platform.login');
         Route::post('login', [AuthenticatedPlatformSessionController::class, 'store'])->middleware('throttle:login');
