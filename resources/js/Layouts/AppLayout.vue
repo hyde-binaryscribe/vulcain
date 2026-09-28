@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import SearchPalette from '@/Components/SearchPalette.vue';
+import Logo from '@/Components/Logo.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -113,9 +114,9 @@ const initials = computed(() => {
             :class="{ 'translate-x-0': sidebarOpen }"
         >
             <div class="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
-                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--brand)] font-bold text-white">V</span>
+                <Logo :size="36" />
                 <div class="leading-tight">
-                    <p class="text-sm font-semibold text-white">Vulcain</p>
+                    <p class="font-display text-sm font-bold tracking-wide text-white">VULKAIN</p>
                     <p class="text-xs text-gray-400">{{ profile?.label || 'Protocole' }}</p>
                 </div>
             </div>

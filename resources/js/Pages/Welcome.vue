@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 
 defineProps({
-    appName: { type: String, default: 'Vulcain' },
+    appName: { type: String, default: 'Vulkain' },
     phase: { type: String, default: '' },
 });
 </script>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import Logo from '@/Components/Logo.vue';
 
 const page = usePage();
 const admin = computed(() => page.props.platformAuth?.admin);
@@ -17,8 +18,8 @@ function logout() {
         <header class="border-b border-slate-200 bg-slate-900 text-white">
             <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
                 <Link href="/platform" class="flex items-center gap-2">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold">V</span>
-                    <span class="font-semibold">Vulcain <span class="text-indigo-300">Desk</span></span>
+                    <Logo :size="30" />
+                    <span class="font-display font-extrabold tracking-wide">VULKAIN <span class="font-sans text-sm font-medium text-indigo-300">Desk</span></span>
                 </Link>
                 <div class="flex items-center gap-4">
                     <nav class="hidden items-center gap-1 sm:flex">

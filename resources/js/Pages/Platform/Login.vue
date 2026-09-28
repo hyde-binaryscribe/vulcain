@@ -4,6 +4,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import Logo from '@/Components/Logo.vue';
 
 defineProps({ status: { type: String, default: '' } });
 
@@ -18,8 +19,8 @@ function submit() {
     <Head title="Desk — Connexion" />
     <div class="flex min-h-full flex-col items-center justify-center bg-slate-900 px-4 py-12" style="--brand: #4338ca">
         <div class="mb-6 flex items-center gap-2 text-white">
-            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold">V</span>
-            <span class="text-lg font-semibold">Vulcain <span class="text-indigo-300">Desk</span></span>
+            <Logo :size="38" />
+            <span class="font-display text-lg font-extrabold tracking-wide">VULKAIN <span class="font-sans text-sm font-medium text-indigo-300">Desk</span></span>
         </div>
 
         <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
