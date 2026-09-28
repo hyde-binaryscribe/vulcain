@@ -34,6 +34,7 @@ const navGroups = computed(() =>
             label: 'Exploitation',
             items: [
                 { label: 'Tableau de bord', href: '/dashboard', icon: 'dashboard', permission: null },
+                { label: 'Application terrain', href: '/t', icon: 'vehicle', permission: null },
                 { label: 'Protocoles', href: '/protocols', icon: 'protocol', permission: 'protocols.perform' },
                 { label: 'Événements', href: '/events', icon: 'events', permission: 'anomalies.manage' },
             ],

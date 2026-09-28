@@ -1,0 +1,1 @@
+import{O as e,V as t,v as n,y as r}from"./app-DXXg4XFq.js";var i={key:0,class:`mt-1 text-sm text-red-700`},a={__name:`InputError`,props:{message:{type:String,default:``}},setup(a){return(o,s)=>a.message?(e(),r(`p`,i,t(a.message),1)):n(``,!0)}};export{a as t};

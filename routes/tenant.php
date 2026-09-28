@@ -22,6 +22,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\TerrainController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
 use App\Http\Controllers\VehicleTypeController;
@@ -36,6 +37,17 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Recherche globale (résultats filtrés par permissions dans le contrôleur).
     Route::get('search', [SearchController::class, 'index'])->name('search.index');
     Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+
+    // Application terrain (PWA mobile salariés). Accessible à tout utilisateur
+    // connecté ; les actions (désinfection, entretien, anomalie) restent soumises
+    // à leurs permissions respectives.
+    Route::prefix('t')->name('terrain.')->group(function () {
+        Route::get('/', [TerrainController::class, 'home'])->name('home');
+        Route::get('anomalie', [TerrainController::class, 'anomalyForm'])->name('anomaly');
+        Route::post('anomalie', [TerrainController::class, 'reportAnomaly'])->middleware('permission:anomalies.manage')->name('anomaly.store');
+        Route::get('scanner', [TerrainController::class, 'scan'])->name('scan');
+        Route::get('vehicules/{vehicle}', [TerrainController::class, 'vehicle'])->name('vehicle');
+    });
 
     // Notifications in-app.
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
