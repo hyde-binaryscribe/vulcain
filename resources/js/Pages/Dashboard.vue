@@ -12,7 +12,9 @@ const props = defineProps({
 const alertCards = computed(() => [
     { label: 'Désinfections en retard', value: props.alerts.disinfection_overdue ?? 0, tone: 'red', href: '/vehicles' },
     { label: 'Périmés', value: props.alerts.expired ?? 0, tone: 'red', href: '/pharmacy' },
+    { label: 'Entretiens en retard', value: props.alerts.maintenance_overdue ?? 0, tone: 'red', href: '/vehicles' },
     { label: 'Désinfections à prévoir', value: props.alerts.disinfection_soon ?? 0, tone: 'orange', href: '/vehicles' },
+    { label: 'Entretiens à prévoir', value: props.alerts.maintenance_soon ?? 0, tone: 'orange', href: '/vehicles' },
     { label: 'Péremption < 30 j', value: props.alerts.expiring_soon ?? 0, tone: 'orange', href: '/pharmacy' },
     { label: 'Stock bas', value: props.alerts.low_stock ?? 0, tone: 'orange', href: '/pharmacy' },
     { label: 'Événements ouverts', value: props.alerts.open_events ?? 0, tone: 'yellow', href: '/events' },

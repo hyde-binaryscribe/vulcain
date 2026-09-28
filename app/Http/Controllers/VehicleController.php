@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Domain\Billing\PlanLimits;
 use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\DisinfectionType;
+use App\Domain\Fleet\MaintenanceStatus;
+use App\Domain\Fleet\MaintenanceType;
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\ActivityLog;
 use App\Models\DisinfectionProtocol;
 use App\Models\DisinfectionRecord;
 use App\Models\Location;
+use App\Models\MaintenanceRecord;
 use App\Models\Material;
 use App\Models\Site;
 use App\Models\User;
@@ -64,6 +67,10 @@ class VehicleController extends Controller
                 'steps' => $p->steps(),
             ]);
 
+        // Suivi mécanique : historique, échéance et statut agrégé.
+        $maintenances = $vehicle->maintenances()->with('user:id,name')->limit(50)->get();
+        $maintenanceStatus = MaintenanceStatus::forVehicleRecords($maintenances, $vehicle->mileage !== null ? (int) $vehicle->mileage : null);
+
         return Inertia::render('Vehicles/Show', [
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -101,6 +108,26 @@ class VehicleController extends Controller
                     'performed_at' => $d->performed_at?->format('d/m/Y H:i'),
                     'user' => $d->user?->name,
                     'notes' => $d->notes,
+                ]),
+            ],
+            'maintenance' => [
+                'state' => $maintenanceStatus->state,
+                'state_label' => $maintenanceStatus->label(),
+                'severity' => $maintenanceStatus->severity?->value,
+                'next_due_at' => $maintenanceStatus->dueAt?->format('d/m/Y'),
+                'next_due_mileage' => $maintenanceStatus->dueMileage,
+                'types' => MaintenanceType::options(),
+                'records' => $maintenances->map(fn (MaintenanceRecord $m) => [
+                    'id' => $m->id,
+                    'type_label' => $m->type->label(),
+                    'performed_at' => $m->performed_at?->format('d/m/Y'),
+                    'mileage' => $m->mileage,
+                    'cost' => $m->cost,
+                    'provider' => $m->provider,
+                    'notes' => $m->notes,
+                    'next_due_at' => $m->next_due_at?->format('d/m/Y'),
+                    'next_due_mileage' => $m->next_due_mileage,
+                    'user' => $m->user?->name,
                 ]),
             ],
             'history' => ActivityLog::query()

@@ -11,8 +11,15 @@ const props = defineProps({
     locations: { type: Array, default: () => [] },
     alerts: { type: Object, default: () => ({ expired: 0, expiring_soon: 0, below_threshold: 0, anomalies: 0 }) },
     disinfection: { type: Object, default: () => ({ records: [], types: [], can_record: false, state: 'none' }) },
+    maintenance: { type: Object, default: () => ({ records: [], types: [], state: 'none' }) },
     history: { type: Array, default: () => [] },
 });
+
+const severityBadge = {
+    critical: 'bg-red-100 text-red-800',
+    warning: 'bg-orange-100 text-orange-800',
+    watch: 'bg-yellow-100 text-yellow-800',
+};
 
 // Désinfection : couleur du statut selon la gravité (rouge/orange/jaune).
 const disinfectionBadge = {
@@ -64,6 +71,49 @@ function submitDisinfection() {
 function deleteDisinfection(id) {
     if (confirm('Supprimer cette entrée du journal de désinfection ?')) {
         router.delete(`/vehicles/${props.vehicle.id}/disinfections/${id}`, { preserveScroll: true });
+    }
+}
+
+// --- Suivi mécanique ---
+function maintenanceBadgeClass() {
+    if (props.maintenance.severity) return severityBadge[props.maintenance.severity];
+    return props.maintenance.state === 'ok' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600';
+}
+function todayLocal() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+}
+const showMaintenanceForm = ref(false);
+const maintenanceForm = useForm({
+    type: props.maintenance.types?.[0]?.value ?? 'revision',
+    performed_at: todayLocal(),
+    mileage: '',
+    cost: '',
+    provider: '',
+    notes: '',
+    next_due_at: '',
+    next_due_mileage: '',
+});
+function submitMaintenance() {
+    maintenanceForm.transform((d) => ({
+        ...d,
+        mileage: d.mileage || null,
+        cost: d.cost || null,
+        next_due_mileage: d.next_due_mileage || null,
+        next_due_at: d.next_due_at || null,
+    })).post(`/vehicles/${props.vehicle.id}/maintenances`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            maintenanceForm.reset('mileage', 'cost', 'provider', 'notes', 'next_due_at', 'next_due_mileage');
+            maintenanceForm.performed_at = todayLocal();
+            showMaintenanceForm.value = false;
+        },
+    });
+}
+function deleteMaintenance(id) {
+    if (confirm('Supprimer cette entrée du suivi mécanique ?')) {
+        router.delete(`/vehicles/${props.vehicle.id}/maintenances/${id}`, { preserveScroll: true });
     }
 }
 
@@ -223,6 +273,99 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                             </td>
                         </tr>
                         <tr v-if="disinfection.records.length === 0"><td colspan="6" class="px-6 py-6 text-center text-gray-400">Aucune désinfection enregistrée.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Suivi mécanique -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-base font-semibold text-gray-900">Suivi mécanique</h3>
+                    <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="maintenanceBadgeClass()">{{ maintenance.state_label }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+                    @click="showMaintenanceForm = !showMaintenanceForm"
+                >
+                    <Icon name="plus" :size="16" /> Enregistrer
+                </button>
+            </div>
+
+            <div class="flex flex-wrap gap-x-8 gap-y-2 px-6 py-4 text-sm">
+                <div v-if="maintenance.next_due_at"><span class="text-gray-500">Prochaine échéance :</span> <span class="font-medium">{{ maintenance.next_due_at }}</span></div>
+                <div v-if="maintenance.next_due_mileage"><span class="text-gray-500">Échéance km :</span> <span class="font-medium">{{ Number(maintenance.next_due_mileage).toLocaleString('fr-FR') }} km</span></div>
+                <div v-if="!maintenance.next_due_at && !maintenance.next_due_mileage" class="text-gray-400">Aucune échéance planifiée.</div>
+            </div>
+
+            <form v-if="showMaintenanceForm" class="border-t border-gray-100 bg-gray-50 px-6 py-4" @submit.prevent="submitMaintenance">
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Type</label>
+                        <select v-model="maintenanceForm.type" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option v-for="t in maintenance.types" :key="t.value" :value="t.value">{{ t.label }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Date</label>
+                        <input v-model="maintenanceForm.performed_at" type="date" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                        <p v-if="maintenanceForm.errors.performed_at" class="mt-1 text-xs text-red-600">{{ maintenanceForm.errors.performed_at }}</p>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Km au compteur</label>
+                        <input v-model="maintenanceForm.mileage" type="number" min="0" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Coût (€)</label>
+                        <input v-model="maintenanceForm.cost" type="number" min="0" step="0.01" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Prestataire</label>
+                        <input v-model="maintenanceForm.provider" type="text" maxlength="150" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Prochaine échéance (date)</label>
+                        <input v-model="maintenanceForm.next_due_at" type="date" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Prochaine échéance (km)</label>
+                        <input v-model="maintenanceForm.next_due_mileage" type="number" min="0" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Note</label>
+                        <input v-model="maintenanceForm.notes" type="text" maxlength="2000" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                </div>
+                <div class="mt-3 flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-white" @click="showMaintenanceForm = false">Annuler</button>
+                    <button type="submit" :disabled="maintenanceForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-1.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>
+                </div>
+            </form>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr><th class="px-6 py-2">Date</th><th class="px-4 py-2">Type</th><th class="px-4 py-2">Km</th><th class="px-4 py-2">Coût</th><th class="px-4 py-2">Prestataire</th><th class="px-4 py-2">Échéance</th><th class="px-4 py-2"></th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr v-for="m in maintenance.records" :key="m.id">
+                            <td class="px-6 py-2 whitespace-nowrap font-medium text-gray-900">{{ m.performed_at }}</td>
+                            <td class="px-4 py-2 text-gray-700">{{ m.type_label }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ m.mileage != null ? Number(m.mileage).toLocaleString('fr-FR') : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ m.cost != null ? Number(m.cost).toLocaleString('fr-FR') + ' €' : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ m.provider || '—' }}</td>
+                            <td class="px-4 py-2 text-gray-500">
+                                <span v-if="m.next_due_at">{{ m.next_due_at }}</span>
+                                <span v-if="m.next_due_mileage"> · {{ Number(m.next_due_mileage).toLocaleString('fr-FR') }} km</span>
+                                <span v-if="!m.next_due_at && !m.next_due_mileage">—</span>
+                            </td>
+                            <td class="px-4 py-2 text-right">
+                                <button type="button" class="text-gray-300 hover:text-red-600" title="Supprimer" @click="deleteMaintenance(m.id)"><Icon name="x" :size="15" /></button>
+                            </td>
+                        </tr>
+                        <tr v-if="maintenance.records.length === 0"><td colspan="7" class="px-6 py-6 text-center text-gray-400">Aucune opération enregistrée.</td></tr>
                     </tbody>
                 </table>
             </div>

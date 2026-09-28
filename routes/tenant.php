@@ -6,6 +6,7 @@ use App\Http\Controllers\DisinfectionProtocolController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MaterialCategoryController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialItemController;
@@ -68,6 +69,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
         Route::delete('vehicles/{vehicle}', [VehicleController::class, 'destroy'])->name('vehicles.destroy');
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
+
+        // Suivi mécanique.
+        Route::post('vehicles/{vehicle}/maintenances', [MaintenanceController::class, 'store'])->name('vehicles.maintenances.store');
+        Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
 
         // Catalogue des types de véhicule (VSAV, Ambulance type A…).
         Route::get('vehicle-types', [VehicleTypeController::class, 'index'])->name('vehicle-types.index');

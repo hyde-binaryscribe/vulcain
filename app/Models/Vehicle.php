@@ -61,4 +61,10 @@ class Vehicle extends Model
     {
         return $this->hasMany(DisinfectionRecord::class)->latest('performed_at');
     }
+
+    /** Journal du suivi mécanique (plus récent d'abord). */
+    public function maintenances(): HasMany
+    {
+        return $this->hasMany(MaintenanceRecord::class)->latest('performed_at');
+    }
 }
