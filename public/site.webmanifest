@@ -1,12 +1,27 @@
 {
     "name": "Vulkain",
     "short_name": "Vulkain",
-    "icons": [
-        { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
-        { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },
-        { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" }
-    ],
+    "description": "Gestion du matériel et des véhicules pour les services de secours.",
+    "id": "/",
+    "start_url": "/?source=pwa",
+    "scope": "/",
+    "lang": "fr",
+    "dir": "ltr",
+    "display": "standalone",
+    "orientation": "portrait-primary",
     "theme_color": "#12161C",
     "background_color": "#12161C",
-    "display": "standalone"
+    "categories": ["business", "productivity", "medical"],
+    "icons": [
+        { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+        { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+        { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+        { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
+        { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+    ],
+    "shortcuts": [
+        { "name": "Tableau de bord", "short_name": "Accueil", "url": "/?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+        { "name": "Mes congés", "short_name": "Congés", "url": "/leave?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+        { "name": "Recherche", "short_name": "Rechercher", "url": "/search?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+    ]
 }

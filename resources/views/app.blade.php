@@ -13,10 +13,25 @@
     <link rel="manifest" href="/site.webmanifest">
     <meta name="theme-color" content="#12161C">
 
+    {{-- PWA : installable sur iOS (Ajouter à l'écran d'accueil) --}}
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vulkain">
+    <meta name="mobile-web-app-capable" content="yes">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
 </head>
 <body class="h-full bg-gray-50 text-gray-900 antialiased">
     @inertia
+
+    {{-- Enregistrement du service worker (PWA hors-ligne). Ignoré sans HTTPS. --}}
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').catch(function () { /* silencieux */ });
+            });
+        }
+    </script>
 </body>
 </html>

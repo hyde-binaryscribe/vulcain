@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import SearchPalette from '@/Components/SearchPalette.vue';
+import InstallPrompt from '@/Components/InstallPrompt.vue';
 import Logo from '@/Components/Logo.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -279,5 +280,6 @@ const initials = computed(() => {
         </div>
 
         <SearchPalette :open="paletteOpen" @close="paletteOpen = false" />
+        <InstallPrompt />
     </div>
 </template>
