@@ -138,10 +138,11 @@ APP_KEY=                      # généré à l'étape 7
 APP_DEBUG=false
 APP_URL=https://vulkain.eu
 
-# Répartition des hôtes (topologie §3)
+# Répartition des hôtes (topologie §3) — séparation stricte client / Desk
 APP_CENTRAL_DOMAIN=vulkain.eu,www.vulkain.eu,desk.vulkain.eu,app.vulkain.eu
 APP_VITRINE_DOMAIN=vulkain.eu,www.vulkain.eu
-APP_APP_DOMAIN=app.vulkain.eu
+APP_APP_DOMAIN=app.vulkain.eu        # espace client uniquement
+APP_DESK_DOMAIN=desk.vulkain.eu      # Desk management uniquement (jamais aux clients)
 
 APP_LOCALE=fr
 APP_FALLBACK_LOCALE=fr

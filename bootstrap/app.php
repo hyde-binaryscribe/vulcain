@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureAppHost;
 use App\Http\Middleware\EnsureCentral;
+use App\Http\Middleware\EnsureDeskHost;
 use App\Http\Middleware\EnsureTenant;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ResolveTenant;
@@ -41,11 +43,20 @@ return Application::configure(basePath: dirname(__DIR__))
             prepend: ResolveTenant::class,
         );
 
+        // Les gardes d'hôte (séparation stricte client/Desk) doivent s'exécuter
+        // AVANT tout : un accès sur le mauvais hôte doit renvoyer 404 plutôt
+        // qu'une redirection de connexion (302).
+        $middleware->prependToPriorityList(before: ResolveTenant::class, prepend: EnsureAppHost::class);
+        $middleware->prependToPriorityList(before: ResolveTenant::class, prepend: EnsureDeskHost::class);
+
         // Alias : exige une organisation résolue (routes métier sur sous-domaine)
         // + contrôle des rôles/permissions (spatie), vérifiés côté serveur.
         $middleware->alias([
             'tenant' => EnsureTenant::class,
             'central' => EnsureCentral::class,
+            // Séparation stricte par hôte : client -> app uniquement, Desk -> desk uniquement.
+            'app_host' => EnsureAppHost::class,
+            'desk_host' => EnsureDeskHost::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,

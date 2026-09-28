@@ -51,4 +51,35 @@ return [
         explode(',', (string) env('APP_APP_DOMAIN', ''))
     ))),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Domaines du Desk (management plateforme)
+    |--------------------------------------------------------------------------
+    |
+    | Hôtes servant EXCLUSIVEMENT l'espace exploitant (Desk). Un client n'y a
+    | jamais accès. En production : desk.vulkain.eu.
+    |
+    | Repli automatique si APP_DESK_DOMAIN n'est pas défini : les hôtes centraux
+    | qui ne sont ni la vitrine ni l'application (évite de verrouiller le Desk
+    | par erreur tant que la variable n'est pas renseignée).
+    |
+    */
+
+    'desk_domains' => (static function (): array {
+        $explicit = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('APP_DESK_DOMAIN', ''))
+        )));
+
+        if ($explicit !== []) {
+            return $explicit;
+        }
+
+        $central = array_filter(array_map('trim', explode(',', (string) env('APP_CENTRAL_DOMAIN', 'localhost'))));
+        $vitrine = array_filter(array_map('trim', explode(',', (string) env('APP_VITRINE_DOMAIN', ''))));
+        $app = array_filter(array_map('trim', explode(',', (string) env('APP_APP_DOMAIN', ''))));
+
+        return array_values(array_diff($central, $vitrine, $app));
+    })(),
+
 ];
