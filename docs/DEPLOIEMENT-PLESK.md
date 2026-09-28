@@ -182,12 +182,14 @@ BROADCAST_CONNECTION=log
 
 FILESYSTEM_DISK=local
 
-# E-mail (invitations, réinitialisation) — renseigne un vrai SMTP
+# E-mail — invitations, réinitialisation de mot de passe, décisions de congés.
+# Boîte du domaine hébergée sur le serveur mail Plesk (voir §6bis).
 MAIL_MAILER=smtp
-MAIL_HOST=smtp.vulkain.eu
-MAIL_PORT=587
+MAIL_HOST=mail.vulkain.eu          # nom d'hôte du serveur mail (cert TLS valide)
+MAIL_PORT=587                      # STARTTLS ; ou 465 avec MAIL_SCHEME=smtps
+MAIL_SCHEME=smtp                   # smtp = STARTTLS (587) ; smtps = TLS implicite (465)
 MAIL_USERNAME=no-reply@vulkain.eu
-MAIL_PASSWORD=********
+MAIL_PASSWORD=********              # mot de passe de la boîte créée dans Plesk
 MAIL_FROM_ADDRESS="no-reply@vulkain.eu"
 MAIL_FROM_NAME="Vulkain"
 ```
@@ -200,6 +202,51 @@ MAIL_FROM_NAME="Vulkain"
 > **File d'attente** : `QUEUE_CONNECTION=sync` suffit pour démarrer (les
 > notifications partent pendant la requête). Pour découpler, passe à `database`
 > et ajoute une tâche planifiée Plesk (§9).
+
+---
+
+## 6bis. E-mail (boîte Plesk du domaine)
+
+Vulkain envoie des e-mails transactionnels : invitations d'administrateurs,
+réinitialisation de mot de passe, décisions de congés. On utilise une boîte du
+domaine hébergée par le serveur mail de Plesk — sans compte tiers.
+
+### a. Créer la boîte d'envoi
+*Domaine `vulkain.eu` > Messagerie > Adresses e-mail > Créer une adresse* :
+- Adresse : **`no-reply@vulkain.eu`**
+- Mot de passe : fort, reporté dans `MAIL_PASSWORD` du `.env` (jamais commité).
+- Laisser la boîte activée (elle doit pouvoir s'authentifier en SMTP).
+
+### b. Renseigner le `.env`
+Reprendre le bloc e-mail du `.env` (§6). Le point sensible est **`MAIL_HOST`** :
+- Utiliser le **nom d'hôte du serveur mail** dont le certificat TLS est valide —
+  en général `mail.vulkain.eu` (créé par Plesk) ou le FQDN du serveur. Éviter
+  `localhost` : le certificat ne correspondrait pas et STARTTLS échouerait.
+- `MAIL_PORT=587` + `MAIL_SCHEME=smtp` (STARTTLS), ou `465` + `MAIL_SCHEME=smtps`.
+
+### c. Délivrabilité — SPF / DKIM / DMARC (indispensable)
+Sans ces enregistrements, les messages partent en indésirables ou sont rejetés.
+Dans *Domaine > Messagerie > Paramètres de messagerie* (ou *Outils & Paramètres >
+Serveur de messagerie*) :
+- **SPF** : activer la signature SPF (Plesk publie l'enregistrement TXT).
+- **DKIM** : activer la signature DKIM (Plesk crée la clé et l'enregistrement).
+- **DMARC** : activer la politique DMARC.
+
+Puis vérifier dans la **zone DNS** du domaine que les TXT correspondants sont
+bien publiés (si le DNS est géré ailleurs qu'à Plesk, recopier ces
+enregistrements chez le registrar).
+
+### d. Tester sans SSH
+Depuis l'extension **Laravel** de Plesk (§7), lancer :
+```
+vulcain:mail-test votre.adresse@exemple.fr
+```
+La commande affiche le transport utilisé (mailer, hôte, expéditeur), envoie un
+message de test et **remonte l'erreur exacte** en cas d'échec (authentification,
+TLS, hôte injoignable). Contrôler la réception (et les indésirables).
+
+> Tant que `MAIL_MAILER=log`, aucun e-mail n'est réellement envoyé : les messages
+> sont écrits dans `storage/logs`. Passer à `MAIL_MAILER=smtp` pour l'envoi réel.
 
 ---
 
@@ -296,7 +343,8 @@ PHP Plesk :
       (auto-inscription + essai).
 - [ ] Un compte dont l'organisation est **suspendue** ne peut pas se connecter.
 - [ ] `https://desk.vulkain.eu` : accès Desk réservé à la garde `platform`.
-- [ ] Création d'un utilisateur → e-mail d'invitation reçu (SMTP OK).
+- [ ] `vulcain:mail-test <adresse>` réussit et l'e-mail est reçu (SMTP + SPF/DKIM OK).
+- [ ] Création d'un utilisateur → e-mail d'invitation reçu.
 - [ ] `APP_DEBUG=false` (aucune stacktrace publique).
 - [ ] `storage/logs/laravel.log` sans erreur ; droits d'écriture OK.
 - [ ] Un protocole se lance et se valide (base + sessions OK).

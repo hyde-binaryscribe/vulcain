@@ -23,7 +23,7 @@ class ResetPasswordNotification extends Notification
         $minutes = config('security.password_reset.expires_minutes', 60);
 
         return (new MailMessage)
-            ->subject('Réinitialisation de votre mot de passe — Vulcain')
+            ->subject('Réinitialisation de votre mot de passe — Vulkain')
             ->greeting('Bonjour,')
             ->line('Vous avez demandé la réinitialisation de votre mot de passe.')
             ->action('Réinitialiser le mot de passe', $this->resetUrl)

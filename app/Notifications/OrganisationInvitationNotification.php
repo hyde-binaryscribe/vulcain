@@ -27,9 +27,9 @@ class OrganisationInvitationNotification extends Notification
         $days = (int) round($this->expiresMinutes / (60 * 24));
 
         return (new MailMessage)
-            ->subject("Invitation — {$this->organisationName} sur Vulcain")
+            ->subject("Invitation — {$this->organisationName} sur Vulkain")
             ->greeting('Bonjour,')
-            ->line("Vous êtes invité(e) à rejoindre « {$this->organisationName} » sur Vulcain en tant que {$this->roleLabel}.")
+            ->line("Vous êtes invité(e) à rejoindre « {$this->organisationName} » sur Vulkain en tant que {$this->roleLabel}.")
             ->action('Activer mon compte', $this->acceptUrl)
             ->line("Vous définirez votre mot de passe lors de l'activation.")
             ->line("Ce lien expire dans {$days} jour(s).")
