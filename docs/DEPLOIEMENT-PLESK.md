@@ -228,10 +228,17 @@ Le point d'entrée web de Laravel est **`public/`**. Dans Plesk :
    key:generate --force        # renseigne APP_KEY (une seule fois)
    migrate --force             # crée / met à jour le schéma
    storage:link                # lien public/storage
-   optimize                    # cache config + routes + vues + events
+   optimize:clear              # purge config + routes + vues en cache
    ```
-   Après chaque déploiement de code : **`migrate --force`** puis
-   **`optimize:clear`** (puis `optimize`).
+
+> ⚠️ **Ne pas exécuter `php artisan optimize` (ni `route:cache` / `config:cache`)
+> tant que les déploiements sont manuels.** Ces commandes figent la config **et
+> les routes** dans un fichier de cache. Si un déploiement ultérieur ajoute une
+> route (ex. gestion des abonnements) ou change le `.env` sans que le cache soit
+> repurgé, la prod continue d'utiliser l'ancien cache → **404 sur les nouvelles
+> routes** ou **500 sur une config périmée**. La commande de référence après
+> chaque déploiement est donc **`optimize:clear`**, pas `optimize`. Le gain de
+> perf du cache est négligeable à cette échelle et ne vaut pas le risque.
 
 ### Premier compte
 Via l'extension **Laravel**, lance la commande de création d'admin plateforme.
@@ -252,11 +259,14 @@ Puis provisionne une organisation depuis le Desk (`desk.vulkain.eu`).
 
 1. **Git** (Plesk) apporte le nouveau code (dont `public/build` déjà compilé).
 2. **PHP Composer** (extension) : *Installer* si `composer.lock` a changé.
-3. **Laravel** (extension) : `migrate --force`, puis `optimize:clear`, puis
-   `optimize`.
+3. **Laravel** (extension) : `migrate --force`, puis **`optimize:clear`**.
 
 > Les *actions de déploiement Git* restent vides : leur chroot n'a pas de PHP
 > (voir §2). Tout ce qui touche PHP passe par les deux extensions ci-dessus.
+
+> ⚠️ **`optimize:clear` est obligatoire après chaque déploiement.** Un cache de
+> routes/config périmé est la cause n°1 des « 404 sur une page qui existe » et
+> des « 500 après changement de `.env` ». Ne pas relancer `optimize` (voir §7).
 
 ---
 
