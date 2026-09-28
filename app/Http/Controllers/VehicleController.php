@@ -18,6 +18,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleModel;
+use App\Models\VehicleMotorization;
 use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
@@ -205,6 +206,8 @@ class VehicleController extends Controller
                 'id' => $v->id,
                 'name' => $v->name,
                 'type' => $v->type,
+                'vehicle_model_id' => $v->vehicle_model_id,
+                'vehicle_motorization_id' => $v->vehicle_motorization_id,
                 'callsign' => $v->callsign,
                 'registration' => $v->registration,
                 'site' => $v->site?->name,
@@ -234,10 +237,12 @@ class VehicleController extends Controller
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->pluck('name'),
-            // Modèles disponibles : à la création, leurs emplacements sont générés.
+            // Modèles disponibles : à la création (ou l'affectation), leurs
+            // emplacements et échéances d'entretien (via la motorisation) sont générés.
             'vehicleModels' => VehicleModel::query()
                 ->where('is_active', true)
                 ->withCount('templateLocations')
+                ->with(['motorizations' => fn ($q) => $q->withCount('maintenancePlans')])
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->get()
@@ -245,6 +250,12 @@ class VehicleController extends Controller
                     'id' => $m->id,
                     'name' => $m->name,
                     'emplacements_count' => $m->template_locations_count,
+                    'motorizations' => $m->motorizations->map(fn (VehicleMotorization $mo) => [
+                        'id' => $mo->id,
+                        'name' => $mo->name,
+                        'fuel' => $mo->fuel,
+                        'plans_count' => $mo->maintenance_plans_count,
+                    ])->values(),
                 ]),
             'status' => session('status'),
         ]);
@@ -258,11 +269,9 @@ class VehicleController extends Controller
 
         $vehicle = Vehicle::create($this->validated($request));
 
-        // Génération automatique des emplacements depuis le modèle choisi.
-        if ($vehicle->vehicle_model_id !== null) {
-            $model = VehicleModel::query()->find($vehicle->vehicle_model_id);
-            $model?->generateLocationsFor($vehicle);
-        }
+        // Génération automatique de la structure (emplacements + entretien) depuis
+        // le modèle et la motorisation choisis.
+        $this->generateStructure($vehicle);
 
         return back()->with('status', 'Véhicule créé.');
     }
@@ -272,6 +281,62 @@ class VehicleController extends Controller
         $vehicle->update($this->validated($request));
 
         return back()->with('status', 'Véhicule mis à jour.');
+    }
+
+    /**
+     * Applique le modèle/motorisation affecté au véhicule : génère les
+     * emplacements manquants et les échéances d'entretien. Sert à équiper un
+     * véhicule existant auquel on vient d'affecter un modèle.
+     */
+    public function applyModel(Vehicle $vehicle): RedirectResponse
+    {
+        if ($vehicle->vehicle_model_id === null) {
+            return back()->with('error', 'Affectez d’abord un modèle à ce véhicule.');
+        }
+
+        [$locations, $maintenances] = $this->generateStructure($vehicle);
+
+        $parts = [];
+        if ($locations > 0) {
+            $parts[] = "{$locations} emplacement(s)";
+        }
+        if ($maintenances > 0) {
+            $parts[] = "{$maintenances} échéance(s) d’entretien";
+        }
+
+        $message = $parts === []
+            ? 'Structure déjà en place : rien à générer.'
+            : 'Structure générée : '.implode(' et ', $parts).'.';
+
+        return back()->with('status', $message);
+    }
+
+    /**
+     * Génère la structure d'un véhicule depuis son modèle (emplacements, si le
+     * véhicule n'en a aucun) et sa motorisation (échéances d'entretien,
+     * idempotent par type).
+     *
+     * @return array{0:int,1:int} [emplacements créés, échéances créées]
+     */
+    private function generateStructure(Vehicle $vehicle): array
+    {
+        $locations = 0;
+        $maintenances = 0;
+
+        if ($vehicle->vehicle_model_id !== null) {
+            $model = VehicleModel::query()->find($vehicle->vehicle_model_id);
+            // On ne génère les emplacements que si le véhicule n'en a pas déjà.
+            if ($model !== null && $vehicle->locations()->count() === 0) {
+                $locations = $model->generateLocationsFor($vehicle);
+            }
+        }
+
+        if ($vehicle->vehicle_motorization_id !== null) {
+            $motorization = VehicleMotorization::query()->find($vehicle->vehicle_motorization_id);
+            $maintenances = $motorization?->generateMaintenanceFor($vehicle) ?? 0;
+        }
+
+        return [$locations, $maintenances];
     }
 
     public function destroy(Vehicle $vehicle): RedirectResponse
@@ -301,11 +366,14 @@ class VehicleController extends Controller
      */
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $orgId = $this->tenant->id();
+
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'site_id' => ['nullable', Rule::exists('sites', 'id')->where('organisation_id', $this->tenant->id())->whereNull('deleted_at')],
+            'site_id' => ['nullable', Rule::exists('sites', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
             'type' => ['nullable', 'string', 'max:50'],
-            'vehicle_model_id' => ['nullable', Rule::exists('vehicle_models', 'id')->where('organisation_id', $this->tenant->id())->whereNull('deleted_at')],
+            'vehicle_model_id' => ['nullable', Rule::exists('vehicle_models', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
+            'vehicle_motorization_id' => ['nullable', Rule::exists('vehicle_motorizations', 'id')->where('organisation_id', $orgId)],
             'callsign' => ['nullable', 'string', 'max:50'],
             'registration' => ['nullable', 'string', 'max:50'],
             'status' => ['required', Rule::enum(VehicleStatus::class)],
@@ -313,5 +381,18 @@ class VehicleController extends Controller
             'mileage' => ['nullable', 'integer', 'min:0'],
             'observations' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        // La motorisation doit appartenir au modèle choisi (sinon on l'ignore).
+        if (! empty($validated['vehicle_motorization_id'])) {
+            $belongs = VehicleMotorization::query()
+                ->whereKey($validated['vehicle_motorization_id'])
+                ->where('vehicle_model_id', $validated['vehicle_model_id'] ?? 0)
+                ->exists();
+            if (! $belongs) {
+                $validated['vehicle_motorization_id'] = null;
+            }
+        }
+
+        return $validated;
     }
 }

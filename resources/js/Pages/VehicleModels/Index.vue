@@ -11,10 +11,11 @@ import VehicleModelNode from '@/Components/VehicleModelNode.vue';
 const props = defineProps({
     models: { type: Array, default: () => [] },
     kinds: { type: Array, default: () => [] },
+    maintenanceTypes: { type: Array, default: () => [] },
 });
 
 const editingId = ref(null);
-const form = useForm({ brand: '', model: '', year: '', coachbuilder: '', display_order: 0, template: [] });
+const form = useForm({ brand: '', model: '', year: '', coachbuilder: '', display_order: 0, template: [], motorizations: [] });
 
 function resetForm() {
     editingId.value = null;
@@ -25,11 +26,24 @@ function resetForm() {
     form.coachbuilder = '';
     form.display_order = 0;
     form.template = [];
+    form.motorizations = [];
 }
 
 // Clone profond simple (le gabarit ne contient que des objets/tableaux/chaînes).
 function cloneTree(nodes) {
     return (nodes || []).map((n) => ({ name: n.name, kind: n.kind, children: cloneTree(n.children) }));
+}
+function cloneMotorizations(list) {
+    return (list || []).map((mo) => ({
+        name: mo.name ?? '',
+        fuel: mo.fuel ?? '',
+        plans: (mo.plans || []).map((p) => ({
+            type: p.type,
+            label: p.label ?? '',
+            interval_km: p.interval_km ?? '',
+            interval_months: p.interval_months ?? '',
+        })),
+    }));
 }
 
 function edit(m) {
@@ -41,6 +55,21 @@ function edit(m) {
     form.coachbuilder = m.coachbuilder ?? '';
     form.display_order = m.display_order;
     form.template = cloneTree(m.template);
+    form.motorizations = cloneMotorizations(m.motorizations);
+}
+
+const defaultType = () => props.maintenanceTypes[0]?.value ?? 'revision';
+function addMotorization() {
+    form.motorizations.push({ name: '', fuel: '', plans: [] });
+}
+function removeMotorization(i) {
+    form.motorizations.splice(i, 1);
+}
+function addPlan(mo) {
+    mo.plans.push({ type: defaultType(), label: '', interval_km: '', interval_months: '' });
+}
+function removePlan(mo, i) {
+    mo.plans.splice(i, 1);
 }
 
 // Aperçu du libellé composé (identique au serveur).
@@ -120,6 +149,15 @@ function kindLabel(value) {
                         </li>
                     </ul>
                     <p v-else class="mt-3 text-xs text-gray-400">Aucun emplacement dans ce gabarit.</p>
+
+                    <ul v-if="m.motorizations && m.motorizations.length" class="mt-2 flex flex-wrap gap-1.5">
+                        <li v-for="(mo, i) in m.motorizations" :key="i" class="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-xs text-gray-700">
+                            <Icon name="settings" :size="12" class="text-gray-400" />
+                            <span class="font-medium">{{ mo.name }}</span>
+                            <span v-if="mo.fuel" class="text-gray-400">· {{ mo.fuel }}</span>
+                            <span v-if="mo.plans && mo.plans.length" class="text-gray-400">· {{ mo.plans.length }} plan(s)</span>
+                        </li>
+                    </ul>
                 </div>
 
                 <div v-if="models.length === 0" class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
@@ -181,6 +219,51 @@ function kindLabel(value) {
                         </div>
                         <p v-else class="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-400">
                             Aucun emplacement. Cliquez sur « Emplacement » pour commencer.
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <InputLabel value="Motorisations & entretien" />
+                            <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-[var(--brand)] hover:brightness-110" @click="addMotorization">
+                                <Icon name="plus" :size="13" /> Motorisation
+                            </button>
+                        </div>
+                        <p class="mb-2 mt-1 text-xs text-gray-500">
+                            Une ou plusieurs motorisations, chacune avec ses plans d'entretien (par kilométrage et/ou durée).
+                            À la création d'un véhicule, ces plans génèrent ses échéances d'entretien.
+                        </p>
+
+                        <div v-if="form.motorizations.length" class="space-y-3">
+                            <div v-for="(mo, mi) in form.motorizations" :key="mi" class="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                                <div class="flex items-center gap-2">
+                                    <input v-model="mo.name" type="text" placeholder="Motorisation (ex. 2.3 dCi 145 ch)" class="min-w-0 flex-1 rounded-md border-gray-300 px-2 py-1.5 text-sm" />
+                                    <input v-model="mo.fuel" type="text" placeholder="Énergie" class="w-24 rounded-md border-gray-300 px-2 py-1.5 text-sm" />
+                                    <button type="button" class="shrink-0 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removeMotorization(mi)">
+                                        <Icon name="x" :size="15" />
+                                    </button>
+                                </div>
+
+                                <div class="mt-2 border-l-2 border-gray-200 pl-3">
+                                    <div v-for="(p, pi) in mo.plans" :key="pi" class="mb-2 grid grid-cols-12 items-center gap-1.5">
+                                        <select v-model="p.type" class="col-span-4 rounded-md border-gray-300 px-1.5 py-1.5 text-xs">
+                                            <option v-for="t in maintenanceTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                        </select>
+                                        <input v-model="p.interval_km" type="number" min="1" placeholder="km" class="col-span-3 rounded-md border-gray-300 px-1.5 py-1.5 text-xs" title="Périodicité en km" />
+                                        <input v-model="p.interval_months" type="number" min="1" placeholder="mois" class="col-span-3 rounded-md border-gray-300 px-1.5 py-1.5 text-xs" title="Périodicité en mois" />
+                                        <button type="button" class="col-span-2 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removePlan(mo, pi)">
+                                            <Icon name="x" :size="14" />
+                                        </button>
+                                        <input v-model="p.label" type="text" placeholder="Libellé (optionnel, ex. courroie de distribution)" class="col-span-12 rounded-md border-gray-300 px-2 py-1.5 text-xs" />
+                                    </div>
+                                    <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[var(--brand)]" @click="addPlan(mo)">
+                                        <Icon name="plus" :size="12" /> Plan d'entretien
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-else class="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-400">
+                            Aucune motorisation. Optionnel — ajoutez-en pour générer l'entretien automatiquement.
                         </p>
                     </div>
 

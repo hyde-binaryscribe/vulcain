@@ -7,8 +7,10 @@ use App\Domain\Identity\RoleProvisioner;
 use App\Models\Location;
 use App\Models\Organisation;
 use App\Models\User;
+use App\Models\MaintenanceRecord;
 use App\Models\Vehicle;
 use App\Models\VehicleModel;
+use App\Models\VehicleMotorization;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -76,6 +78,71 @@ class VehicleModelTest extends TestCase
             $this->assertSame($cellule->id, $sac->parent_id);
             $this->assertSame($sac->id, $pochette->parent_id);
             $this->assertSame('sac', $sac->kind->value);
+        });
+    }
+
+    public function test_creating_a_vehicle_generates_maintenance_from_motorization(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $motor] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $model = VehicleModel::create(['name' => 'Master', 'is_active' => true]);
+            $motor = $model->motorizations()->create(['name' => '2.3 dCi 145', 'fuel' => 'diesel', 'display_order' => 0]);
+            $motor->maintenancePlans()->create(['type' => 'revision', 'interval_km' => 20000, 'interval_months' => 12, 'display_order' => 0]);
+            $motor->maintenancePlans()->create(['type' => 'controle_technique', 'interval_months' => 12, 'display_order' => 1]);
+
+            return [$admin, $motor];
+        });
+
+        $this->actingAs($admin)->post('http://caserne.localhost/vehicles', [
+            'name' => 'VL-3',
+            'status' => 'disponible',
+            'vehicle_model_id' => $motor->vehicle_model_id,
+            'vehicle_motorization_id' => $motor->id,
+            'commissioned_at' => '2026-01-01',
+            'mileage' => 1000,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () {
+            $vehicle = Vehicle::query()->where('name', 'VL-3')->firstOrFail();
+            $records = MaintenanceRecord::query()->where('vehicle_id', $vehicle->id)->get();
+
+            $this->assertCount(2, $records);
+            $revision = $records->firstWhere('type', \App\Domain\Fleet\MaintenanceType::REVISION);
+            $this->assertSame(21000, $revision->next_due_mileage); // 1000 + 20000
+            $this->assertSame('2027-01-01', $revision->next_due_at->format('Y-m-d')); // +12 mois
+        });
+    }
+
+    public function test_apply_model_equips_an_existing_vehicle(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicle, $model, $motor] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $model = VehicleModel::create(['name' => 'Trafic', 'is_active' => true]);
+            $model->templateLocations()->create(['name' => 'Coffre', 'kind' => 'mobile', 'display_order' => 0]);
+            $motor = $model->motorizations()->create(['name' => '2.0 dCi', 'display_order' => 0]);
+            $motor->maintenancePlans()->create(['type' => 'vidange', 'interval_km' => 15000, 'display_order' => 0]);
+
+            // Véhicule existant, sans modèle affecté au départ.
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'vehicle_model_id' => $model->id, 'vehicle_motorization_id' => $motor->id, 'mileage' => 5000]);
+
+            return [$admin, $vehicle, $model, $motor];
+        });
+
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/apply-model")
+            ->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($vehicle) {
+            $this->assertSame(1, \App\Models\Location::query()->where('vehicle_id', $vehicle->id)->count());
+            $rec = MaintenanceRecord::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+            $this->assertSame(20000, $rec->next_due_mileage); // 5000 + 15000
         });
     }
 

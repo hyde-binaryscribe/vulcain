@@ -62,6 +62,12 @@ class VehicleModel extends Model
         return $this->hasMany(VehicleModelLocation::class)->orderBy('display_order');
     }
 
+    /** Motorisations proposées pour ce modèle (avec leurs plans d'entretien). */
+    public function motorizations(): HasMany
+    {
+        return $this->hasMany(VehicleMotorization::class)->orderBy('display_order');
+    }
+
     /**
      * Gabarit sous forme d'arbre : liste des emplacements racines, chacun
      * portant ses enfants dans « children ».
@@ -91,13 +97,16 @@ class VehicleModel extends Model
     /**
      * Génère les emplacements d'un véhicule à partir du gabarit, en
      * préservant la hiérarchie. À appeler juste après la création du véhicule.
+     *
+     * @return int Nombre d'emplacements créés.
      */
-    public function generateLocationsFor(Vehicle $vehicle): void
+    public function generateLocationsFor(Vehicle $vehicle): int
     {
         $templates = $this->templateLocations()->get();
 
         // Ancien id de gabarit -> id d'emplacement créé, pour rattacher les enfants.
         $map = [];
+        $created = 0;
 
         // Parcours en largeur : on crée un parent avant ses enfants.
         $pending = $templates->all();
@@ -121,6 +130,7 @@ class VehicleModel extends Model
                 ]);
 
                 $map[$tpl->id] = $location->id;
+                $created++;
                 unset($pending[$key]);
                 $progressed = true;
             }
@@ -130,5 +140,7 @@ class VehicleModel extends Model
                 break;
             }
         }
+
+        return $created;
     }
 }

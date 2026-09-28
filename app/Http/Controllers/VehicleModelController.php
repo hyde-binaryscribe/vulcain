@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Fleet\MaintenanceType;
 use App\Domain\Storage\LocationKind;
 use App\Models\Vehicle;
 use App\Models\VehicleModel;
 use App\Models\VehicleModelLocation;
+use App\Models\VehicleMotorization;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,7 +34,7 @@ class VehicleModelController extends Controller
             ->pluck('total', 'vehicle_model_id');
 
         $models = VehicleModel::query()
-            ->with('templateLocations')
+            ->with(['templateLocations', 'motorizations.maintenancePlans'])
             ->orderBy('display_order')
             ->orderBy('name')
             ->get()
@@ -47,12 +49,23 @@ class VehicleModelController extends Controller
                 'is_active' => $m->is_active,
                 'template' => $m->templateTree(),
                 'emplacements_count' => $m->templateLocations->count(),
+                'motorizations' => $m->motorizations->map(fn (VehicleMotorization $mo) => [
+                    'name' => $mo->name,
+                    'fuel' => $mo->fuel,
+                    'plans' => $mo->maintenancePlans->map(fn ($p) => [
+                        'type' => $p->type->value,
+                        'label' => $p->label,
+                        'interval_km' => $p->interval_km,
+                        'interval_months' => $p->interval_months,
+                    ])->values(),
+                ])->values(),
                 'vehicles_count' => (int) ($usage[$m->id] ?? 0),
             ]);
 
         return Inertia::render('VehicleModels/Index', [
             'models' => $models,
             'kinds' => LocationKind::options($this->tenant->organisation()->bagsEnabled()),
+            'maintenanceTypes' => MaintenanceType::options(),
             'status' => session('status'),
         ]);
     }
@@ -64,6 +77,7 @@ class VehicleModelController extends Controller
         $model = VehicleModel::create($data + ['is_active' => true]);
 
         $this->syncTemplate($model, $request->input('template', []));
+        $this->syncMotorizations($model, $request->input('motorizations', []));
 
         return back()->with('status', 'Modèle de véhicule créé.');
     }
@@ -75,6 +89,7 @@ class VehicleModelController extends Controller
         $vehicleModel->update($data);
 
         $this->syncTemplate($vehicleModel, $request->input('template', []));
+        $this->syncMotorizations($vehicleModel, $request->input('motorizations', []));
 
         return back()->with('status', 'Modèle de véhicule mis à jour.');
     }
@@ -192,5 +207,78 @@ class VehicleModelController extends Controller
 
             $insert($tree, null, 0);
         });
+    }
+
+    /**
+     * Reconstruit les motorisations du modèle et leurs plans d'entretien à
+     * partir du formulaire : liste de { name, fuel, plans: [{ type, label,
+     * interval_km, interval_months }] }.
+     *
+     * @param  array<int, mixed>  $motorizations
+     */
+    private function syncMotorizations(VehicleModel $model, array $motorizations): void
+    {
+        $validTypes = array_map(fn (MaintenanceType $t) => $t->value, MaintenanceType::cases());
+
+        DB::transaction(function () use ($model, $motorizations, $validTypes) {
+            // La suppression des motorisations fait tomber leurs plans (cascade FK).
+            $model->motorizations()->delete();
+
+            $mOrder = 0;
+            foreach ($motorizations as $mo) {
+                if (! is_array($mo)) {
+                    continue;
+                }
+                $name = trim((string) ($mo['name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+
+                $fuel = trim((string) ($mo['fuel'] ?? ''));
+                $motor = $model->motorizations()->create([
+                    'name' => mb_substr($name, 0, 100),
+                    'fuel' => $fuel !== '' ? mb_substr($fuel, 0, 30) : null,
+                    'display_order' => $mOrder++,
+                ]);
+
+                $pOrder = 0;
+                foreach (($mo['plans'] ?? []) as $plan) {
+                    if (! is_array($plan)) {
+                        continue;
+                    }
+                    $type = (string) ($plan['type'] ?? '');
+                    if (! in_array($type, $validTypes, true)) {
+                        continue;
+                    }
+
+                    $km = $this->intOrNull($plan['interval_km'] ?? null);
+                    $months = $this->intOrNull($plan['interval_months'] ?? null);
+                    // Un plan sans périodicité ne générerait aucune échéance : on l'ignore.
+                    if ($km === null && $months === null) {
+                        continue;
+                    }
+
+                    $label = trim((string) ($plan['label'] ?? ''));
+                    $motor->maintenancePlans()->create([
+                        'type' => $type,
+                        'label' => $label !== '' ? mb_substr($label, 0, 100) : null,
+                        'interval_km' => $km,
+                        'interval_months' => $months,
+                        'display_order' => $pOrder++,
+                    ]);
+                }
+            }
+        });
+    }
+
+    private function intOrNull(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        $int = (int) $value;
+
+        return $int > 0 ? $int : null;
     }
 }

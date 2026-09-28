@@ -40,8 +40,14 @@ const statusStyles = {
 const showForm = ref(false);
 const editingId = ref(null);
 const form = useForm({
-    name: '', type: '', vehicle_model_id: '', callsign: '', registration: '', site_id: '',
+    name: '', type: '', vehicle_model_id: '', vehicle_motorization_id: '', callsign: '', registration: '', site_id: '',
     status: 'disponible', commissioned_at: '', mileage: '', observations: '',
+});
+
+// Motorisations proposées pour le modèle sélectionné.
+const availableMotorizations = computed(() => {
+    const m = props.vehicleModels.find((vm) => vm.id === form.vehicle_model_id);
+    return m?.motorizations ?? [];
 });
 
 function openCreate() {
@@ -54,7 +60,7 @@ function openEdit(v) {
     editingId.value = v.id;
     form.clearErrors();
     Object.assign(form, {
-        name: v.name, type: v.type ?? '', vehicle_model_id: '', callsign: v.callsign ?? '', registration: v.registration ?? '',
+        name: v.name, type: v.type ?? '', vehicle_model_id: v.vehicle_model_id ?? '', vehicle_motorization_id: v.vehicle_motorization_id ?? '', callsign: v.callsign ?? '', registration: v.registration ?? '',
         site_id: v.site_id ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
         mileage: v.mileage ?? '', observations: v.observations ?? '',
     });
@@ -62,7 +68,7 @@ function openEdit(v) {
 }
 function submit() {
     const opts = { preserveScroll: true, onSuccess: () => (showForm.value = false) };
-    form.transform((d) => ({ ...d, site_id: d.site_id || null, vehicle_model_id: d.vehicle_model_id || null }));
+    form.transform((d) => ({ ...d, site_id: d.site_id || null, vehicle_model_id: d.vehicle_model_id || null, vehicle_motorization_id: d.vehicle_motorization_id || null }));
     if (editingId.value) {
         form.patch(`/vehicles/${editingId.value}`, opts);
     } else {
@@ -73,6 +79,15 @@ function remove(v) {
     if (confirm(`Supprimer « ${v.name} » ?`)) {
         router.delete(`/vehicles/${v.id}`, { preserveScroll: true });
     }
+}
+// Applique le modèle/motorisation affecté : génère emplacements + entretien manquants.
+function applyModel() {
+    if (!editingId.value) return;
+    form.transform((d) => ({ ...d, site_id: d.site_id || null, vehicle_model_id: d.vehicle_model_id || null, vehicle_motorization_id: d.vehicle_motorization_id || null }));
+    form.patch(`/vehicles/${editingId.value}`, {
+        preserveScroll: true,
+        onSuccess: () => router.post(`/vehicles/${editingId.value}/apply-model`, {}, { preserveScroll: true }),
+    });
 }
 
 // Affectations
@@ -169,16 +184,33 @@ function saveAssign() {
                             Géré dans <Link href="/vehicle-types" class="text-[var(--brand)] hover:underline">Types de véhicule</Link>.
                         </p>
                     </div>
-                    <div v-if="!editingId && vehicleModels.length" class="col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <InputLabel value="Modèle (génère les emplacements)" />
-                        <select v-model="form.vehicle_model_id" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
-                            <option value="">Aucun — véhicule vide</option>
-                            <option v-for="m in vehicleModels" :key="m.id" :value="m.id">{{ m.name }} ({{ m.emplacements_count }} empl.)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-gray-500">
-                            À la création, les emplacements du modèle sont générés automatiquement. Géré dans
-                            <Link href="/vehicle-models" class="text-[var(--brand)] hover:underline">Modèles de véhicule</Link>.
+                    <div v-if="vehicleModels.length" class="col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <InputLabel value="Modèle" />
+                                <select v-model="form.vehicle_model_id" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10" @change="form.vehicle_motorization_id = ''">
+                                    <option value="">Aucun — véhicule vide</option>
+                                    <option v-for="m in vehicleModels" :key="m.id" :value="m.id">{{ m.name }} ({{ m.emplacements_count }} empl.)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <InputLabel value="Motorisation" />
+                                <select v-model="form.vehicle_motorization_id" :disabled="!availableMotorizations.length" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10 disabled:bg-gray-100 disabled:text-gray-400">
+                                    <option value="">{{ availableMotorizations.length ? '—' : 'Aucune' }}</option>
+                                    <option v-for="mo in availableMotorizations" :key="mo.id" :value="mo.id">{{ mo.name }}<template v-if="mo.plans_count"> · {{ mo.plans_count }} plan(s)</template></option>
+                                </select>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">
+                            <template v-if="!editingId">À la création, les emplacements (modèle) et les échéances d'entretien (motorisation) sont générés automatiquement.</template>
+                            <template v-else>Affectez un modèle puis cliquez « Appliquer » pour générer emplacements et entretien manquants.</template>
+                            Géré dans <Link href="/vehicle-models" class="text-[var(--brand)] hover:underline">Modèles de véhicule</Link>.
                         </p>
+                        <div v-if="editingId && form.vehicle_model_id" class="mt-2">
+                            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="applyModel">
+                                <Icon name="settings" :size="14" /> Appliquer le modèle (générer la structure)
+                            </button>
+                        </div>
                     </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>
                     <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
