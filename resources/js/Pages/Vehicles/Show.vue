@@ -84,6 +84,10 @@ function todayLocal() {
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 10);
 }
+const mileageInput = ref(props.vehicle.mileage ?? '');
+function saveMileage() {
+    router.post(`/vehicles/${props.vehicle.id}/mileage`, { mileage: mileageInput.value || 0 }, { preserveScroll: true });
+}
 const showMaintenanceForm = ref(false);
 const maintenanceForm = useForm({
     type: props.maintenance.types?.[0]?.value ?? 'revision',
@@ -294,7 +298,13 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 </button>
             </div>
 
-            <div class="flex flex-wrap gap-x-8 gap-y-2 px-6 py-4 text-sm">
+            <div class="flex flex-wrap items-center gap-x-8 gap-y-2 px-6 py-4 text-sm">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-500">Compteur :</span>
+                    <input v-model="mileageInput" type="number" min="0" class="w-28 rounded-lg border border-gray-300 px-2 py-1 text-sm" />
+                    <span class="text-gray-400">km</span>
+                    <button type="button" class="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" @click="saveMileage">Mettre à jour</button>
+                </div>
                 <div v-if="maintenance.next_due_at"><span class="text-gray-500">Prochaine échéance :</span> <span class="font-medium">{{ maintenance.next_due_at }}</span></div>
                 <div v-if="maintenance.next_due_mileage"><span class="text-gray-500">Échéance km :</span> <span class="font-medium">{{ Number(maintenance.next_due_mileage).toLocaleString('fr-FR') }} km</span></div>
                 <div v-if="!maintenance.next_due_at && !maintenance.next_due_mileage" class="text-gray-400">Aucune échéance planifiée.</div>

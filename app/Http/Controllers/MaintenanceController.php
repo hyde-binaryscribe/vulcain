@@ -45,6 +45,18 @@ class MaintenanceController extends Controller
         return back()->with('status', 'Opération d’entretien enregistrée.');
     }
 
+    /** Met à jour le compteur kilométrique courant du véhicule (déclenche les alertes km). */
+    public function updateMileage(Request $request, Vehicle $vehicle): RedirectResponse
+    {
+        $validated = $request->validate([
+            'mileage' => ['required', 'integer', 'min:0', 'max:9999999'],
+        ]);
+
+        $vehicle->update(['mileage' => $validated['mileage']]);
+
+        return back()->with('status', 'Kilométrage mis à jour.');
+    }
+
     /** Supprime une entrée du suivi mécanique (correction). */
     public function destroy(Vehicle $vehicle, MaintenanceRecord $maintenance): RedirectResponse
     {

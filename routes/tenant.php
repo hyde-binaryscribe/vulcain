@@ -72,6 +72,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
 
         // Suivi mécanique.
+        Route::post('vehicles/{vehicle}/mileage', [MaintenanceController::class, 'updateMileage'])->name('vehicles.mileage');
         Route::post('vehicles/{vehicle}/maintenances', [MaintenanceController::class, 'store'])->name('vehicles.maintenances.store');
         Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
 
