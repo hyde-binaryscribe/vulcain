@@ -20,11 +20,13 @@ class HostSeparationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Volontairement SANS desk_domains explicite : on exerce le repli runtime
+        // (central - vitrine - app), exactement comme en production.
         config([
             'tenancy.central_domains' => ['vulkain.eu', 'www.vulkain.eu', 'desk.vulkain.eu', 'app.vulkain.eu'],
             'tenancy.vitrine_domains' => ['vulkain.eu', 'www.vulkain.eu'],
             'tenancy.app_domains' => ['app.vulkain.eu'],
-            'tenancy.desk_domains' => ['desk.vulkain.eu'],
+            'tenancy.desk_domains' => [],
         ]);
     }
 

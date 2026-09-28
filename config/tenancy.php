@@ -65,21 +65,12 @@ return [
     |
     */
 
-    'desk_domains' => (static function (): array {
-        $explicit = array_values(array_filter(array_map(
-            'trim',
-            explode(',', (string) env('APP_DESK_DOMAIN', ''))
-        )));
-
-        if ($explicit !== []) {
-            return $explicit;
-        }
-
-        $central = array_filter(array_map('trim', explode(',', (string) env('APP_CENTRAL_DOMAIN', 'localhost'))));
-        $vitrine = array_filter(array_map('trim', explode(',', (string) env('APP_VITRINE_DOMAIN', ''))));
-        $app = array_filter(array_map('trim', explode(',', (string) env('APP_APP_DOMAIN', ''))));
-
-        return array_values(array_diff($central, $vitrine, $app));
-    })(),
+    // Hôte(s) Desk EXPLICITES (APP_DESK_DOMAIN). Peut rester vide : dans ce cas
+    // le middleware EnsureDeskHost déduit l'hôte Desk au runtime (central - vitrine
+    // - app), ce qui évite tout figement d'un instantané calculé au démarrage.
+    'desk_domains' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('APP_DESK_DOMAIN', ''))
+    ))),
 
 ];
