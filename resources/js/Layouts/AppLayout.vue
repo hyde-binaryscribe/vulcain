@@ -62,6 +62,12 @@ const navGroups = computed(() =>
             ],
         },
         {
+            label: 'RH',
+            items: [
+                { label: 'Congés & absences', href: '/leave', icon: 'calendar', permission: null },
+            ],
+        },
+        {
             label: 'Suivi',
             items: [
                 { label: 'Historique', href: '/activity', icon: 'clock', permission: 'history.view' },

@@ -39,6 +39,7 @@ final class Rbac
         'anomalies.manage',
         'repairs.manage',
         'disinfections.record',
+        'leave.manage',
         'history.view',
         'history.view_all',
         'audit.view',

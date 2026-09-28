@@ -5,6 +5,7 @@ use App\Http\Controllers\DisinfectionController;
 use App\Http\Controllers\DisinfectionProtocolController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MaterialCategoryController;
@@ -96,6 +97,14 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('disinfection-protocols/{disinfectionProtocol}/toggle', [DisinfectionProtocolController::class, 'toggle'])->name('disinfection-protocols.toggle');
         Route::delete('disinfection-protocols/{disinfectionProtocol}', [DisinfectionProtocolController::class, 'destroy'])->name('disinfection-protocols.destroy');
     });
+
+    // RH : congés & absences. Toute personne connectée gère ses propres demandes ;
+    // la validation est réservée aux responsables (permission leave.manage).
+    Route::get('leave', [LeaveController::class, 'index'])->name('leave.index');
+    Route::post('leave', [LeaveController::class, 'store'])->name('leave.store');
+    Route::post('leave/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->name('leave.cancel');
+    Route::post('leave/{leaveRequest}/decision', [LeaveController::class, 'decide'])
+        ->middleware('permission:leave.manage')->name('leave.decide');
 
     // Historique des actions (journal d'activité).
     Route::middleware('permission:history.view')->group(function () {
