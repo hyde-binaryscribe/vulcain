@@ -13,6 +13,7 @@ const props = defineProps({
     sites: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     vehicleTypes: { type: Array, default: () => [] },
+    vehicleModels: { type: Array, default: () => [] },
 });
 
 const siteWord = computed(() => usePage().props.tenant?.profile?.site_label || 'Site');
@@ -39,7 +40,7 @@ const statusStyles = {
 const showForm = ref(false);
 const editingId = ref(null);
 const form = useForm({
-    name: '', type: '', callsign: '', registration: '', site_id: '',
+    name: '', type: '', vehicle_model_id: '', callsign: '', registration: '', site_id: '',
     status: 'disponible', commissioned_at: '', mileage: '', observations: '',
 });
 
@@ -53,7 +54,7 @@ function openEdit(v) {
     editingId.value = v.id;
     form.clearErrors();
     Object.assign(form, {
-        name: v.name, type: v.type ?? '', callsign: v.callsign ?? '', registration: v.registration ?? '',
+        name: v.name, type: v.type ?? '', vehicle_model_id: '', callsign: v.callsign ?? '', registration: v.registration ?? '',
         site_id: v.site_id ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
         mileage: v.mileage ?? '', observations: v.observations ?? '',
     });
@@ -61,7 +62,7 @@ function openEdit(v) {
 }
 function submit() {
     const opts = { preserveScroll: true, onSuccess: () => (showForm.value = false) };
-    form.transform((d) => ({ ...d, site_id: d.site_id || null }));
+    form.transform((d) => ({ ...d, site_id: d.site_id || null, vehicle_model_id: d.vehicle_model_id || null }));
     if (editingId.value) {
         form.patch(`/vehicles/${editingId.value}`, opts);
     } else {
@@ -166,6 +167,17 @@ function saveAssign() {
                         </select>
                         <p class="mt-1 text-xs text-gray-400">
                             Géré dans <Link href="/vehicle-types" class="text-[var(--brand)] hover:underline">Types de véhicule</Link>.
+                        </p>
+                    </div>
+                    <div v-if="!editingId && vehicleModels.length" class="col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <InputLabel value="Modèle (génère les emplacements)" />
+                        <select v-model="form.vehicle_model_id" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
+                            <option value="">Aucun — véhicule vide</option>
+                            <option v-for="m in vehicleModels" :key="m.id" :value="m.id">{{ m.name }} ({{ m.emplacements_count }} empl.)</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">
+                            À la création, les emplacements du modèle sont générés automatiquement. Géré dans
+                            <Link href="/vehicle-models" class="text-[var(--brand)] hover:underline">Modèles de véhicule</Link>.
                         </p>
                     </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>

@@ -67,33 +67,40 @@ class BagController extends Controller
     {
         abort_unless($location->kind === LocationKind::SAC, 404);
 
+        // Cible : un véhicule de l'organisation, ou le dépôt (null = hors de tout véhicule).
         $validated = $request->validate([
             'to_vehicle_id' => [
-                'required', 'integer',
+                'nullable', 'integer',
                 Rule::exists('vehicles', 'id')->where('organisation_id', $location->organisation_id)->whereNull('deleted_at'),
-                Rule::notIn([$location->vehicle_id]),
             ],
-        ], [
-            'to_vehicle_id.not_in' => 'Le sac est déjà sur ce véhicule.',
         ]);
+
+        $to = $validated['to_vehicle_id'] ?? null;
+
+        // Déjà à cet emplacement (même véhicule, ou déjà au dépôt).
+        if ($to === $location->vehicle_id) {
+            return back()->withErrors([
+                'to_vehicle_id' => $to === null ? 'Le sac est déjà au dépôt.' : 'Le sac est déjà sur ce véhicule.',
+            ]);
+        }
 
         $from = $location->vehicle_id;
         $ids = $this->subtreeIds($location);
 
-        DB::transaction(function () use ($ids, $validated, $location, $from, $request) {
-            // Le sac et son contenu (emplacements enfants) suivent le véhicule.
-            Location::query()->whereIn('id', $ids)->update(['vehicle_id' => $validated['to_vehicle_id']]);
+        DB::transaction(function () use ($ids, $to, $location, $from, $request) {
+            // Le sac et son contenu (emplacements enfants) suivent la cible.
+            Location::query()->whereIn('id', $ids)->update(['vehicle_id' => $to]);
 
             BagMovement::create([
                 'location_id' => $location->id,
                 'from_vehicle_id' => $from,
-                'to_vehicle_id' => $validated['to_vehicle_id'],
+                'to_vehicle_id' => $to,
                 'user_id' => $request->user()->id,
                 'moved_at' => now(),
             ]);
         });
 
-        return back()->with('status', 'Sac transféré.');
+        return back()->with('status', $to === null ? 'Sac renvoyé au dépôt.' : 'Sac transféré.');
     }
 
     /**

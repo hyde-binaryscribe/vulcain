@@ -63,6 +63,50 @@ class BagTransferTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_send_a_bag_to_the_depot(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $veh, $bag] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            $v = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $bag = Location::create(['name' => 'Sac', 'kind' => 'sac', 'vehicle_id' => $v->id]);
+
+            return [$admin, $v, $bag];
+        });
+
+        // Cible vide (dépôt) : le sac sort de tout véhicule.
+        $this->actingAs($admin)->post("http://caserne.localhost/sacs/{$bag->id}/transfer", [
+            'to_vehicle_id' => null,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNull($bag->fresh()->vehicle_id);
+        $this->assertDatabaseHas('bag_movements', [
+            'location_id' => $bag->id,
+            'from_vehicle_id' => $veh->id,
+            'to_vehicle_id' => null,
+            'user_id' => $admin->id,
+        ]);
+    }
+
+    public function test_bag_already_in_depot_cannot_be_sent_to_depot(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $bag] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            $bag = Location::create(['name' => 'Sac', 'kind' => 'sac', 'vehicle_id' => null]);
+
+            return [$admin, $bag];
+        });
+
+        $this->actingAs($admin)->post("http://caserne.localhost/sacs/{$bag->id}/transfer", [
+            'to_vehicle_id' => null,
+        ])->assertSessionHasErrors('to_vehicle_id');
+    }
+
     public function test_transfer_to_same_vehicle_is_rejected(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

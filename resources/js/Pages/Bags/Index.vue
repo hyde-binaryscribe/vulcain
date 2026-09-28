@@ -19,7 +19,8 @@ function openTransfer(bag) {
 }
 function confirmTransfer() {
     if (!target.value) return;
-    router.post(`/sacs/${transferring.value.id}/transfer`, { to_vehicle_id: target.value }, {
+    const to = target.value === 'depot' ? null : target.value;
+    router.post(`/sacs/${transferring.value.id}/transfer`, { to_vehicle_id: to }, {
         preserveScroll: true,
         onSuccess: () => { transferring.value = null; },
     });
@@ -89,10 +90,11 @@ function vehicleLabel(v) {
         <div v-if="transferring" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" @click.self="transferring = null">
             <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
                 <h3 class="text-lg font-semibold text-gray-900">Transférer « {{ transferring.name }} »</h3>
-                <p class="mt-1 text-sm text-gray-500">Le sac et son contenu seront réaffectés au véhicule choisi.</p>
-                <label class="mt-4 block text-xs font-medium text-gray-600">Vers le véhicule</label>
+                <p class="mt-1 text-sm text-gray-500">Le sac et son contenu seront réaffectés à la cible choisie (véhicule ou dépôt).</p>
+                <label class="mt-4 block text-xs font-medium text-gray-600">Vers</label>
                 <select v-model="target" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">
                     <option value="">Choisir…</option>
+                    <option v-if="transferring.vehicle_id" value="depot">Dépôt (hors véhicule)</option>
                     <option v-for="v in vehicles.filter((v) => v.id !== transferring.vehicle_id)" :key="v.id" :value="v.id">{{ vehicleLabel(v) }}</option>
                 </select>
                 <div class="mt-5 flex justify-end gap-2">

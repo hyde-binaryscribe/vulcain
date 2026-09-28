@@ -23,6 +23,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleModelController;
 use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
@@ -83,6 +84,13 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'update'])->name('vehicle-types.update');
         Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
         Route::delete('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'destroy'])->name('vehicle-types.destroy');
+
+        // Modèles de véhicule : gabarits d'emplacements générés à la création d'un véhicule.
+        Route::get('vehicle-models', [VehicleModelController::class, 'index'])->name('vehicle-models.index');
+        Route::post('vehicle-models', [VehicleModelController::class, 'store'])->name('vehicle-models.store');
+        Route::patch('vehicle-models/{vehicleModel}', [VehicleModelController::class, 'update'])->name('vehicle-models.update');
+        Route::post('vehicle-models/{vehicleModel}/toggle', [VehicleModelController::class, 'toggle'])->name('vehicle-models.toggle');
+        Route::delete('vehicle-models/{vehicleModel}', [VehicleModelController::class, 'destroy'])->name('vehicle-models.destroy');
     });
 
     // Traçabilité des désinfections / nettoyages (accessible aux opérateurs habilités).

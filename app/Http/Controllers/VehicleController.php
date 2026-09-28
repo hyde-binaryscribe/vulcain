@@ -17,6 +17,7 @@ use App\Models\Material;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleModel;
 use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
@@ -233,6 +234,18 @@ class VehicleController extends Controller
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->pluck('name'),
+            // Modèles disponibles : à la création, leurs emplacements sont générés.
+            'vehicleModels' => VehicleModel::query()
+                ->where('is_active', true)
+                ->withCount('templateLocations')
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (VehicleModel $m) => [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'emplacements_count' => $m->template_locations_count,
+                ]),
             'status' => session('status'),
         ]);
     }
@@ -243,7 +256,13 @@ class VehicleController extends Controller
             return back()->with('error', $message);
         }
 
-        Vehicle::create($this->validated($request));
+        $vehicle = Vehicle::create($this->validated($request));
+
+        // Génération automatique des emplacements depuis le modèle choisi.
+        if ($vehicle->vehicle_model_id !== null) {
+            $model = VehicleModel::query()->find($vehicle->vehicle_model_id);
+            $model?->generateLocationsFor($vehicle);
+        }
 
         return back()->with('status', 'Véhicule créé.');
     }
@@ -286,6 +305,7 @@ class VehicleController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'site_id' => ['nullable', Rule::exists('sites', 'id')->where('organisation_id', $this->tenant->id())->whereNull('deleted_at')],
             'type' => ['nullable', 'string', 'max:50'],
+            'vehicle_model_id' => ['nullable', Rule::exists('vehicle_models', 'id')->where('organisation_id', $this->tenant->id())->whereNull('deleted_at')],
             'callsign' => ['nullable', 'string', 'max:50'],
             'registration' => ['nullable', 'string', 'max:50'],
             'status' => ['required', Rule::enum(VehicleStatus::class)],

@@ -22,6 +22,7 @@ class Vehicle extends Model
         'site_id',
         'name',
         'type',
+        'vehicle_model_id',
         'callsign',
         'registration',
         'photo_path',
