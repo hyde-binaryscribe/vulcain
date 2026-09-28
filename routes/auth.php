@@ -9,9 +9,10 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-// Routes accessibles uniquement sur un sous-domaine d'organisation résolu ('tenant').
+// Accès par compte (hôte unique) : ces pages sont accessibles aux invités,
+// l'organisation étant déterminée à la connexion / par le jeton d'invitation.
 
-Route::middleware(['tenant', 'guest'])->group(function () {
+Route::middleware(['guest'])->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:login');
@@ -28,7 +29,7 @@ Route::middleware(['tenant', 'guest'])->group(function () {
     Route::post('accept-invitation', [AcceptInvitationController::class, 'store'])->name('invitation.store');
 });
 
-Route::middleware(['tenant', 'auth'])->group(function () {
+Route::middleware(['auth', 'tenant'])->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');

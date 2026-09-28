@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Identity\PasswordResetService;
 use App\Http\Controllers\Controller;
-use App\Support\Tenancy\TenantContext;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
@@ -22,7 +22,7 @@ class NewPasswordController extends Controller
         ]);
     }
 
-    public function store(Request $request, PasswordResetService $service, TenantContext $tenant): RedirectResponse
+    public function store(Request $request, PasswordResetService $service): RedirectResponse
     {
         $validated = $request->validate([
             'token' => ['required', 'string'],
@@ -30,7 +30,8 @@ class NewPasswordController extends Controller
             'password' => ['required', 'confirmed', Password::min(10)->letters()->numbers()],
         ]);
 
-        $ok = $service->reset($tenant->id(), $validated['email'], $validated['token'], $validated['password']);
+        $orgId = User::withoutGlobalScopes()->where('email', $validated['email'])->value('organisation_id');
+        $ok = $orgId !== null && $service->reset($orgId, $validated['email'], $validated['token'], $validated['password']);
 
         if (! $ok) {
             throw ValidationException::withMessages([

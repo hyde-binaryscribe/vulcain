@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Organisation;
+use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -69,10 +70,13 @@ class RegistrationTest extends TestCase
             ->assertSessionHasErrors('password');
     }
 
-    public function test_registration_is_not_available_on_a_tenant_host(): void
+    public function test_registration_is_not_available_to_an_authenticated_user(): void
     {
-        Organisation::factory()->slug('caserne')->create();
+        $org = Organisation::factory()->slug('caserne')->create();
+        $user = User::factory()->create(['organisation_id' => $org->id]);
 
-        $this->get('http://caserne.localhost/inscription')->assertNotFound();
+        // Un utilisateur connecté a déjà une organisation : l'inscription (réservée
+        // aux hôtes sans tenant) n'est pas accessible.
+        $this->actingAs($user)->get('http://app.localhost/inscription')->assertNotFound();
     }
 }

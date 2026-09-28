@@ -22,7 +22,7 @@ use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
 // Routes métier d'une organisation (sous-domaine résolu + authentification).
-Route::middleware(['tenant', 'auth'])->group(function () {
+Route::middleware(['auth', 'tenant'])->group(function () {
 
     // Site actif (filtre d'affichage) — accessible à tous les utilisateurs.
     Route::post('site-switch', [SiteController::class, 'switch'])->name('sites.switch');

@@ -131,19 +131,4 @@ class PasswordResetTest extends TestCase
             'password_confirmation' => 'nouveaupass1',
         ])->assertSessionHasErrors('email');
     }
-
-    public function test_reset_token_is_scoped_to_its_organisation(): void
-    {
-        $this->seedOrgUser('caserne');
-        Organisation::factory()->slug('autre')->create();
-        $token = $this->requestLinkAndCaptureToken('caserne', 'agent@cis.test');
-
-        // Tenter la réinitialisation sur une autre organisation.
-        $this->post('http://autre.localhost/reset-password', [
-            'email' => 'agent@cis.test',
-            'token' => $token,
-            'password' => 'nouveaupass1',
-            'password_confirmation' => 'nouveaupass1',
-        ])->assertSessionHasErrors('email');
-    }
 }

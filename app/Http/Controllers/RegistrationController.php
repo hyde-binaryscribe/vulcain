@@ -47,7 +47,7 @@ class RegistrationController extends Controller
             ],
             'sector' => ['required', Rule::enum(Sector::class)],
             'admin_name' => ['required', 'string', 'max:150'],
-            'admin_email' => ['required', 'string', 'email', 'max:255'],
+            'admin_email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Password::min(10)->letters()->numbers()],
         ], [
             'slug.regex' => 'Le sous-domaine ne peut contenir que des minuscules, chiffres et tirets.',
@@ -55,7 +55,7 @@ class RegistrationController extends Controller
             'slug.unique' => 'Ce sous-domaine est déjà pris.',
         ]);
 
-        [$organisation, $user] = $provisioner->provisionWithAdmin(
+        [, $user] = $provisioner->provisionWithAdmin(
             [
                 'name' => $validated['name'],
                 'slug' => $validated['slug'],
@@ -68,24 +68,11 @@ class RegistrationController extends Controller
             ],
         );
 
-        // Connexion immédiate ; le cookie de session est partagé sur *.vulkain.eu
-        // en production (SESSION_DOMAIN), l'utilisateur atterrit connecté.
+        // Accès par compte, hôte unique : connexion immédiate puis tableau de bord
+        // (l'organisation est résolue depuis le compte à la requête suivante).
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->away($this->tenantDashboardUrl($request, $organisation->slug));
-    }
-
-    /** Construit l'URL du tableau de bord de l'organisation fraîchement créée. */
-    private function tenantDashboardUrl(Request $request, string $slug): string
-    {
-        $base = config('tenancy.app_domains')[0]
-            ?? config('tenancy.central_domains')[0]
-            ?? $request->getHost();
-
-        $port = $request->getPort();
-        $suffix = in_array($port, [80, 443, null], true) ? '' : ':'.$port;
-
-        return $request->getScheme().'://'.$slug.'.'.$base.$suffix.'/dashboard';
+        return redirect()->route('dashboard');
     }
 }

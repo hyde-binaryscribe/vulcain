@@ -40,13 +40,6 @@ class PlatformAccessTest extends TestCase
         $this->assertAuthenticatedAs($admin, 'platform');
     }
 
-    public function test_platform_routes_are_not_available_on_a_tenant_subdomain(): void
-    {
-        Organisation::factory()->slug('caserne')->create();
-
-        $this->get('http://caserne.localhost/platform/login')->assertNotFound();
-    }
-
     public function test_platform_dashboard_requires_platform_authentication(): void
     {
         $this->get('http://localhost/platform')->assertRedirect('/platform/login');

@@ -2,19 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
-    public function __invoke(Request $request, TenantContext $tenant, VitrineController $vitrine)
+    public function __invoke(Request $request, VitrineController $vitrine)
     {
-        // Tenant résolu (sous-domaine d'organisation) : espace applicatif.
-        if ($tenant->check()) {
-            return Auth::check()
-                ? redirect()->route('dashboard')
-                : redirect()->route('login');
+        // Utilisateur connecté : son organisation est résolue depuis son compte.
+        if (Auth::guard('web')->check()) {
+            return redirect()->route('dashboard');
         }
 
         // Hôte vitrine (vulkain.eu / www) : site public marketing.
@@ -22,9 +19,9 @@ class HomeController extends Controller
             return $vitrine->home();
         }
 
-        // Hôte applicatif (app.vulkain.eu) : entrée / recherche d'organisation.
+        // Hôte applicatif (app.vulkain.eu) : connexion.
         if (in_array($request->getHost(), config('tenancy.app_domains', []), true)) {
-            return $vitrine->entry();
+            return redirect()->route('login');
         }
 
         // Autre hôte central : Desk (exploitant / plateforme).

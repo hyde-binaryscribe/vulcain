@@ -9,6 +9,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -20,16 +21,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // ResolveTenant en tête : le contexte de location doit être établi
-        // avant l'authentification, les contrôleurs et le partage Inertia.
-        $middleware->web(prepend: [
-            ResolveTenant::class,
-        ]);
-
         $middleware->web(append: [
+            ResolveTenant::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
+        // ResolveTenant doit s'exécuter APRÈS le démarrage de session (il lit
+        // l'utilisateur connecté pour en déduire l'organisation) mais AVANT la
+        // résolution des liaisons de route (pour que le binding soit cloisonné).
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: ResolveTenant::class,
+        );
 
         // Alias : exige une organisation résolue (routes métier sur sous-domaine)
         // + contrôle des rôles/permissions (spatie), vérifiés côté serveur.

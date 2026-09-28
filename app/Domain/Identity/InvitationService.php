@@ -38,7 +38,7 @@ class InvitationService
         Notification::route('mail', $email)->notify(
             new OrganisationInvitationNotification(
                 $organisation->name,
-                $this->acceptUrl($organisation, $token, $email),
+                $this->acceptUrl($token, $email),
                 $this->expiresMinutes,
                 Rbac::ROLE_LABELS[$role] ?? $role,
             )
@@ -47,32 +47,44 @@ class InvitationService
         return $invitation;
     }
 
-    /** Construit le lien d'acceptation sur le sous-domaine de l'organisation. */
-    public function acceptUrl(Organisation $organisation, string $token, string $email): string
+    /** Construit le lien d'acceptation sur l'hôte applicatif (compte unique). */
+    public function acceptUrl(string $token, string $email): string
     {
-        $request = request();
-        $scheme = $request?->getScheme() ?: 'http';
-        $host = $request?->getHttpHost() ?: (config('tenancy.central_domains')[0] ?? 'localhost');
+        $appDomain = config('tenancy.app_domains')[0] ?? null;
+        if ($appDomain !== null) {
+            $base = 'https://'.$appDomain;
+        } else {
+            $request = request();
+            $base = ($request?->getScheme() ?: 'http').'://'.($request?->getHttpHost() ?: 'localhost');
+        }
 
-        return "{$scheme}://{$organisation->slug}.{$host}/accept-invitation/{$token}?email=".urlencode($email);
+        return $base.'/accept-invitation/'.$token.'?email='.urlencode($email);
+    }
+
+    /** Invitation en attente correspondant à un jeton brut (affichage). */
+    public function pendingByToken(string $token): ?Invitation
+    {
+        return $this->tenant->runCrossTenant(fn () => Invitation::query()
+            ->where('token', hash('sha256', $token))
+            ->whereNull('accepted_at')
+            ->first());
     }
 
     /**
      * Accepte une invitation : crée l'utilisateur avec le rôle prévu.
-     * Renvoie null si le jeton est invalide/expiré.
+     * L'organisation est déduite du jeton. Renvoie null si invalide/expiré.
      *
      * @param  array{first_name:string,last_name:string,password:string}  $data
      */
-    public function accept(Organisation $organisation, string $email, string $token, array $data): ?User
+    public function accept(string $email, string $token, array $data): ?User
     {
         $email = mb_strtolower(trim($email));
 
-        $invitation = Invitation::query()
-            ->where('organisation_id', $organisation->id)
+        $invitation = $this->tenant->runCrossTenant(fn () => Invitation::query()
             ->where('email', $email)
             ->whereNull('accepted_at')
             ->latest('id')
-            ->first();
+            ->first());
 
         if ($invitation === null || $invitation->expires_at->isPast()) {
             return null;
@@ -81,6 +93,8 @@ class InvitationService
         if (! hash_equals($invitation->token, hash('sha256', $token))) {
             return null;
         }
+
+        $organisation = $invitation->organisation;
 
         return $this->tenant->runFor($organisation, function () use ($invitation, $organisation, $email, $data) {
             app(RoleProvisioner::class)->provision($organisation);

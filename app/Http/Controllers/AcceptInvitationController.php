@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Identity\InvitationService;
-use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,21 +12,23 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Acceptation d'une invitation, sur le sous-domaine de l'organisation.
- * L'invité définit son identité et son mot de passe (aucun défaut).
+ * Acceptation d'une invitation (hôte applicatif unique). L'organisation est
+ * déduite du jeton ; l'invité définit son identité et son mot de passe.
  */
 class AcceptInvitationController extends Controller
 {
-    public function create(Request $request, string $token, TenantContext $tenant): Response
+    public function create(Request $request, string $token, InvitationService $service): Response
     {
+        $invitation = $service->pendingByToken($token);
+
         return Inertia::render('Auth/AcceptInvitation', [
             'token' => $token,
-            'email' => $request->query('email'),
-            'organisationName' => $tenant->organisation()?->name,
+            'email' => $request->query('email') ?? $invitation?->email,
+            'organisationName' => $invitation?->organisation?->name,
         ]);
     }
 
-    public function store(Request $request, InvitationService $service, TenantContext $tenant): RedirectResponse
+    public function store(Request $request, InvitationService $service): RedirectResponse
     {
         $validated = $request->validate([
             'token' => ['required', 'string'],
@@ -37,7 +38,7 @@ class AcceptInvitationController extends Controller
             'password' => ['required', 'confirmed', Password::min(10)->letters()->numbers()],
         ]);
 
-        $user = $service->accept($tenant->organisation(), $validated['email'], $validated['token'], [
+        $user = $service->accept($validated['email'], $validated['token'], [
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'password' => $validated['password'],

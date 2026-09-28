@@ -127,16 +127,16 @@ class ProvisioningAndInvitationTest extends TestCase
 
     public function test_invitation_is_single_use(): void
     {
-        [$org, $token] = $this->provision();
+        [, $token] = $this->provision();
         $service = app(InvitationService::class);
 
         $data = ['first_name' => 'Marie', 'last_name' => 'Chef', 'password' => 'motdepasse12'];
 
-        $first = $service->accept($org, 'chef@cis.test', $token, $data);
+        $first = $service->accept('chef@cis.test', $token, $data);
         $this->assertNotNull($first);
 
         // Deuxième utilisation du même jeton : refusée.
-        $second = $service->accept($org, 'chef@cis.test', $token, $data);
+        $second = $service->accept('chef@cis.test', $token, $data);
         $this->assertNull($second);
     }
 
@@ -155,15 +155,15 @@ class ProvisioningAndInvitationTest extends TestCase
         ])->assertSessionHasErrors('email');
     }
 
-    public function test_invitation_is_scoped_to_its_organisation(): void
+    public function test_invitation_requires_the_invited_email(): void
     {
         [, $token] = $this->provision('cis');
-        Organisation::factory()->slug('autre')->create();
 
-        // Tenter d'accepter sur une autre organisation.
-        $this->post('http://autre.localhost/accept-invitation', [
+        // Jeton valide mais e-mail non invité : refusé (l'invitation est
+        // retrouvée par e-mail, l'organisation déduite du jeton).
+        $this->post('http://app.localhost/accept-invitation', [
             'token' => $token,
-            'email' => 'chef@cis.test',
+            'email' => 'intrus@autre.test',
             'first_name' => 'Marie',
             'last_name' => 'Chef',
             'password' => 'motdepasse12',

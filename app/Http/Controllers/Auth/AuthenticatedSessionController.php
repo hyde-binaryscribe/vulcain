@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,8 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenant) {}
+
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
@@ -26,6 +29,9 @@ class AuthenticatedSessionController extends Controller
 
         // Rotation de l'identifiant de session après connexion (anti-fixation).
         $request->session()->regenerate();
+
+        // Contexte d'organisation issu du compte (pour la suite de la requête).
+        $this->tenant->set($request->user()->organisation);
 
         $request->user()->forceFill(['last_login_at' => now()])->saveQuietly();
 

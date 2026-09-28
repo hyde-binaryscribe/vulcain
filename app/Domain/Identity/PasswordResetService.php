@@ -24,8 +24,8 @@ class PasswordResetService
 
     public function sendResetLink(int $organisationId, string $email): void
     {
-        // Recherche cloisonnée (scope global actif dans la requête tenant).
-        $user = User::query()->where('email', $email)->first();
+        // Accès par compte : recherche hors scope, bornée à l'organisation cible.
+        $user = User::withoutGlobalScopes()->where('organisation_id', $organisationId)->where('email', $email)->first();
 
         // Ne rien révéler : compte inexistant ou désactivé -> aucune action visible.
         if ($user === null || ! $user->isActive()) {
@@ -78,7 +78,7 @@ class PasswordResetService
             return false;
         }
 
-        $user = User::query()->where('email', $email)->first();
+        $user = User::withoutGlobalScopes()->where('organisation_id', $organisationId)->where('email', $email)->first();
 
         if ($user === null) {
             return false;

@@ -6,13 +6,16 @@ use App\Models\Organisation;
 use App\Support\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Résout l'organisation courante à partir du sous-domaine.
+ * Résout l'organisation courante à partir du COMPTE de l'utilisateur connecté
+ * (accès par hôte unique app.vulkain.eu — plus de sous-domaine par organisation).
  *
- * - Domaine central -> espace plateforme, aucun tenant.
- * - Sous-domaine -> organisation correspondante (404 si inconnue, 403 si suspendue).
+ * S'exécute après le démarrage de session : pour un invité, aucun tenant n'est
+ * défini (page de connexion) ; l'espace plateforme (guard « platform ») n'est
+ * jamais un tenant.
  */
 class ResolveTenant
 {
@@ -20,64 +23,20 @@ class ResolveTenant
 
     public function handle(Request $request, Closure $next): Response
     {
-        $host = $request->getHost();
-        $central = config('tenancy.central_domains', ['localhost']);
+        // Chargement de l'utilisateur hors scope d'organisation (sinon le scope
+        // exigerait un tenant déjà défini — impasse au moment de le déterminer).
+        $user = $this->tenant->runCrossTenant(fn () => Auth::guard('web')->user());
 
-        $slug = $this->resolveSlug($host, $central);
+        if ($user !== null && $user->organisation_id !== null) {
+            // Chargement frais de l'organisation (jamais la relation en cache,
+            // pour refléter ses réglages à jour à chaque requête).
+            $organisation = $this->tenant->runCrossTenant(fn () => Organisation::find($user->organisation_id));
 
-        // Domaine central (ou hôte non qualifié) : pas de tenant.
-        if ($slug === null) {
-            return $next($request);
-        }
-
-        $organisation = Organisation::where('slug', $slug)->first();
-
-        abort_if($organisation === null, 404, 'Organisation introuvable.');
-        abort_unless($organisation->isActive(), 403, 'Organisation suspendue.');
-
-        $this->tenant->set($organisation);
-
-        return $next($request);
-    }
-
-    /**
-     * Extrait le libellé de sous-domaine, ou null si l'hôte est central.
-     */
-    protected function resolveSlug(string $host, array $central): ?string
-    {
-        if (in_array($host, $central, true)) {
-            return null;
-        }
-
-        // On teste le domaine central le plus spécifique (le plus long) d'abord :
-        // sinon « caserne.app.vulkain.eu » matcherait « vulkain.eu » et donnerait
-        // le slug « caserne.app » au lieu de « caserne ».
-        $byLength = $central;
-        usort($byLength, fn (string $a, string $b) => strlen($b) <=> strlen($a));
-
-        foreach ($byLength as $domain) {
-            if (str_ends_with($host, '.'.$domain)) {
-                $slug = substr($host, 0, -strlen('.'.$domain));
-
-                return $this->normalise($slug);
+            if ($organisation !== null) {
+                $this->tenant->set($organisation);
             }
         }
 
-        // Hôte hors domaines centraux : on considère le premier label comme tenant
-        // uniquement s'il existe un vrai sous-domaine (a.b.c...).
-        $parts = explode('.', $host);
-
-        return count($parts) > 2 ? $this->normalise($parts[0]) : null;
-    }
-
-    protected function normalise(string $slug): ?string
-    {
-        $slug = trim($slug);
-
-        if ($slug === '' || $slug === 'www') {
-            return null;
-        }
-
-        return $slug;
+        return $next($request);
     }
 }

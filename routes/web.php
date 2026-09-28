@@ -19,7 +19,7 @@ Route::middleware('central')->group(function () {
     Route::post('/inscription', [RegistrationController::class, 'store'])->middleware('throttle:6,1');
 });
 
-Route::middleware(['tenant', 'auth'])->group(function () {
+Route::middleware(['auth', 'tenant'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     // Fin d'incarnation (support Desk) — retour vers le Desk.
     Route::post('impersonation/stop', [ImpersonationController::class, 'stop'])->name('impersonation.stop');

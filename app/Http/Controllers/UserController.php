@@ -77,9 +77,10 @@ class UserController extends Controller
 
         $email = mb_strtolower($validated['email']);
 
-        if (User::query()->where('email', $email)->exists()) {
+        // E-mail unique au global (accès par compte) : un e-mail = un seul compte.
+        if (User::withoutGlobalScopes()->where('email', $email)->exists()) {
             throw ValidationException::withMessages([
-                'email' => 'Un utilisateur avec cet e-mail existe déjà dans cette organisation.',
+                'email' => 'Un utilisateur avec cet e-mail existe déjà.',
             ]);
         }
 

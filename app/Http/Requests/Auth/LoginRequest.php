@@ -37,34 +37,48 @@ class LoginRequest extends FormRequest
     public function authenticate(): void
     {
         $throttle = app(LoginThrottle::class);
-        $organisationId = app(TenantContext::class)->id();
+        $tenant = app(TenantContext::class);
+        // Accès par compte : l'e-mail est unique au global, l'organisation est
+        // déduite du compte. Le throttle est donc indexé par e-mail seul.
         $email = (string) $this->input('email');
 
-        if ($throttle->tooManyAttempts($organisationId, $email)) {
+        if ($throttle->tooManyAttempts(null, $email)) {
             event(new Lockout($this));
 
             throw ValidationException::withMessages([
                 'email' => __('auth.throttle', [
-                    'seconds' => $throttle->availableIn($organisationId, $email),
+                    'seconds' => $throttle->availableIn(null, $email),
                 ]),
             ]);
         }
 
-        $authenticated = Auth::attempt([
+        // Recherche de l'utilisateur hors scope d'organisation (aucun tenant
+        // n'est encore défini avant la connexion).
+        $authenticated = $tenant->runCrossTenant(fn () => Auth::attempt([
             'email' => $email,
             'password' => (string) $this->input('password'),
             'is_active' => true,
-        ], $this->boolean('remember'));
+        ], $this->boolean('remember')));
 
         if (! $authenticated) {
-            $throttle->record($organisationId, $email, $this->ip(), $this->userAgent(), false);
+            $throttle->record(null, $email, $this->ip(), $this->userAgent(), false);
 
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
         }
 
-        $throttle->record($organisationId, $email, $this->ip(), $this->userAgent(), true);
-        $throttle->clear($organisationId, $email);
+        // Organisation suspendue : accès refusé.
+        $user = Auth::guard('web')->user();
+        if ($user->organisation === null || ! $user->organisation->isActive()) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Cette organisation est suspendue. Contactez le support.',
+            ]);
+        }
+
+        $throttle->record(null, $email, $this->ip(), $this->userAgent(), true);
+        $throttle->clear(null, $email);
     }
 }

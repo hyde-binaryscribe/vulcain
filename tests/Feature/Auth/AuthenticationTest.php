@@ -62,13 +62,17 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_user_cannot_authenticate_on_another_organisation(): void
+    public function test_user_of_a_suspended_organisation_cannot_authenticate(): void
     {
-        $this->makeUser('caserne'); // agent@cis.test dans "caserne"
-        Organisation::factory()->slug('autre')->create();
+        $org = Organisation::factory()->slug('caserne')->suspended()->create();
+        User::factory()->create([
+            'organisation_id' => $org->id,
+            'email' => 'agent@cis.test',
+            'password' => 'motdepasse1',
+            'is_active' => true,
+        ]);
 
-        // Mêmes identifiants, mais sur le sous-domaine d'une autre organisation.
-        $this->post('http://autre.localhost/login', [
+        $this->post('http://app.localhost/login', [
             'email' => 'agent@cis.test',
             'password' => 'motdepasse1',
         ])->assertSessionHasErrors('email');
