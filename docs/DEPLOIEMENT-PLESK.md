@@ -1,133 +1,138 @@
 # Déploiement sur Plesk
 
-Guide de mise en production de **Vulcain** (Laravel 13 + Inertia/Vue 3 + Tailwind,
-SaaS multi-tenant par sous-domaine) sur un serveur **Plesk** (Obsidian, Apache+nginx).
+Guide de mise en production de **Vulkain** (Laravel 13 + Inertia/Vue 3 + Tailwind,
+SaaS multi-tenant **par compte**) sur un hébergement **Plesk** (Obsidian,
+Apache+nginx) **sans accès SSH** (client mutualisé).
 
-> ⚠️ Point critique propre à ce projet : l'application est **multi-tenant par
-> sous-domaine** (`caserne.mondomaine.fr` → organisation « caserne », le Desk
-> plateforme vivant sur le domaine racine). Il faut donc un **sous-domaine
-> générique** `*.mondomaine.fr` + un **certificat SSL wildcard** + un **cookie de
-> session partagé** entre le domaine et ses sous-domaines. C'est ce que la plupart
-> des tutos Plaesk génériques oublient — voir §3 et §7.
+> ℹ️ Modèle de tenant retenu : **un seul hôte applicatif** `app.vulkain.eu`.
+> L'organisation n'est **plus** déduite d'un sous-domaine (`caserne.app…`) mais
+> du **compte connecté** : chaque e-mail est unique au niveau global et rattaché
+> à une organisation (1 compte = 1 organisation). Conséquence directe : **aucun
+> sous-domaine générique**, **aucun certificat SSL wildcard**, **aucune
+> validation DNS-01** — uniquement des certificats standard Let's Encrypt
+> (HTTP-01) sur les 4 hôtes fixes. Voir §3 et §7.
 
-Dans tout ce guide, remplace `mondomaine.fr` par ton domaine réel.
+Dans tout ce guide, remplace `vulkain.eu` par ton domaine réel si besoin.
 
 ---
 
 ## 1. Prérequis serveur
 
-Composants à activer dans **Plesk > Outils & Paramètres** :
+Composants à activer côté Plesk (**client simple**, sans droits d'installation
+d'extensions serveur) :
 
-- **PHP 8.3** (Plesk > Paramètres PHP du domaine), avec les extensions :
-  `pdo_pgsql` (ou `pdo_mysql`), `mbstring`, `openssl`, `ctype`, `tokenizer`,
+- **PHP 8.3** (Plesk > *Paramètres PHP* du domaine), avec les extensions :
+  `pdo_mysql` (ou `pdo_pgsql`), `mbstring`, `openssl`, `ctype`, `tokenizer`,
   `xml`, `curl`, `fileinfo`, `bcmath`, `gd`, `zip`, **`sodium`** (indispensable
   pour le hachage **Argon2id** des mots de passe).
-- **PostgreSQL** (recommandé, identique au dev) — composant à installer via
-  *Installeur de composants* si absent. MySQL/MariaDB fonctionne aussi (voir §4).
-- **Composer** (extension Plesk « PHP Composer » ou binaire via SSH).
-- **Node.js** (extension « Node.js » de Plesk) pour compiler les assets Vite —
-  *ou* compilation en local puis upload (voir §5).
-- **Accès SSH** vivement conseillé (Artisan, migrations, cache).
-- **Redis** : le plus souvent **absent** en hébergement Plesk mutualisé. Ce guide
-  bascule cache / file d'attente sur la **base de données** (voir §6). Si tu as un
-  Redis + l'extension `phpredis`, tu peux garder la config Redis d'origine.
+- **PHP Composer** (extension Plesk « PHP Composer » sur le domaine) — sert à
+  installer les dépendances PHP sans SSH.
+- **Laravel** (extension Plesk « Laravel ») — sert à lancer les commandes
+  Artisan (`migrate`, `optimize`, création d'admin) sans SSH.
+- **Tâches planifiées** (Plesk > *Sites & domaines > Tâches planifiées*) —
+  disponibles sur cette offre, utiles pour la file d'attente (§9).
+- **MySQL / MariaDB** (base fournie par l'offre mutualisée). PostgreSQL
+  fonctionne aussi si disponible (voir §4).
+
+> ⚠️ **Pas de SSH, pas de Node.js sur le serveur.** Ce guide n'utilise donc que
+> les extensions Plesk (PHP Composer + Laravel) pour les commandes, et les
+> assets front (`public/build`) sont **versionnés dans Git** — rien à compiler
+> côté serveur (voir §5).
+>
+> ⚠️ **Pas de Redis** en mutualisé : cache et file d'attente passent sur la
+> **base de données** / synchrone (voir §6). Un `.env` qui pointe vers Redis
+> provoque une erreur 500 (`getaddrinfo for redis failed`).
 
 ---
 
 ## 2. Récupérer le code (Git)
 
-Deux options.
-
-### Option A — Git intégré Plesk (recommandé)
+**Git intégré Plesk :**
 1. **Domaine > Git** > *Ajouter un dépôt*.
 2. URL : `https://github.com/hyde-binaryscribe/vulcain` — branche à déployer
    (ex. `main` une fois la branche de travail fusionnée).
 3. Répertoire de déploiement : **`vulkain.eu`** (dossier dédié à l'app sous la
    racine de l'abonnement — permet d'héberger plusieurs applications côte à côte).
 4. Mode : *Déploiement automatique* (à chaque push) ou manuel.
-5. Renseigner les **actions de déploiement** (§8) qui lanceront composer, les
-   migrations et la mise en cache après chaque pull.
 
-### Option B — SSH manuel
-```bash
-cd ~                      # racine de l'abonnement (où cohabitent tes apps)
-git clone https://github.com/hyde-binaryscribe/vulcain vulkain.eu
-```
+> ⚠️ Les **actions de déploiement Git** de Plesk s'exécutent dans un
+> environnement restreint (chroot) **sans PHP** : `php` et
+> `/opt/plesk/php/8.3/bin/php` y sont introuvables. On n'y lance donc **pas**
+> composer/artisan. À la place : l'extension **PHP Composer** installe les
+> dépendances, et l'extension **Laravel** lance les migrations et la mise en
+> cache (§7–§8). Les actions de déploiement Git restent vides (ou limitées à un
+> simple `git pull`).
 
 ---
 
-## 3. Domaines, sous-domaine générique et DNS (topologie vulkain.eu)
+## 3. Domaines et DNS (topologie vulkain.eu)
 
-Le cœur du multi-tenant. Topologie retenue en production :
+Topologie retenue — **4 hôtes fixes**, aucun sous-domaine générique :
 
 | Hôte | Rôle |
 |---|---|
 | `vulkain.eu` / `www.vulkain.eu` | Site vitrine public |
-| `desk.vulkain.eu` | Desk (super-admin) |
-| `app.vulkain.eu` | Entrée application (inscription / recherche d'organisation) |
-| `<slug>.app.vulkain.eu` | Une organisation cliente (formule de base) |
-| domaine perso du client | Une organisation cliente (formule supérieure) — voir §12 |
+| `desk.vulkain.eu` | Desk (super-admin plateforme, garde `platform`) |
+| `app.vulkain.eu` | **Application (toutes les organisations)** — login par compte |
 
 Dans Plesk, sur **un seul abonnement**, avec **la même racine de documents**
 (`vulkain.eu/public`) pour tous :
 
 1. **Domaine principal** `vulkain.eu` (+ **`www`** en alias) → vitrine.
 2. **Sous-domaine** `desk.vulkain.eu` → Desk.
-3. **Sous-domaine** `app.vulkain.eu` → entrée application.
-4. **Sous-domaine générique** `*.app.vulkain.eu` : Plesk > *Sous-domaines* >
-   *Ajouter*, nom **`*.app`**. C'est lui qui sert **toutes les organisations**.
-5. **DNS** : enregistrement **A wildcard** `*.app.vulkain.eu` → IP du serveur
-   (Plesk > *DNS*). Sans ça, `caserne.app.vulkain.eu` ne résout pas.
+3. **Sous-domaine** `app.vulkain.eu` → application.
+4. **DNS** : un simple enregistrement **A** par hôte → IP du serveur (Plesk >
+   *DNS*). **Pas de wildcard `*.app`** : il n'existe plus de sous-domaine par
+   organisation.
 
-> Résolution : `config/tenancy.php` lit `APP_CENTRAL_DOMAIN` (les 4 hôtes
-> ci-dessus) ; tout `<slug>.app.vulkain.eu` hors de cette liste devient le slug
-> de l'organisation. Le middleware teste le domaine central **le plus long
-> d'abord**, donc `caserne.app.vulkain.eu` donne bien le slug `caserne`.
-
-
-> Résolution du tenant : `config/tenancy.php` lit `APP_CENTRAL_DOMAIN`. Tout
-> sous-domaine **hors** de cette liste est traité comme le slug d'une organisation.
+> **Résolution du tenant** : le middleware `ResolveTenant` lit l'**utilisateur
+> connecté** (garde `web`) et en déduit son organisation. L'hôte ne sert plus
+> qu'à distinguer vitrine / application / Desk (`config/tenancy.php` :
+> `vitrine_domains`, `app_domains`, `central_domains`). Toutes les organisations
+> partagent l'hôte `app.vulkain.eu` ; c'est le compte qui détermine les données
+> visibles.
 
 ---
 
 ## 4. Base de données
 
-**PostgreSQL (recommandé)** — Plesk > *Bases de données* > *Ajouter* :
+**MySQL / MariaDB (offre mutualisée)** — Plesk > *Bases de données* > *Ajouter* :
 - Base : `vulcain` · Utilisateur dédié + mot de passe fort.
-- Renseigne `DB_*` dans `.env` (§6).
+- Dans `.env` : `DB_CONNECTION=mysql`, `DB_PORT=3306` (§6).
 
-**MySQL/MariaDB (alternative)** : crée la base, puis dans `.env`
-`DB_CONNECTION=mysql`, `DB_PORT=3306`. Le schéma est standard Laravel et portable ;
-teste les migrations sur une base vierge avant la prod.
+> ⚠️ **MySQL/MariaDB et l'an 2038** : les colonnes `TIMESTAMP` MySQL plafonnent
+> en janvier 2038. Les échéances d'abonnement (`trial_ends_at`,
+> `current_period_end`) utilisent donc `DATETIME` (migration
+> `subscriptions_use_datetime`) — sinon une date d'expiration lointaine lève
+> `SQLSTATE[22007] Invalid datetime value`. Le schéma est déjà correct dans le
+> dépôt ; assure-toi simplement que **toutes** les migrations sont jouées (§7).
+
+**PostgreSQL (alternative)** : `DB_CONNECTION=pgsql`, `DB_PORT=5432`.
 
 ---
 
-## 5. Compiler les assets front (Vite)
+## 5. Assets front (Vite) — déjà compilés dans Git
 
-Le dossier `public/build` (JS/CSS compilés) n'est **pas** versionné : il faut le
-générer.
+Le dossier `public/build` (JS/CSS compilés) est **versionné dans le dépôt** :
+il n'y a **rien à compiler sur le serveur** (pas de Node.js requis en prod).
 
-**Via Node.js Plesk** : *Domaine > Node.js*, puis exécute :
+Après une modification du front, la recompilation se fait **en local** puis est
+**commitée** :
 ```bash
-npm ci
-npm run build
+npm ci && npm run build     # génère public/build/ (manifest.json + assets)
+git add public/build && git commit -m "build assets" && git push
 ```
-(le résultat atterrit dans `public/build/manifest.json` + assets).
-
-**Ou en local puis upload** :
-```bash
-npm ci && npm run build
-# puis upload du dossier public/build/ vers vulkain.eu/public/build/
-```
+Le prochain déploiement Git apporte les assets à jour automatiquement.
 
 ---
 
 ## 6. Fichier `.env` de production
 
-Copie `.env.example` en `.env` et adapte. Modèle prêt pour Plesk **sans Redis** :
+Copie `.env.example` en `.env` et adapte. Modèle prêt pour Plesk mutualisé
+(**MySQL, sans Redis, hôte unique**) :
 
 ```dotenv
-APP_NAME=Vulcain
+APP_NAME=Vulkain
 APP_ENV=production
 APP_KEY=                      # généré à l'étape 7
 APP_DEBUG=false
@@ -150,19 +155,22 @@ ARGON_MEMORY=65536
 ARGON_THREADS=4
 ARGON_TIME=4
 
-DB_CONNECTION=pgsql
+# Base MySQL/MariaDB de l'offre mutualisée
+DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
-DB_PORT=5432
+DB_PORT=3306
 DB_DATABASE=vulcain
 DB_USERNAME=vulcain
 DB_PASSWORD=********
 
-# Sessions en base (révocation des sessions actives) + cookie partagé entre
-# le domaine et TOUS ses sous-domaines (indispensable au multi-tenant)
+# Sessions en base (révocation des sessions actives).
+# En hôte unique, le cookie partagé cross-sous-domaine n'est plus nécessaire :
+# laisse SESSION_DOMAIN vide (cookie propre à chaque hôte). Le Desk
+# (desk.vulkain.eu) et l'app (app.vulkain.eu) utilisent des gardes distinctes.
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
 SESSION_ENCRYPT=true
-SESSION_DOMAIN=.vulkain.eu        # le point initial = valable sur *.vulkain.eu
+SESSION_DOMAIN=
 SESSION_SECURE_COOKIE=true        # HTTPS obligatoire en prod
 SESSION_SAME_SITE=lax
 
@@ -180,13 +188,12 @@ MAIL_PORT=587
 MAIL_USERNAME=no-reply@vulkain.eu
 MAIL_PASSWORD=********
 MAIL_FROM_ADDRESS="no-reply@vulkain.eu"
-MAIL_FROM_NAME="Vulcain"
+MAIL_FROM_NAME="Vulkain"
 ```
 
-> **Cookie de session** : `SESSION_DOMAIN=.vulkain.eu` (avec le point) est ce
-> qui permet de rester connecté en passant de l'inscription (`app.vulkain.eu`)
-> à son espace `caserne.app.vulkain.eu`.
-> Sans ça, chaque sous-domaine redemande une connexion.
+> **Sessions** : en hôte unique, `SESSION_DOMAIN` peut rester **vide** (cookie
+> lié à l'hôte). Plus besoin du `.vulkain.eu` avec point initial qui servait au
+> partage entre sous-domaines d'organisation — ce mécanisme n'existe plus.
 
 > **File d'attente** : `QUEUE_CONNECTION=sync` suffit pour démarrer (les
 > notifications partent pendant la requête). Pour découpler, passe à `database`
@@ -199,83 +206,84 @@ MAIL_FROM_NAME="Vulcain"
 ### Racine de documents
 Le point d'entrée web de Laravel est **`public/`**. Dans Plesk :
 *Domaine > Hébergement & DNS > Racine des documents* → `vulkain.eu/public`
-(à faire **aussi** pour `desk`, `app` et le sous-domaine générique `*.app`).
+(à faire **aussi** pour `desk.vulkain.eu` et `app.vulkain.eu`).
 
 ### Certificats SSL (obligatoire)
-- Extension **SSL It!** > *Let's Encrypt* :
-  - certificat standard pour `vulkain.eu`, `www.vulkain.eu`, `desk.vulkain.eu`,
-    `app.vulkain.eu` (validation HTTP-01 automatique) ;
-  - certificat **wildcard `*.app.vulkain.eu`** pour les organisations — le
-    wildcard exige une **validation DNS-01** (Plesk affiche un TXT à ajouter,
-    automatique si ton DNS est géré par Plesk).
+- Extension **SSL It!** > *Let's Encrypt*, un **certificat standard** (validation
+  **HTTP-01** automatique) pour chaque hôte : `vulkain.eu`, `www.vulkain.eu`,
+  `desk.vulkain.eu`, `app.vulkain.eu`.
+- **Aucun wildcard, aucune validation DNS-01** : la topologie hôte unique n'en a
+  plus besoin.
 - Active la **redirection HTTP → HTTPS**.
 
-### Initialisation applicative (SSH, depuis `vulkain.eu`)
-```bash
-composer install --no-dev --optimize-autoloader
-php artisan key:generate --force        # renseigne APP_KEY
-php artisan migrate --force             # crée le schéma
-php artisan storage:link                # lien public/storage
-php artisan optimize                    # cache config + routes + vues + events
-```
-Droits d'écriture (utilisateur PHP du domaine) :
-```bash
-chmod -R ug+rwX storage bootstrap/cache
-```
+### Initialisation applicative (sans SSH)
+1. **Dépendances PHP** — extension **PHP Composer** sur le domaine : bouton
+   *Installer* (équivaut à `composer install --no-dev --optimize-autoloader`).
+   C'est ce qui crée `vendor/autoload.php` (sans ça : 500 « vendor/autoload.php
+   No such file »).
+2. **Commandes Artisan** — extension **Laravel** sur le domaine (elle exécute
+   Artisan avec le bon binaire `/opt/plesk/php/8.3/bin/php`) :
+   ```
+   key:generate --force        # renseigne APP_KEY (une seule fois)
+   migrate --force             # crée / met à jour le schéma
+   storage:link                # lien public/storage
+   optimize                    # cache config + routes + vues + events
+   ```
+   Après chaque déploiement de code : **`migrate --force`** puis
+   **`optimize:clear`** (puis `optimize`).
 
 ### Premier compte
-```bash
-# Administrateur de la plateforme (Desk, sur le domaine racine)
-php artisan vulcain:create-platform-admin
-
-# Puis provisionne une organisation depuis le Desk, ou en CLI :
-php artisan vulcain:create-user --organisation=<slug> --email=... --role=administrateur
+Via l'extension **Laravel**, lance la commande de création d'admin plateforme.
+⚠️ Le champ de l'extension **coupe l'argument sur l'espace** : n'utilise donc
+**pas** d'espace dans `--name`, et passe le mot de passe en non-interactif :
 ```
+vulcain:create-platform-admin --name=Alexandre --email=... --password=...
+```
+Puis provisionne une organisation depuis le Desk (`desk.vulkain.eu`).
+
 > N'utilise **pas** `--seed` en production (le seed crée des données de démo).
 
 ---
 
-## 8. Actions de déploiement Plesk (Git)
+## 8. Résumé du cycle de déploiement (sans SSH)
 
-Dans *Domaine > Git > (ton dépôt) > Actions de déploiement supplémentaires*,
-colle ceci — rejoué à chaque pull :
+À chaque mise à jour du code :
 
-```bash
-composer install --no-dev --optimize-autoloader --no-interaction
-php artisan migrate --force
-php artisan optimize:clear
-php artisan optimize
-# Si Node.js est configuré sur le domaine :
-# npm ci && npm run build
-```
+1. **Git** (Plesk) apporte le nouveau code (dont `public/build` déjà compilé).
+2. **PHP Composer** (extension) : *Installer* si `composer.lock` a changé.
+3. **Laravel** (extension) : `migrate --force`, puis `optimize:clear`, puis
+   `optimize`.
 
-> Si tu compiles les assets en local, retire la ligne `npm` et upload
-> `public/build` séparément après chaque changement de front.
+> Les *actions de déploiement Git* restent vides : leur chroot n'a pas de PHP
+> (voir §2). Tout ce qui touche PHP passe par les deux extensions ci-dessus.
 
 ---
 
 ## 9. (Optionnel) File d'attente découplée & planificateur
 
-Le projet **n'a aucune tâche planifiée** définie : aucun cron n'est requis avec
-`QUEUE_CONNECTION=sync`.
+Avec `QUEUE_CONNECTION=sync`, **aucun cron n'est requis** (les notifications
+partent dans la requête).
 
 Si tu passes la file en `database` (`QUEUE_CONNECTION=database` +
-`php artisan queue:table && php artisan migrate --force`), ajoute une **tâche
-planifiée** Plesk (*Outils & Paramètres > Tâches planifiées*), toutes les minutes :
-```bash
-cd ~/vulkain.eu && php artisan queue:work --stop-when-empty --max-time=55
+`queue:table` puis `migrate --force`), ajoute une **tâche planifiée** Plesk
+(*Sites & domaines > Tâches planifiées*), toutes les minutes, avec le binaire
+PHP Plesk :
 ```
-(Plesk mutualisé n'a pas Supervisor ; ce cron « une salve par minute » le remplace.)
+/opt/plesk/php/8.3/bin/php ~/vulkain.eu/artisan queue:work --stop-when-empty --max-time=55
+```
+(Le mutualisé n'a pas Supervisor ; ce cron « une salve par minute » le remplace.)
 
 ---
 
 ## 10. Vérifications post-déploiement
 
 - [ ] `https://vulkain.eu` affiche la vitrine (HTTPS vert).
-- [ ] `https://app.vulkain.eu/inscription` permet de créer une organisation.
-- [ ] `https://<slug>.app.vulkain.eu` charge l'organisation (wildcard DNS + SSL OK).
-- [ ] Connexion, puis navigation Desk ↔ sous-domaine **sans reconnexion**
-      (cookie `SESSION_DOMAIN` OK).
+- [ ] `https://app.vulkain.eu/login` : connexion par e-mail + mot de passe, et
+      arrivée sur le tableau de bord de la bonne organisation.
+- [ ] `https://app.vulkain.eu/inscription` permet de créer une organisation
+      (auto-inscription + essai).
+- [ ] Un compte dont l'organisation est **suspendue** ne peut pas se connecter.
+- [ ] `https://desk.vulkain.eu` : accès Desk réservé à la garde `platform`.
 - [ ] Création d'un utilisateur → e-mail d'invitation reçu (SMTP OK).
 - [ ] `APP_DEBUG=false` (aucune stacktrace publique).
 - [ ] `storage/logs/laravel.log` sans erreur ; droits d'écriture OK.
@@ -293,23 +301,11 @@ cd ~/vulkain.eu && php artisan queue:work --stop-when-empty --max-time=55
 
 ---
 
-## 12. Domaine personnalisé (formule supérieure)
+## 12. Domaine personnalisé (évolution future)
 
-Un client premium peut utiliser son propre domaine (ex. `inventaire.sdis63.fr`)
-au lieu de `<slug>.app.vulkain.eu`. Prévu côté applicatif au **lot V4**
-(champ `custom_domain` sur l'organisation + résolution par hôte). Côté Plesk,
-par client, en manuel (volume faible) :
-
-1. **Le client** crée un enregistrement DNS `A` (ou `CNAME`) de son domaine vers
-   l'IP du serveur.
-2. **Toi dans Plesk** : sur l'abonnement `vulkain.eu`, *Sites & domaines >
-   Ajouter un alias de domaine* → le domaine du client, **même racine de
-   documents**.
-3. **SSL** : *SSL It!* émet un Let's Encrypt (HTTP-01) pour ce domaine une fois
-   le DNS pointé.
-4. L'application reconnaît l'hôte via `custom_domain` et charge la bonne
-   organisation.
-
-> Automatisable plus tard via l'API Plesk (`plesk bin domalias` / XML-RPC) si le
-> nombre de clients premium le justifie.
-
+Le modèle hôte unique par compte n'a pas besoin de domaine par organisation.
+Si une formule premium devait un jour offrir un domaine dédié (ex.
+`inventaire.sdis63.fr`), la résolution par compte reste inchangée ; il suffirait
+d'ajouter côté Plesk un **alias de domaine** (même racine de documents) et un
+certificat Let's Encrypt HTTP-01. Aucune infrastructure wildcard n'est requise.
+Fonctionnalité **non nécessaire** au fonctionnement actuel.
