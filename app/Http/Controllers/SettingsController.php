@@ -21,6 +21,7 @@ class SettingsController extends Controller
                 'track_expiry_in_mobile' => $org->tracksExpiryInMobile(),
                 'bags_enabled' => $org->bagsEnabled(),
                 'vehicle_access_qr_only' => $org->vehicleAccessQrOnly(),
+                'service_start_steps' => $org->serviceStartSteps(),
             ],
             'status' => session('status'),
         ]);
@@ -32,13 +33,22 @@ class SettingsController extends Controller
             'track_expiry_in_mobile' => ['boolean'],
             'bags_enabled' => ['boolean'],
             'vehicle_access_qr_only' => ['boolean'],
+            'service_start_steps' => ['nullable', 'array', 'max:50'],
+            'service_start_steps.*' => ['nullable', 'string', 'max:500'],
         ]);
+
+        // Nettoyage des étapes de prise de service (lignes vides ignorées).
+        $steps = array_values(array_filter(
+            array_map(fn ($s) => trim((string) $s), $validated['service_start_steps'] ?? []),
+            fn ($s) => $s !== '',
+        ));
 
         $org = $this->tenant->organisation();
         $org->settings = array_merge($org->settings ?? [], [
             'track_expiry_in_mobile' => (bool) ($validated['track_expiry_in_mobile'] ?? false),
             'bags_enabled' => (bool) ($validated['bags_enabled'] ?? false),
             'vehicle_access_qr_only' => (bool) ($validated['vehicle_access_qr_only'] ?? false),
+            'service_start_steps' => $steps,
         ]);
         $org->save();
 

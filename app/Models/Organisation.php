@@ -97,4 +97,37 @@ class Organisation extends Model
     {
         return (bool) ($this->settings['vehicle_access_qr_only'] ?? false);
     }
+
+    /** Procédure de prise de service par défaut (secteur secours). */
+    public const DEFAULT_SERVICE_START_STEPS = [
+        'Contrôle des niveaux (huile, liquide de refroidissement)',
+        'État et pression des pneumatiques',
+        'Feux, gyrophares et avertisseurs',
+        'Carburant / autonomie suffisante',
+        'Propreté et désinfection cabine et cellule',
+        'Oxygène : pression des bouteilles',
+        'Matériel électro (DAE, scope) présent et chargé',
+        'Matériel obligatoire présent et non périmé',
+    ];
+
+    /**
+     * Étapes de la procédure de prise de service (configurable par l'organisation).
+     *
+     * @return list<string>
+     */
+    public function serviceStartSteps(): array
+    {
+        $steps = $this->settings['service_start_steps'] ?? null;
+
+        if (! is_array($steps)) {
+            return self::DEFAULT_SERVICE_START_STEPS;
+        }
+
+        $steps = array_values(array_filter(array_map(
+            fn ($s) => trim((string) $s),
+            $steps,
+        ), fn ($s) => $s !== ''));
+
+        return $steps !== [] ? $steps : self::DEFAULT_SERVICE_START_STEPS;
+    }
 }

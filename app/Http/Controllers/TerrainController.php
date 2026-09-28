@@ -12,12 +12,14 @@ use App\Models\DisinfectionRecord;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Material;
+use App\Models\ServiceCheck;
 use App\Models\Vehicle;
 use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -144,6 +146,7 @@ class TerrainController extends Controller
                 'title' => $e->title,
                 'priority' => $e->priority,
                 'created_at' => $e->created_at?->format('d/m/Y'),
+                'photo_url' => $e->photo_path ? route('terrain.anomaly.photo', $e) : null,
             ]);
 
         return Inertia::render('Terrain/Vehicle', [
@@ -204,11 +207,21 @@ class TerrainController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'priority' => ['required', Rule::in(Event::PRIORITIES)],
             'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where('organisation_id', $orgId)->whereNull('deleted_at')],
+            'photo' => ['nullable', 'image', 'max:5120'], // 5 Mo
         ]);
 
+        // Photo stockée sur le disque privé ; servie via une route authentifiée.
+        $photoPath = $request->hasFile('photo')
+            ? $request->file('photo')->store("events/{$orgId}", 'local')
+            : null;
+
         Event::create([
-            ...$validated,
             'type' => EventType::ANOMALIE->value,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'priority' => $validated['priority'],
+            'vehicle_id' => $validated['vehicle_id'] ?? null,
+            'photo_path' => $photoPath,
             'status' => EventStatus::A_TRAITER->value,
             'created_by' => $request->user()->id,
         ]);
@@ -216,10 +229,68 @@ class TerrainController extends Controller
         return redirect()->route('terrain.home')->with('status', 'Anomalie signalée.');
     }
 
+    /** Sert la photo d'une anomalie (disque privé, périmètre organisation via binding). */
+    public function anomalyPhoto(Event $event)
+    {
+        abort_if($event->photo_path === null, 404);
+        abort_unless(Storage::disk('local')->exists($event->photo_path), 404);
+
+        return response()->file(Storage::disk('local')->path($event->photo_path));
+    }
+
     public function scan(): Response
     {
         return Inertia::render('Terrain/Scan', [
             'vehicles' => Vehicle::query()->orderBy('name')->get(['id', 'name', 'callsign']),
         ]);
+    }
+
+    /** Écran de prise de service : relevé kilométrique + procédure (checklist). */
+    public function serviceStart(Vehicle $vehicle): Response
+    {
+        return Inertia::render('Terrain/ServiceStart', [
+            'vehicle' => [
+                'id' => $vehicle->id,
+                'name' => $vehicle->name,
+                'callsign' => $vehicle->callsign,
+                'type' => $vehicle->type,
+                'status_label' => $vehicle->status->label(),
+                'mileage' => $vehicle->mileage,
+            ],
+            'steps' => $this->tenant->organisation()->serviceStartSteps(),
+            'status' => session('status'),
+        ]);
+    }
+
+    public function storeServiceStart(Request $request, Vehicle $vehicle): RedirectResponse
+    {
+        $validated = $request->validate([
+            'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'steps' => ['nullable', 'array', 'max:100'],
+            'steps.*.label' => ['required_with:steps', 'string', 'max:500'],
+            'steps.*.done' => ['boolean'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $steps = collect($validated['steps'] ?? [])
+            ->map(fn ($s) => ['label' => $s['label'], 'done' => (bool) ($s['done'] ?? false)])
+            ->values()
+            ->all();
+
+        ServiceCheck::create([
+            'vehicle_id' => $vehicle->id,
+            'user_id' => $request->user()->id,
+            'mileage' => $validated['mileage'] ?? null,
+            'steps' => $steps !== [] ? $steps : null,
+            'notes' => $validated['notes'] ?? null,
+            'started_at' => now(),
+        ]);
+
+        // Le relevé met à jour le compteur du véhicule (déclenche les alertes km).
+        if (! empty($validated['mileage']) && $validated['mileage'] > (int) $vehicle->mileage) {
+            $vehicle->update(['mileage' => $validated['mileage']]);
+        }
+
+        return redirect()->route('terrain.vehicle', $vehicle)->with('status', 'Prise de service enregistrée.');
     }
 }

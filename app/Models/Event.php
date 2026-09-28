@@ -23,6 +23,7 @@ class Event extends Model
         'type',
         'title',
         'description',
+        'photo_path',
         'status',
         'priority',
         'vehicle_id',

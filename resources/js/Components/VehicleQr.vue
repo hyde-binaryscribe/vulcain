@@ -11,7 +11,7 @@ const svg = ref('');
 const url = ref('');
 
 onMounted(async () => {
-    url.value = `${window.location.origin}/t/vehicules/${props.vehicleId}`;
+    url.value = `${window.location.origin}/t/vehicules/${props.vehicleId}/prise-de-service`;
     try {
         const QRCode = (await import('qrcode')).default;
         svg.value = await QRCode.toString(url.value, { type: 'svg', margin: 1, width: 220 });

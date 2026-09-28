@@ -15,7 +15,7 @@ const filtered = computed(() => {
     return props.vehicles.filter((v) => (v.callsign || '').toLowerCase().includes(q) || v.name.toLowerCase().includes(q));
 });
 function open(v) {
-    router.visit(`/t/vehicules/${v.id}`);
+    router.visit(`/t/vehicules/${v.id}/prise-de-service`);
 }
 </script>
 
@@ -28,7 +28,7 @@ function open(v) {
             <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--brand,#C6362B)]/10 text-[var(--brand,#C6362B)]"><Icon name="camera" :size="30" /></span>
             <p class="mt-3 text-sm font-medium text-gray-800">Scannez le QR code présent dans le véhicule</p>
             <p class="mt-1 text-xs text-gray-500">
-                Utilisez l'appareil photo de votre téléphone : le QR ouvre directement la fiche du véhicule.
+                Utilisez l'appareil photo de votre téléphone : le QR démarre la prise de service du véhicule.
             </p>
         </div>
 
