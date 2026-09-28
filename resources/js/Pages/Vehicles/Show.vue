@@ -34,6 +34,7 @@ function nowLocal() {
 const showDisinfectionForm = ref(false);
 const disinfectionForm = useForm({
     type: props.disinfection.types?.[1]?.value ?? props.disinfection.types?.[0]?.value ?? 'desinfection',
+    disinfection_protocol_id: '',
     performed_at: nowLocal(),
     notes: '',
 });
@@ -41,7 +42,7 @@ function submitDisinfection() {
     disinfectionForm.post(`/vehicles/${props.vehicle.id}/disinfections`, {
         preserveScroll: true,
         onSuccess: () => {
-            disinfectionForm.reset('notes');
+            disinfectionForm.reset('notes', 'disinfection_protocol_id');
             disinfectionForm.performed_at = nowLocal();
             showDisinfectionForm.value = false;
         },
@@ -141,11 +142,18 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
 
             <!-- Formulaire -->
             <form v-if="showDisinfectionForm && disinfection.can_record" class="border-t border-gray-100 bg-gray-50 px-6 py-4" @submit.prevent="submitDisinfection">
-                <div class="grid gap-3 sm:grid-cols-3">
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
                         <label class="mb-1 block text-xs font-medium text-gray-600">Type</label>
                         <select v-model="disinfectionForm.type" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             <option v-for="t in disinfection.types" :key="t.value" :value="t.value">{{ t.label }}</option>
+                        </select>
+                    </div>
+                    <div v-if="disinfection.protocols && disinfection.protocols.length">
+                        <label class="mb-1 block text-xs font-medium text-gray-600">Protocole appliqué</label>
+                        <select v-model="disinfectionForm.disinfection_protocol_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option value="">—</option>
+                            <option v-for="p in disinfection.protocols" :key="p.id" :value="p.id">{{ p.name }}</option>
                         </select>
                     </div>
                     <div>
@@ -168,19 +176,20 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             <div class="overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                        <tr><th class="px-6 py-2">Date</th><th class="px-4 py-2">Type</th><th class="px-4 py-2">Par</th><th class="px-4 py-2">Note</th><th class="px-4 py-2"></th></tr>
+                        <tr><th class="px-6 py-2">Date</th><th class="px-4 py-2">Type</th><th class="px-4 py-2">Protocole</th><th class="px-4 py-2">Par</th><th class="px-4 py-2">Note</th><th class="px-4 py-2"></th></tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <tr v-for="d in disinfection.records" :key="d.id">
                             <td class="px-6 py-2 whitespace-nowrap font-medium text-gray-900">{{ d.performed_at }}</td>
                             <td class="px-4 py-2 text-gray-700">{{ d.type_label }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ d.protocol || '—' }}</td>
                             <td class="px-4 py-2 text-gray-500">{{ d.user || '—' }}</td>
                             <td class="px-4 py-2 text-gray-500">{{ d.notes || '—' }}</td>
                             <td class="px-4 py-2 text-right">
                                 <button v-if="disinfection.can_record" type="button" class="text-gray-300 hover:text-red-600" title="Supprimer" @click="deleteDisinfection(d.id)"><Icon name="x" :size="15" /></button>
                             </td>
                         </tr>
-                        <tr v-if="disinfection.records.length === 0"><td colspan="5" class="px-6 py-6 text-center text-gray-400">Aucune désinfection enregistrée.</td></tr>
+                        <tr v-if="disinfection.records.length === 0"><td colspan="6" class="px-6 py-6 text-center text-gray-400">Aucune désinfection enregistrée.</td></tr>
                     </tbody>
                 </table>
             </div>

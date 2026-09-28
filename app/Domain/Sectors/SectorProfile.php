@@ -109,6 +109,69 @@ final class SectorProfile
         };
     }
 
+    /**
+     * Protocoles de désinfection pré-remplis selon les niveaux recommandés
+     * (cadre ARS / bionettoyage du transport sanitaire). Fournis uniquement pour
+     * l'ambulance privée ; ce sont des MODÈLES à adapter à votre protocole
+     * d'établissement (produits, temps de contact, EPI selon vos procédures).
+     *
+     * @return list<array{name:string,type:string,cadence:string,frequency_days:?int,procedure:string}>
+     */
+    public function disinfectionProtocols(): array
+    {
+        if ($this->sector !== Sector::AMBULANCE_PRIVEE) {
+            return [];
+        }
+
+        return [
+            [
+                'name' => 'Entretien courant (après chaque transport)',
+                'type' => 'nettoyage_courant',
+                'cadence' => 'Après chaque transport',
+                'frequency_days' => null,
+                'procedure' => implode("\n", [
+                    'Aérer la cellule sanitaire.',
+                    'Mettre des gants à usage unique (EPI adaptés).',
+                    'Éliminer les déchets ; trier les DASRI dans la filière dédiée.',
+                    'Nettoyer-désinfecter les surfaces en contact : brancard, barres de maintien, poignées, accoudoirs, plans de travail.',
+                    'Utiliser un détergent-désinfectant de surface conforme (bactéricide/virucide, norme EN 14476).',
+                    'Réfection du brancard : drap propre.',
+                    'Retirer les gants, hygiène des mains.',
+                ]),
+            ],
+            [
+                'name' => 'Bionettoyage quotidien (fin de service)',
+                'type' => 'desinfection',
+                'cadence' => 'Quotidien',
+                'frequency_days' => 1,
+                'procedure' => implode("\n", [
+                    'EPI adaptés + hygiène des mains.',
+                    'Évacuation des déchets et du linge sale (filières dédiées).',
+                    'Bionettoyage complet de la cellule : sol, parois, plafond, surfaces et rangements.',
+                    'Nettoyage-désinfection des dispositifs médicaux réutilisables et supports.',
+                    'Détergent-désinfectant conforme, respect du temps de contact indiqué.',
+                    'Réapprovisionnement et remise en ordre.',
+                    'Traçabilité : consigner l’opération.',
+                ]),
+            ],
+            [
+                'name' => 'Désinfection renforcée (patient à risque infectieux / hebdomadaire)',
+                'type' => 'bio_nettoyage',
+                'cadence' => 'Hebdomadaire ou après patient à risque',
+                'frequency_days' => 7,
+                'procedure' => implode("\n", [
+                    'EPI renforcés (masque, surblouse, lunettes si besoin) + hygiène des mains.',
+                    'Isolement des déchets et du linge selon la filière contaminée.',
+                    'Bionettoyage renforcé de l’ensemble de la cellule et des dispositifs.',
+                    'Produit sporicide/virucide conforme (EN 14476), temps de contact strictement respecté.',
+                    'Désinfection complémentaire (voie aérienne / brumisation) selon votre protocole d’établissement.',
+                    'Contrôle visuel, remise en service après séchage.',
+                    'Traçabilité renforcée : opérateur, produit, motif.',
+                ]),
+            ],
+        ];
+    }
+
     /** @return array<string, string> */
     public function toArray(): array
     {

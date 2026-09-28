@@ -7,6 +7,7 @@ use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\DisinfectionType;
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\ActivityLog;
+use App\Models\DisinfectionProtocol;
 use App\Models\DisinfectionRecord;
 use App\Models\Location;
 use App\Models\Material;
@@ -50,8 +51,13 @@ class VehicleController extends Controller
 
         // Traçabilité des désinfections : périodicité (via le type), historique et statut.
         $intervalDays = VehicleType::query()->where('name', $vehicle->type)->value('disinfection_interval_days');
-        $disinfections = $vehicle->disinfections()->with('user:id,name')->limit(50)->get();
+        $disinfections = $vehicle->disinfections()->with(['user:id,name', 'protocol:id,name'])->limit(50)->get();
         $disinfectionStatus = DisinfectionStatus::compute($disinfections->first()?->performed_at, $intervalDays);
+        $disinfectionProtocols = DisinfectionProtocol::query()
+            ->where('is_active', true)
+            ->orderBy('display_order')->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (DisinfectionProtocol $p) => ['id' => $p->id, 'name' => $p->name]);
 
         return Inertia::render('Vehicles/Show', [
             'vehicle' => [
@@ -80,10 +86,12 @@ class VehicleController extends Controller
                 'state_label' => $disinfectionStatus->label(),
                 'severity' => $disinfectionStatus->severity?->value,
                 'types' => DisinfectionType::options(),
+                'protocols' => $disinfectionProtocols,
                 'can_record' => auth()->user()?->can('disinfections.record') ?? false,
                 'records' => $disinfections->map(fn (DisinfectionRecord $d) => [
                     'id' => $d->id,
                     'type_label' => $d->type->label(),
+                    'protocol' => $d->protocol?->name,
                     'performed_at' => $d->performed_at?->format('d/m/Y H:i'),
                     'user' => $d->user?->name,
                     'notes' => $d->notes,

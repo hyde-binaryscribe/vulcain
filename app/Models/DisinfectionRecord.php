@@ -20,6 +20,7 @@ class DisinfectionRecord extends Model
         'vehicle_id',
         'user_id',
         'type',
+        'disinfection_protocol_id',
         'performed_at',
         'notes',
     ];
@@ -40,5 +41,10 @@ class DisinfectionRecord extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function protocol(): BelongsTo
+    {
+        return $this->belongsTo(DisinfectionProtocol::class, 'disinfection_protocol_id');
     }
 }

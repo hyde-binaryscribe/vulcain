@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\DisinfectionController;
+use App\Http\Controllers\DisinfectionProtocolController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\LocationController;
@@ -80,6 +81,15 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::middleware('permission:disinfections.record')->group(function () {
         Route::post('vehicles/{vehicle}/disinfections', [DisinfectionController::class, 'store'])->name('vehicles.disinfections.store');
         Route::delete('vehicles/{vehicle}/disinfections/{disinfection}', [DisinfectionController::class, 'destroy'])->name('vehicles.disinfections.destroy');
+    });
+
+    // Bibliothèque de protocoles de désinfection (ambulance privée — vérifié dans le contrôleur).
+    Route::middleware('permission:vehicles.manage')->group(function () {
+        Route::get('disinfection-protocols', [DisinfectionProtocolController::class, 'index'])->name('disinfection-protocols.index');
+        Route::post('disinfection-protocols', [DisinfectionProtocolController::class, 'store'])->name('disinfection-protocols.store');
+        Route::patch('disinfection-protocols/{disinfectionProtocol}', [DisinfectionProtocolController::class, 'update'])->name('disinfection-protocols.update');
+        Route::post('disinfection-protocols/{disinfectionProtocol}/toggle', [DisinfectionProtocolController::class, 'toggle'])->name('disinfection-protocols.toggle');
+        Route::delete('disinfection-protocols/{disinfectionProtocol}', [DisinfectionProtocolController::class, 'destroy'])->name('disinfection-protocols.destroy');
     });
 
     // Historique des actions (journal d'activité).

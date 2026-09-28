@@ -17,6 +17,7 @@ class DisinfectionController extends Controller
         $validated = $request->validate([
             'type' => ['required', Rule::enum(DisinfectionType::class)],
             'performed_at' => ['required', 'date', 'before_or_equal:now'],
+            'disinfection_protocol_id' => ['nullable', 'integer', Rule::exists('disinfection_protocols', 'id')->where('organisation_id', $vehicle->organisation_id)],
             'notes' => ['nullable', 'string', 'max:2000'],
         ], [
             'performed_at.before_or_equal' => 'La date de désinfection ne peut pas être dans le futur.',
@@ -25,6 +26,7 @@ class DisinfectionController extends Controller
         $vehicle->disinfections()->create([
             'user_id' => $request->user()->id,
             'type' => $validated['type'],
+            'disinfection_protocol_id' => $validated['disinfection_protocol_id'] ?? null,
             'performed_at' => $validated['performed_at'],
             'notes' => $validated['notes'] ?? null,
         ]);

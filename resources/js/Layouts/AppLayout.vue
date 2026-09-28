@@ -52,6 +52,10 @@ const navGroups = computed(() =>
             items: [
                 { label: 'Modèles de protocole', href: '/templates', icon: 'template', permission: 'templates.manage' },
                 { label: 'Types de véhicule', href: '/vehicle-types', icon: 'tag', permission: 'vehicles.manage' },
+                // Protocoles de désinfection : réservé au secteur ambulance privée.
+                ...(profile.value?.sector === 'ambulance_privee'
+                    ? [{ label: 'Protocoles de désinfection', href: '/disinfection-protocols', icon: 'protocol', permission: 'vehicles.manage' }]
+                    : []),
                 { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
                 { label: 'Utilisateurs', href: '/users', icon: 'users', permission: 'users.manage' },
                 { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
