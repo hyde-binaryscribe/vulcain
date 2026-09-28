@@ -17,8 +17,10 @@ return new class extends Migration
             $table->foreignId('organisation_id')->unique()->constrained()->cascadeOnDelete();
             $table->string('plan')->default('decouverte');   // decouverte | standard | pro
             $table->string('status')->default('trial');       // trial | active | past_due | suspended | cancelled
-            $table->timestamp('trial_ends_at')->nullable();
-            $table->timestamp('current_period_end')->nullable(); // prochaine échéance / renouvellement
+            // dateTime (et non timestamp) : une échéance peut dépasser 2038,
+            // hors de la plage TIMESTAMP de MySQL.
+            $table->dateTime('trial_ends_at')->nullable();
+            $table->dateTime('current_period_end')->nullable(); // prochaine échéance / renouvellement
             $table->text('notes')->nullable();                 // notes commerciales (Desk)
             $table->timestamps();
         });
