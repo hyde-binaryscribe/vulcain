@@ -43,6 +43,9 @@ const navGroups = computed(() =>
                 { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: 'building', permission: 'sites.manage' },
                 { label: 'Véhicules', href: '/vehicles', icon: 'vehicle', permission: 'vehicles.manage' },
                 { label: 'Emplacements', href: '/locations', icon: 'pin', permission: 'locations.manage' },
+                ...(tenant.value?.settings?.bags_enabled
+                    ? [{ label: 'Sacs', href: '/sacs', icon: 'materials', permission: 'locations.manage' }]
+                    : []),
                 { label: 'Matériel', href: '/materials', icon: 'materials', permission: 'catalog.manage' },
                 { label: 'Pharmacie', href: '/pharmacy', icon: 'pharmacy', permission: 'pharmacy.manage' },
             ],

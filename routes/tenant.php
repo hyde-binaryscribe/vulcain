@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\BagController;
 use App\Http\Controllers\DisinfectionController;
 use App\Http\Controllers\DisinfectionProtocolController;
 use App\Http\Controllers\EventController;
@@ -164,6 +165,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('locations/{location}', [LocationController::class, 'update'])->name('locations.update');
         Route::post('locations/{location}/toggle', [LocationController::class, 'toggle'])->name('locations.toggle');
         Route::delete('locations/{location}', [LocationController::class, 'destroy'])->name('locations.destroy');
+
+        // Espace dédié aux sacs (transferts entre véhicules).
+        Route::get('sacs', [BagController::class, 'index'])->name('bags.index');
+        Route::post('sacs/{location}/transfer', [BagController::class, 'transfer'])->name('bags.transfer');
     });
 
     // Catalogue matériel + catégories.
