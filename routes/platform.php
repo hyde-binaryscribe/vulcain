@@ -3,6 +3,7 @@
 use App\Http\Controllers\Platform\AuthenticatedPlatformSessionController;
 use App\Http\Controllers\Platform\DashboardController;
 use App\Http\Controllers\Platform\GroupController;
+use App\Http\Controllers\Platform\InsightsController;
 use App\Http\Controllers\Platform\OrganisationController;
 use App\Http\Controllers\Platform\SubscriptionController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,10 @@ Route::prefix('platform')->middleware('central')->group(function () {
         Route::post('logout', [AuthenticatedPlatformSessionController::class, 'destroy'])->name('platform.logout');
 
         Route::get('/', [DashboardController::class, 'index'])->name('platform.dashboard');
+
+        // Vues transverses : utilisateurs & activité de la plateforme.
+        Route::get('users', [InsightsController::class, 'users'])->name('platform.users');
+        Route::get('activity', [InsightsController::class, 'activity'])->name('platform.activity');
 
         // Groupes / multi-entreprises (exploitant global uniquement — vérifié dans le contrôleur).
         Route::get('groups', [GroupController::class, 'index'])->name('platform.groups');

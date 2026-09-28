@@ -84,6 +84,39 @@ class DeskToolsTest extends TestCase
             ->assertSessionHas('status');
     }
 
+    public function test_operator_sees_users_across_organisations(): void
+    {
+        [, $userA] = $this->orgWithAdmin('a');
+        [, $userB] = $this->orgWithAdmin('b');
+        $operator = PlatformAdmin::factory()->create();
+
+        $this->actingAs($operator, 'platform')->get('http://localhost/platform/users')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Platform/Users')
+                ->has('users', 2));
+    }
+
+    public function test_group_manager_only_sees_users_of_their_group(): void
+    {
+        $group = Group::create(['name' => 'Groupe A']);
+        $orgIn = Organisation::factory()->slug('in')->create(['group_id' => $group->id]);
+        $this->tenant()->runFor($orgIn, fn () => User::factory()->create(['organisation_id' => $orgIn->id]));
+        $this->orgWithAdmin('out'); // hors groupe
+        $manager = PlatformAdmin::factory()->create(['group_id' => $group->id]);
+
+        $this->actingAs($manager, 'platform')->get('http://localhost/platform/users')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Platform/Users')
+                ->has('users', 1));
+    }
+
+    public function test_activity_page_renders(): void
+    {
+        $operator = PlatformAdmin::factory()->create();
+        $this->actingAs($operator, 'platform')->get('http://localhost/platform/activity')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Platform/Activity'));
+    }
+
     public function test_group_manager_cannot_view_an_org_outside_its_group(): void
     {
         [$org] = $this->orgWithAdmin('autre');
