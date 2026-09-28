@@ -9,22 +9,30 @@ class HomeController extends Controller
 {
     public function __invoke(Request $request, VitrineController $vitrine)
     {
-        // Utilisateur connecté : son organisation est résolue depuis son compte.
+        $host = $request->getHost();
+
+        // L'aiguillage se fait sur l'HÔTE d'abord (avant l'état de connexion) :
+        // le cookie de session est partagé sur *.vulkain.eu, donc une session
+        // « web » peut coexister sur le Desk ; sans cette priorité, desk.vulkain.eu
+        // renverrait un utilisateur connecté vers le dashboard de l'application.
+
+        // Hôte vitrine (vulkain.eu / www) : site public marketing.
+        if (in_array($host, config('tenancy.vitrine_domains', []), true)) {
+            return $vitrine->home();
+        }
+
+        // Hôte Desk : central mais ni vitrine ni application (desk.vulkain.eu).
+        $isAppHost = in_array($host, config('tenancy.app_domains', []), true);
+        $isCentral = in_array($host, config('tenancy.central_domains', []), true);
+        if ($isCentral && ! $isAppHost) {
+            return redirect()->route('platform.dashboard');
+        }
+
+        // Hôte applicatif (ou tout autre) : dashboard si connecté, sinon connexion.
         if (Auth::guard('web')->check()) {
             return redirect()->route('dashboard');
         }
 
-        // Hôte vitrine (vulkain.eu / www) : site public marketing.
-        if (in_array($request->getHost(), config('tenancy.vitrine_domains', []), true)) {
-            return $vitrine->home();
-        }
-
-        // Hôte applicatif (app.vulkain.eu) : connexion.
-        if (in_array($request->getHost(), config('tenancy.app_domains', []), true)) {
-            return redirect()->route('login');
-        }
-
-        // Autre hôte central : Desk (exploitant / plateforme).
-        return redirect()->route('platform.dashboard');
+        return redirect()->route('login');
     }
 }
