@@ -37,6 +37,19 @@ class DisinfectionProtocol extends Model
     }
 
     /**
+     * Étapes de la procédure sous forme de liste (une par ligne non vide).
+     *
+     * @return list<string>
+     */
+    public function steps(): array
+    {
+        return array_values(array_filter(
+            array_map('trim', explode("\n", (string) $this->procedure)),
+            fn (string $s) => $s !== '',
+        ));
+    }
+
+    /**
      * Amorce la bibliothèque depuis les recommandations du secteur si l'organisation
      * n'en possède aucune (uniquement pour les secteurs qui en fournissent).
      */

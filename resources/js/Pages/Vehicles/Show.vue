@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import HistoryList from '@/Components/HistoryList.vue';
@@ -35,14 +35,27 @@ const showDisinfectionForm = ref(false);
 const disinfectionForm = useForm({
     type: props.disinfection.types?.[1]?.value ?? props.disinfection.types?.[0]?.value ?? 'desinfection',
     disinfection_protocol_id: '',
+    steps: [],
     performed_at: nowLocal(),
     notes: '',
 });
+
+// Réalisation : sélectionner un protocole charge sa checklist et fixe le niveau.
+watch(() => disinfectionForm.disinfection_protocol_id, (id) => {
+    const proto = (props.disinfection.protocols || []).find((p) => String(p.id) === String(id));
+    if (proto) {
+        disinfectionForm.type = proto.type;
+        disinfectionForm.steps = (proto.steps || []).map((label) => ({ label, done: true }));
+    } else {
+        disinfectionForm.steps = [];
+    }
+});
+
 function submitDisinfection() {
     disinfectionForm.post(`/vehicles/${props.vehicle.id}/disinfections`, {
         preserveScroll: true,
         onSuccess: () => {
-            disinfectionForm.reset('notes', 'disinfection_protocol_id');
+            disinfectionForm.reset('notes', 'disinfection_protocol_id', 'steps');
             disinfectionForm.performed_at = nowLocal();
             showDisinfectionForm.value = false;
         },
@@ -166,6 +179,23 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                         <input v-model="disinfectionForm.notes" type="text" maxlength="2000" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Produit, zone, remarque…" />
                     </div>
                 </div>
+
+                <!-- Réalisation : checklist des étapes du protocole -->
+                <div v-if="disinfectionForm.steps.length" class="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+                    <div class="mb-2 flex items-center justify-between">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Étapes du protocole</p>
+                        <span class="text-xs text-gray-400">{{ disinfectionForm.steps.filter((s) => s.done).length }}/{{ disinfectionForm.steps.length }}</span>
+                    </div>
+                    <ul class="space-y-1.5">
+                        <li v-for="(s, i) in disinfectionForm.steps" :key="i">
+                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                <input v-model="s.done" type="checkbox" class="mt-0.5 rounded border-gray-300 text-[var(--brand)]" />
+                                <span :class="s.done ? '' : 'text-gray-400'">{{ s.label }}</span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+
                 <div class="mt-3 flex justify-end gap-2">
                     <button type="button" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-white" @click="showDisinfectionForm = false">Annuler</button>
                     <button type="submit" :disabled="disinfectionForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-1.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>
@@ -182,7 +212,10 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                         <tr v-for="d in disinfection.records" :key="d.id">
                             <td class="px-6 py-2 whitespace-nowrap font-medium text-gray-900">{{ d.performed_at }}</td>
                             <td class="px-4 py-2 text-gray-700">{{ d.type_label }}</td>
-                            <td class="px-4 py-2 text-gray-500">{{ d.protocol || '—' }}</td>
+                            <td class="px-4 py-2 text-gray-500">
+                                {{ d.protocol || '—' }}
+                                <span v-if="d.steps && d.steps.total" class="ml-1 text-xs text-gray-400">({{ d.steps.done }}/{{ d.steps.total }})</span>
+                            </td>
                             <td class="px-4 py-2 text-gray-500">{{ d.user || '—' }}</td>
                             <td class="px-4 py-2 text-gray-500">{{ d.notes || '—' }}</td>
                             <td class="px-4 py-2 text-right">

@@ -56,8 +56,13 @@ class VehicleController extends Controller
         $disinfectionProtocols = DisinfectionProtocol::query()
             ->where('is_active', true)
             ->orderBy('display_order')->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (DisinfectionProtocol $p) => ['id' => $p->id, 'name' => $p->name]);
+            ->get()
+            ->map(fn (DisinfectionProtocol $p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'type' => $p->type->value,
+                'steps' => $p->steps(),
+            ]);
 
         return Inertia::render('Vehicles/Show', [
             'vehicle' => [
@@ -92,6 +97,7 @@ class VehicleController extends Controller
                     'id' => $d->id,
                     'type_label' => $d->type->label(),
                     'protocol' => $d->protocol?->name,
+                    'steps' => $d->stepProgress(),
                     'performed_at' => $d->performed_at?->format('d/m/Y H:i'),
                     'user' => $d->user?->name,
                     'notes' => $d->notes,

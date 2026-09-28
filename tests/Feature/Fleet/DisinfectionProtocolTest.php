@@ -80,14 +80,24 @@ class DisinfectionProtocolTest extends TestCase
         });
 
         $this->actingAs($admin)->post("http://ambu.localhost/vehicles/{$vehicle->id}/disinfections", [
-            'type' => 'bio_nettoyage',
+            'type' => 'nettoyage_courant', // sera écrasé par le niveau du protocole
             'disinfection_protocol_id' => $protocol->id,
             'performed_at' => now()->format('Y-m-d\TH:i'),
+            'steps' => [
+                ['label' => 'Aérer la cellule', 'done' => true],
+                ['label' => 'Désinfection voie aérienne', 'done' => false],
+            ],
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('disinfection_records', [
             'vehicle_id' => $vehicle->id,
             'disinfection_protocol_id' => $protocol->id,
+            'type' => 'bio_nettoyage', // déduit du protocole
         ]);
+
+        $record = \App\Models\DisinfectionRecord::withoutOrganisationScope()
+            ->where('vehicle_id', $vehicle->id)->first();
+        $this->assertCount(2, $record->steps);
+        $this->assertSame(1, $record->stepProgress()['done']);
     }
 }

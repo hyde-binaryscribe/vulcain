@@ -21,6 +21,7 @@ class DisinfectionRecord extends Model
         'user_id',
         'type',
         'disinfection_protocol_id',
+        'steps',
         'performed_at',
         'notes',
     ];
@@ -29,7 +30,19 @@ class DisinfectionRecord extends Model
     {
         return [
             'type' => DisinfectionType::class,
+            'steps' => 'array',
             'performed_at' => 'datetime',
+        ];
+    }
+
+    /** Étapes réalisées / total (instantané figé). @return array{done:int,total:int} */
+    public function stepProgress(): array
+    {
+        $steps = is_array($this->steps) ? $this->steps : [];
+
+        return [
+            'done' => count(array_filter($steps, fn ($s) => ! empty($s['done']))),
+            'total' => count($steps),
         ];
     }
 
