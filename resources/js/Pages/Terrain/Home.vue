@@ -7,6 +7,7 @@ defineProps({
     greeting_name: { type: String, default: '' },
     vehicles: { type: Array, default: () => [] },
     totals: { type: Object, default: () => ({}) },
+    qr_only: { type: Boolean, default: false },
     can_report_anomaly: { type: Boolean, default: false },
 });
 
@@ -25,6 +26,20 @@ const sevDot = { critical: 'bg-red-500', warning: 'bg-orange-500', watch: 'bg-ye
         <Head title="Terrain — Accueil" />
         <template #title>Bonjour {{ greeting_name?.split(' ')[0] }}</template>
 
+        <!-- Mode « accès par QR uniquement » : on oriente vers le scan. -->
+        <template v-if="qr_only">
+            <Link href="/t/scanner" class="flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+                <span class="flex h-20 w-20 items-center justify-center rounded-3xl bg-[var(--brand,#C6362B)]/10 text-[var(--brand,#C6362B)]"><Icon name="camera" :size="38" /></span>
+                <span class="text-base font-semibold text-gray-900">Scanner un véhicule</span>
+                <span class="text-sm text-gray-500">Scannez le QR code présent à bord pour ouvrir sa fiche.</span>
+            </Link>
+            <Link v-if="can_report_anomaly" href="/t/anomalie" class="mt-3 flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-3.5 text-sm font-medium text-gray-800 shadow-sm">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand,#C6362B)]/10 text-[var(--brand,#C6362B)]"><Icon name="bell" :size="18" /></span>
+                Signaler une anomalie
+            </Link>
+        </template>
+
+        <template v-else>
         <!-- Synthèse alertes -->
         <div class="grid grid-cols-3 gap-2">
             <Link href="/t/anomalie" class="rounded-2xl border border-gray-200 bg-white p-3 text-center shadow-sm">
@@ -82,5 +97,6 @@ const sevDot = { critical: 'bg-red-500', warning: 'bg-orange-500', watch: 'bg-ye
                 Aucun véhicule affecté.
             </p>
         </div>
+        </template>
     </TerrainLayout>
 </template>

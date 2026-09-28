@@ -87,4 +87,14 @@ class Organisation extends Model
     {
         return (bool) ($this->settings['bags_enabled'] ?? false);
     }
+
+    /**
+     * Accès aux véhicules réservé au scan du QR : le personnel de terrain ne
+     * voit pas la liste des véhicules et ouvre une fiche uniquement en scannant
+     * le QR placé à bord. Les gestionnaires (vehicles.manage) gardent la liste.
+     */
+    public function vehicleAccessQrOnly(): bool
+    {
+        return (bool) ($this->settings['vehicle_access_qr_only'] ?? false);
+    }
 }

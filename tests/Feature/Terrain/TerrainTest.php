@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class TerrainTest extends TestCase
@@ -78,6 +79,27 @@ class TerrainTest extends TestCase
                 'created_by' => $admin->id,
             ]);
         });
+    }
+
+    public function test_qr_only_hides_vehicle_list_for_non_managers(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $viewer = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $org->settings = ['vehicle_access_qr_only' => true];
+            $org->save();
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::VERIFIER); // pas de droit vehicles.manage
+            Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return $u;
+        });
+
+        $this->actingAs($viewer)->get('http://caserne.localhost/t')
+            ->assertInertia(fn (Assert $p) => $p
+                ->component('Terrain/Home')
+                ->where('qr_only', true)
+                ->where('vehicles', []));
     }
 
     public function test_anomaly_requires_permission(): void

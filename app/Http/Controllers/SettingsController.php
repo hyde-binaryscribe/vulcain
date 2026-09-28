@@ -20,6 +20,7 @@ class SettingsController extends Controller
             'settings' => [
                 'track_expiry_in_mobile' => $org->tracksExpiryInMobile(),
                 'bags_enabled' => $org->bagsEnabled(),
+                'vehicle_access_qr_only' => $org->vehicleAccessQrOnly(),
             ],
             'status' => session('status'),
         ]);
@@ -30,12 +31,14 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'track_expiry_in_mobile' => ['boolean'],
             'bags_enabled' => ['boolean'],
+            'vehicle_access_qr_only' => ['boolean'],
         ]);
 
         $org = $this->tenant->organisation();
         $org->settings = array_merge($org->settings ?? [], [
             'track_expiry_in_mobile' => (bool) ($validated['track_expiry_in_mobile'] ?? false),
             'bags_enabled' => (bool) ($validated['bags_enabled'] ?? false),
+            'vehicle_access_qr_only' => (bool) ($validated['vehicle_access_qr_only'] ?? false),
         ]);
         $org->save();
 

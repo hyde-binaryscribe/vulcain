@@ -15,6 +15,7 @@ use App\Models\Material;
 use App\Models\Vehicle;
 use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -29,15 +30,21 @@ use Inertia\Response;
  */
 class TerrainController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenant) {}
+
     public function home(Request $request): Response
     {
         $user = $request->user();
+
+        // Accès par QR uniquement : le personnel sans droit « véhicules » ne voit
+        // pas la liste et doit scanner le QR à bord pour ouvrir une fiche.
+        $qrOnly = $this->tenant->organisation()->vehicleAccessQrOnly() && ! $user->can('vehicles.manage');
 
         // « Mes véhicules » = véhicules affectés ; à défaut, tous ceux accessibles.
         $siteIds = SiteScope::forUser($user, session('current_site_id'));
         $assigned = $user->vehicles()->pluck('vehicles.id');
 
-        $vehicles = Vehicle::query()
+        $vehicles = $qrOnly ? collect() : Vehicle::query()
             ->when($assigned->isNotEmpty(), fn ($q) => $q->whereIn('id', $assigned))
             ->when($assigned->isEmpty() && $siteIds !== null, fn ($q) => $q->whereIn('site_id', $siteIds))
             ->orderBy('name')
@@ -80,6 +87,7 @@ class TerrainController extends Controller
                 'disinfection_due' => $cards->whereIn('disinfection_severity', ['critical', 'warning'])->count(),
                 'maintenance_due' => $cards->whereIn('maintenance_severity', ['critical', 'warning'])->count(),
             ],
+            'qr_only' => $qrOnly,
             'can_report_anomaly' => $user->can('anomalies.manage'),
         ]);
     }

@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import HistoryList from '@/Components/HistoryList.vue';
 import Icon from '@/Components/Icon.vue';
+import VehicleQr from '@/Components/VehicleQr.vue';
 
 const props = defineProps({
     vehicle: { type: Object, required: true },
@@ -181,6 +182,11 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 <p class="text-2xl font-bold text-gray-800">{{ alerts.anomalies }}</p>
                 <p class="text-xs text-gray-500">Non conformes</p>
             </div>
+        </div>
+
+        <!-- QR d'accès véhicule -->
+        <div class="mt-6 sm:max-w-xs">
+            <VehicleQr :vehicle-id="vehicle.id" :label="vehicle.callsign || vehicle.name" />
         </div>
 
         <!-- Désinfection / nettoyage -->
