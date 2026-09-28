@@ -47,6 +47,7 @@ class ProvisioningAndInvitationTest extends TestCase
             'slug' => 'cis-test',
             'sector' => Sector::SDIS->value,
             'admin_email' => 'chef@cis.test',
+            'provisioning_mode' => 'invitation',
         ])->assertStatus(302)->assertSessionHasNoErrors();
 
         $org = Organisation::where('slug', 'cis-test')->first();
@@ -77,7 +78,56 @@ class ProvisioningAndInvitationTest extends TestCase
             'slug' => 'cis-test',
             'sector' => Sector::SDIS->value,
             'admin_email' => 'x@cis.test',
+            'provisioning_mode' => 'invitation',
         ])->assertSessionHasErrors('slug');
+    }
+
+    public function test_platform_admin_can_provision_with_generated_credentials(): void
+    {
+        Notification::fake();
+        $this->actingAs(PlatformAdmin::factory()->create(), 'platform');
+
+        $response = $this->post('http://localhost/platform/organisations', [
+            'name' => 'CIS Direct',
+            'slug' => 'cis-direct',
+            'sector' => Sector::SDIS->value,
+            'admin_email' => 'chef@direct.test',
+            'provisioning_mode' => 'credentials',
+        ]);
+
+        $response->assertSessionHasNoErrors()
+            ->assertSessionHas('credentials', fn ($c) => $c['email'] === 'chef@direct.test' && ! empty($c['password']));
+
+        // Le compte admin est créé immédiatement, aucune invitation par e-mail.
+        $org = Organisation::where('slug', 'cis-direct')->firstOrFail();
+        $this->tenant()->runFor($org, function () {
+            $user = User::where('email', 'chef@direct.test')->first();
+            $this->assertNotNull($user);
+            $this->assertTrue($user->hasRole('administrateur'));
+        });
+        Notification::assertNothingSent();
+    }
+
+    public function test_provisioning_with_credentials_rejects_existing_email(): void
+    {
+        // Un compte existe déjà avec cet e-mail (unicité globale).
+        $existing = Organisation::factory()->slug('deja')->create();
+        $this->tenant()->runFor($existing, fn () => User::factory()->create([
+            'organisation_id' => $existing->id,
+            'email' => 'doublon@test.fr',
+        ]));
+
+        $this->actingAs(PlatformAdmin::factory()->create(), 'platform');
+
+        $this->post('http://localhost/platform/organisations', [
+            'name' => 'Nouvelle',
+            'slug' => 'nouvelle',
+            'sector' => Sector::SDIS->value,
+            'admin_email' => 'doublon@test.fr',
+            'provisioning_mode' => 'credentials',
+        ])->assertSessionHasErrors('admin_email');
+
+        $this->assertDatabaseMissing('organisations', ['slug' => 'nouvelle']);
     }
 
     /** @return array{Organisation, string} */

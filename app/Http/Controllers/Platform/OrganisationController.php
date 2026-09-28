@@ -46,21 +46,51 @@ class OrganisationController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'slug' => [
                 'required', 'string', 'max:63',
-                // Libellé de sous-domaine valide.
+                // Identifiant court (minuscules, chiffres, tirets) — unique.
                 'regex:/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/',
                 Rule::unique('organisations', 'slug'),
             ],
             'sector' => ['required', Rule::enum(Sector::class)],
             'admin_email' => ['required', 'string', 'email', 'max:255'],
+            // Mode de mise en route : invitation par e-mail ou identifiants générés.
+            'provisioning_mode' => ['required', Rule::in(['invitation', 'credentials'])],
         ], [
-            'slug.regex' => 'Le sous-domaine ne peut contenir que des minuscules, chiffres et tirets.',
+            'slug.regex' => "L'identifiant ne peut contenir que des minuscules, chiffres et tirets.",
         ]);
 
-        $provisioner->provision([
+        $data = [
             'name' => $validated['name'],
             'slug' => $validated['slug'],
             'sector' => Sector::from($validated['sector']),
-        ], $validated['admin_email']);
+        ];
+
+        // Identifiants générés directement (utile tant que l'e-mail n'est pas configuré).
+        if ($validated['provisioning_mode'] === 'credentials') {
+            $email = mb_strtolower($validated['admin_email']);
+
+            // L'e-mail est unique au niveau global (un compte = une organisation).
+            if (User::withoutGlobalScopes()->where('email', $email)->exists()) {
+                return back()->withErrors(['admin_email' => "Un compte existe déjà avec l'adresse {$email}."])->withInput();
+            }
+
+            $temp = Str::password(14, symbols: false);
+            $label = (string) Str::of($email)->before('@')->replace(['.', '-', '_'], ' ')->squish()->headline();
+
+            [$organisation] = $provisioner->provisionWithAdmin($data, [
+                'name' => $label !== '' ? $label : 'Administrateur',
+                'email' => $email,
+                'password' => $temp,
+            ]);
+
+            return redirect()->route('platform.organisations.show', $organisation)->with('credentials', [
+                'email' => $email,
+                'password' => $temp,
+                'message' => "Organisation créée et compte administrateur généré. Communiquez ces identifiants ; le mot de passe pourra être changé après connexion.",
+            ]);
+        }
+
+        // Invitation par e-mail (comportement historique).
+        $provisioner->provision($data, $validated['admin_email']);
 
         return redirect()->route('platform.dashboard')->with(
             'status',

@@ -15,6 +15,8 @@ const form = useForm({
     slug: '',
     sector: props.sectors[0]?.value ?? '',
     admin_email: '',
+    // Par défaut : identifiants générés (l'envoi d'e-mails n'est pas encore configuré).
+    provisioning_mode: 'credentials',
 });
 
 // Suggère un sous-domaine à partir du nom.
@@ -45,7 +47,7 @@ function submit() {
         <div class="mb-6">
             <Link href="/platform" class="text-sm text-indigo-600 hover:underline">← Retour</Link>
             <h1 class="mt-2 text-xl font-semibold text-slate-900">Nouvelle organisation</h1>
-            <p class="text-sm text-slate-500">Crée le client, provisionne ses rôles et invite son premier administrateur.</p>
+            <p class="text-sm text-slate-500">Crée le client, provisionne ses rôles et met en route son premier administrateur.</p>
         </div>
 
         <form class="max-w-xl space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" @submit.prevent="submit">
@@ -56,12 +58,10 @@ function submit() {
             </div>
 
             <div>
-                <InputLabel value="Sous-domaine" />
-                <div class="flex items-center">
-                    <TextInput v-model="form.slug" class="rounded-r-none" @input="form.slugTouched = true" />
-                    <span class="rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-500">.vulcain</span>
-                </div>
+                <InputLabel value="Identifiant" />
+                <TextInput v-model="form.slug" @input="form.slugTouched = true" />
                 <InputError :message="form.errors.slug" />
+                <p class="mt-1 text-xs text-gray-500">Identifiant interne unique (minuscules, chiffres, tirets).</p>
             </div>
 
             <div>
@@ -79,7 +79,26 @@ function submit() {
                 <InputLabel value="E-mail du premier administrateur" />
                 <TextInput v-model="form.admin_email" type="email" />
                 <InputError :message="form.errors.admin_email" />
-                <p class="mt-1 text-xs text-gray-500">Une invitation lui sera envoyée pour définir son mot de passe.</p>
+            </div>
+
+            <div>
+                <InputLabel value="Mise en route du compte administrateur" />
+                <div class="mt-2 space-y-2">
+                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3" :class="form.provisioning_mode === 'credentials' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200'">
+                        <input v-model="form.provisioning_mode" type="radio" value="credentials" class="mt-0.5 text-indigo-600 focus:ring-indigo-500" />
+                        <span>
+                            <span class="block text-sm font-medium text-slate-900">Générer les identifiants</span>
+                            <span class="block text-xs text-slate-500">Crée le compte et un mot de passe temporaire, affiché une fois — à communiquer manuellement. Aucun e-mail requis.</span>
+                        </span>
+                    </label>
+                    <label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3" :class="form.provisioning_mode === 'invitation' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200'">
+                        <input v-model="form.provisioning_mode" type="radio" value="invitation" class="mt-0.5 text-indigo-600 focus:ring-indigo-500" />
+                        <span>
+                            <span class="block text-sm font-medium text-slate-900">Envoyer une invitation par e-mail</span>
+                            <span class="block text-xs text-slate-500">L'administrateur définit lui-même son mot de passe (nécessite un SMTP configuré).</span>
+                        </span>
+                    </label>
+                </div>
             </div>
 
             <button
@@ -87,7 +106,7 @@ function submit() {
                 :disabled="form.processing"
                 class="rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
             >
-                Créer et inviter
+                {{ form.provisioning_mode === 'credentials' ? 'Créer et générer les identifiants' : 'Créer et inviter' }}
             </button>
         </form>
     </PlatformLayout>
