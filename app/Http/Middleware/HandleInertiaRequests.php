@@ -115,6 +115,8 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
                 'error' => fn () => $request->session()->get('error'),
+                // Identifiants générés depuis le Desk (affichage unique, copiable).
+                'credentials' => fn () => $request->session()->get('credentials'),
             ],
         ];
     }

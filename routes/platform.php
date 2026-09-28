@@ -37,7 +37,7 @@ Route::prefix('platform')->middleware('central')->group(function () {
 
         // Outils de support.
         Route::post('organisations/{organisation}/resend-invitation', [OrganisationController::class, 'resendInvitation'])->name('platform.organisations.resend');
-        Route::post('organisations/{organisation}/reset-admin', [OrganisationController::class, 'resetAdminPassword'])->name('platform.organisations.reset-admin');
+        Route::post('organisations/{organisation}/credentials', [OrganisationController::class, 'generateAdminCredentials'])->name('platform.organisations.credentials');
         Route::post('organisations/{organisation}/impersonate', [OrganisationController::class, 'impersonate'])->name('platform.organisations.impersonate');
 
         // Gestion de l'abonnement d'une organisation.

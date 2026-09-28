@@ -74,14 +74,49 @@ class DeskToolsTest extends TestCase
         $this->assertAuthenticatedAs($user, 'web');
     }
 
-    public function test_operator_can_reset_the_admin_password(): void
+    public function test_operator_can_regenerate_the_admin_password(): void
     {
         [$org] = $this->orgWithAdmin();
         $operator = PlatformAdmin::factory()->create();
 
         $this->actingAs($operator, 'platform')
-            ->post("http://localhost/platform/organisations/{$org->id}/reset-admin")
-            ->assertSessionHas('status');
+            ->post("http://localhost/platform/organisations/{$org->id}/credentials")
+            ->assertSessionHas('credentials');
+    }
+
+    public function test_operator_can_generate_credentials_from_a_pending_invitation(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        // Organisation provisionnée : invitation d'admin en attente, aucun compte.
+        $org = app(\App\Domain\Identity\OrganisationProvisioner::class)->provision(
+            ['name' => 'CIS', 'slug' => 'cis', 'sector' => \App\Domain\Sectors\Sector::SDIS],
+            'chef@cis.test',
+        );
+        $operator = PlatformAdmin::factory()->create();
+
+        $this->actingAs($operator, 'platform')
+            ->post("http://localhost/platform/organisations/{$org->id}/credentials")
+            ->assertSessionHas('credentials', fn ($c) => $c['email'] === 'chef@cis.test' && ! empty($c['password']));
+
+        // Le compte administrateur a bien été créé et l'invitation consommée.
+        $this->tenant()->runFor($org, function () {
+            $user = User::where('email', 'chef@cis.test')->first();
+            $this->assertNotNull($user);
+            $this->assertTrue($user->hasRole(Rbac::ADMIN));
+            $this->assertNotNull(\App\Models\Invitation::where('email', 'chef@cis.test')->first()->accepted_at);
+        });
+    }
+
+    public function test_generating_credentials_without_admin_or_invitation_fails(): void
+    {
+        $org = Organisation::factory()->slug('vide')->create();
+        $this->tenant()->runFor($org, fn () => app(RoleProvisioner::class)->provision($org));
+        $operator = PlatformAdmin::factory()->create();
+
+        $this->actingAs($operator, 'platform')
+            ->post("http://localhost/platform/organisations/{$org->id}/credentials")
+            ->assertSessionHas('error');
     }
 
     public function test_operator_sees_users_across_organisations(): void

@@ -119,7 +119,7 @@ class OrganisationController extends Controller
                 'status' => $organisation->status,
                 'group' => $organisation->group?->name,
                 'created_at' => $organisation->created_at?->format('d/m/Y'),
-                'app_url' => $this->tenantUrl($organisation->slug),
+                'app_url' => $this->tenantUrl(),
             ],
             'subscription' => $sub ? [
                 'plan_label' => $sub->plan->label(),
@@ -150,28 +150,81 @@ class OrganisationController extends Controller
         return back()->with('status', "Invitation renvoyée à {$email}.");
     }
 
-    /** Définit un mot de passe temporaire pour l'administrateur de l'organisation. */
-    public function resetAdminPassword(Organisation $organisation): RedirectResponse
+    /**
+     * Génère (ou régénère) les identifiants de l'administrateur de l'organisation.
+     *
+     * Utile tant que l'envoi d'e-mails n'est pas configuré : l'exploitant crée
+     * directement le compte administrateur — à partir de l'invitation en attente —
+     * avec un mot de passe temporaire à communiquer manuellement. Si le compte
+     * existe déjà, seul le mot de passe est réinitialisé.
+     */
+    public function generateAdminCredentials(Organisation $organisation): RedirectResponse
     {
         abort_unless(auth('platform')->user()->canManageOrganisation($organisation), 403);
 
         $temp = Str::password(14, symbols: false);
-        $ok = $this->tenant->runFor($organisation, function () use ($temp) {
-            $u = User::query()->role(Rbac::ADMIN)->where('is_active', true)->first();
-            if ($u === null) {
-                return false;
-            }
-            $u->password = $temp; // cast « hashed » (Argon2id)
-            $u->save();
 
-            return true;
+        $result = $this->tenant->runFor($organisation, function () use ($organisation, $temp) {
+            $admin = User::query()->role(Rbac::ADMIN)->where('is_active', true)->first();
+
+            // Compte existant : simple réinitialisation du mot de passe.
+            if ($admin !== null) {
+                $admin->password = $temp; // cast « hashed » (Argon2id)
+                $admin->save();
+
+                return ['email' => $admin->email, 'created' => false];
+            }
+
+            // Aucun compte : on le crée depuis l'invitation d'administrateur en attente.
+            $invitation = Invitation::query()
+                ->whereNull('accepted_at')
+                ->where('role', Rbac::ADMIN)
+                ->latest()
+                ->first();
+
+            if ($invitation === null) {
+                return ['error' => 'Aucun administrateur ni invitation en attente pour cette organisation.'];
+            }
+
+            $email = mb_strtolower($invitation->email);
+
+            // L'e-mail est unique au niveau global (un compte = une organisation).
+            if (User::withoutGlobalScopes()->where('email', $email)->exists()) {
+                return ['error' => "Un compte existe déjà avec l'adresse {$email}."];
+            }
+
+            $label = (string) Str::of($email)->before('@')->replace(['.', '-', '_'], ' ')->squish()->headline();
+            $firstName = $label !== '' ? $label : 'Administrateur';
+
+            $user = new User;
+            $user->forceFill([
+                'organisation_id' => $organisation->id,
+                'first_name' => $firstName,
+                'last_name' => '',
+                'name' => $firstName,
+                'email' => $email,
+                'password' => $temp, // cast « hashed » (Argon2id)
+                'is_active' => true,
+            ])->save();
+            $user->assignRole(Rbac::ADMIN);
+
+            // L'invitation est consommée : pas de compte en double possible ensuite.
+            $invitation->forceFill(['accepted_at' => now()])->save();
+
+            return ['email' => $email, 'created' => true];
         });
 
-        if (! $ok) {
-            return back()->with('error', 'Aucun administrateur actif pour cette organisation.');
+        if (isset($result['error'])) {
+            return back()->with('error', $result['error']);
         }
 
-        return back()->with('status', "Mot de passe temporaire défini : {$temp} — communiquez-le, puis demandez son changement à la première connexion.");
+        $verb = $result['created'] ? 'Compte administrateur créé' : 'Mot de passe réinitialisé';
+
+        return back()->with('credentials', [
+            'email' => $result['email'],
+            'password' => $temp,
+            'message' => "{$verb}. Communiquez ces identifiants à l'organisation ; le mot de passe pourra être changé après connexion.",
+        ]);
     }
 
     /** Se connecter en tant qu'administrateur de l'organisation (support). */
@@ -189,22 +242,30 @@ class OrganisationController extends Controller
         }
 
         Auth::guard('web')->login($user);
-        // Le cookie de session est partagé sur *.vulkain.eu (SESSION_DOMAIN).
+        // Desk (desk.vulkain.eu) et application (app.vulkain.eu) partagent la
+        // session via SESSION_DOMAIN=.vulkain.eu : la connexion « web » posée ici
+        // est reconnue à l'arrivée sur l'hôte applicatif.
         $request->session()->put('impersonator', [
             'name' => $platformAdmin->name,
             'return' => $request->getSchemeAndHttpHost().'/platform',
         ]);
 
-        return redirect()->away($this->tenantUrl($organisation->slug));
+        return redirect()->away($this->tenantUrl());
     }
 
-    /** URL du tableau de bord d'une organisation (hôte applicatif). */
-    private function tenantUrl(string $slug): string
+    /**
+     * URL du tableau de bord de l'application (hôte unique).
+     *
+     * Depuis le passage à l'accès par compte, toutes les organisations partagent
+     * l'hôte applicatif (app.vulkain.eu) : l'organisation est déduite du compte
+     * connecté, plus d'un sous-domaine par organisation.
+     */
+    private function tenantUrl(): string
     {
         $base = config('tenancy.app_domains')[0]
             ?? config('tenancy.central_domains')[0]
             ?? request()->getHost();
 
-        return 'https://'.$slug.'.'.$base.'/dashboard';
+        return 'https://'.$base.'/dashboard';
     }
 }

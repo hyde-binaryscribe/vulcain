@@ -163,14 +163,14 @@ DB_DATABASE=vulcain
 DB_USERNAME=vulcain
 DB_PASSWORD=********
 
-# Sessions en base (révocation des sessions actives).
-# En hôte unique, le cookie partagé cross-sous-domaine n'est plus nécessaire :
-# laisse SESSION_DOMAIN vide (cookie propre à chaque hôte). Le Desk
-# (desk.vulkain.eu) et l'app (app.vulkain.eu) utilisent des gardes distinctes.
+# Sessions en base (révocation des sessions actives). Le point initial permet
+# de partager la session entre desk.vulkain.eu et app.vulkain.eu : c'est ce qui
+# rend possible « Se connecter en tant qu'admin » depuis le Desk (la connexion
+# posée sur le Desk est reconnue à l'arrivée sur l'application).
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
 SESSION_ENCRYPT=true
-SESSION_DOMAIN=
+SESSION_DOMAIN=.vulkain.eu
 SESSION_SECURE_COOKIE=true        # HTTPS obligatoire en prod
 SESSION_SAME_SITE=lax
 
@@ -191,9 +191,10 @@ MAIL_FROM_ADDRESS="no-reply@vulkain.eu"
 MAIL_FROM_NAME="Vulkain"
 ```
 
-> **Sessions** : en hôte unique, `SESSION_DOMAIN` peut rester **vide** (cookie
-> lié à l'hôte). Plus besoin du `.vulkain.eu` avec point initial qui servait au
-> partage entre sous-domaines d'organisation — ce mécanisme n'existe plus.
+> **Sessions** : `SESSION_DOMAIN=.vulkain.eu` (avec le point initial) partage la
+> session entre `desk.vulkain.eu` et `app.vulkain.eu`. C'est nécessaire à
+> l'action Desk « Se connecter en tant qu'admin » (impersonation), qui pose la
+> connexion sur le Desk et la retrouve sur l'application.
 
 > **File d'attente** : `QUEUE_CONNECTION=sync` suffit pour démarrer (les
 > notifications partent pendant la requête). Pour découpler, passe à `database`
