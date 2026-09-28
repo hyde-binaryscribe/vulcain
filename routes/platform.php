@@ -27,7 +27,13 @@ Route::prefix('platform')->middleware('central')->group(function () {
 
         Route::get('organisations/create', [OrganisationController::class, 'create'])->name('platform.organisations.create');
         Route::post('organisations', [OrganisationController::class, 'store'])->name('platform.organisations.store');
+        Route::get('organisations/{organisation}', [OrganisationController::class, 'show'])->name('platform.organisations.show');
         Route::post('organisations/{organisation}/toggle', [OrganisationController::class, 'toggle'])->name('platform.organisations.toggle');
+
+        // Outils de support.
+        Route::post('organisations/{organisation}/resend-invitation', [OrganisationController::class, 'resendInvitation'])->name('platform.organisations.resend');
+        Route::post('organisations/{organisation}/reset-admin', [OrganisationController::class, 'resetAdminPassword'])->name('platform.organisations.reset-admin');
+        Route::post('organisations/{organisation}/impersonate', [OrganisationController::class, 'impersonate'])->name('platform.organisations.impersonate');
 
         // Gestion de l'abonnement d'une organisation.
         Route::get('organisations/{organisation}/subscription', [SubscriptionController::class, 'show'])->name('platform.organisations.subscription');

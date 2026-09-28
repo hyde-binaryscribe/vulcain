@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\VitrineController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,8 @@ Route::middleware('central')->group(function () {
 
 Route::middleware(['tenant', 'auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Fin d'incarnation (support Desk) — retour vers le Desk.
+    Route::post('impersonation/stop', [ImpersonationController::class, 'stop'])->name('impersonation.stop');
 });
 
 require __DIR__.'/auth.php';

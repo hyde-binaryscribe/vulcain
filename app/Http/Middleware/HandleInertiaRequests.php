@@ -109,6 +109,8 @@ class HandleInertiaRequests extends Middleware
                     'at' => $n->created_at?->diffForHumans(),
                 ]),
             ] : ['unread' => 0, 'items' => []],
+            // Incarnation en cours (support Desk) : bannière + retour.
+            'impersonator' => $request->session()->get('impersonator'),
             // Messages flash (confirmation / erreur).
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),

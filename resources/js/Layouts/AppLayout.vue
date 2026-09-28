@@ -11,6 +11,10 @@ const profile = computed(() => tenant.value?.profile);
 const brand = computed(() => profile.value?.theme || '#991b1b');
 const flash = computed(() => page.props.flash?.status || page.props.status);
 const flashError = computed(() => page.props.flash?.error);
+const impersonator = computed(() => page.props.impersonator);
+function stopImpersonation() {
+    router.post('/impersonation/stop');
+}
 
 const permissions = computed(() => user.value?.permissions || []);
 
@@ -229,6 +233,13 @@ const initials = computed(() => {
             </header>
 
             <main class="flex-1 p-4 lg:p-6">
+                <div
+                    v-if="impersonator"
+                    class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                >
+                    <span>👁 Vous êtes connecté en tant qu'utilisateur de cette organisation (support Desk — {{ impersonator.name }}).</span>
+                    <button class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700" @click="stopImpersonation">Revenir au Desk</button>
+                </div>
                 <div
                     v-if="flash"
                     class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
