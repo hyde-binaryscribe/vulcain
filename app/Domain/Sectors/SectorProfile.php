@@ -172,6 +172,31 @@ final class SectorProfile
         ];
     }
 
+    /**
+     * Rôles métier proposés selon le secteur (pour les règles RH de congés).
+     * Vide pour les secteurs non encore couverts.
+     *
+     * @return list<array{value:string,label:string}>
+     */
+    public function jobRoles(): array
+    {
+        return match ($this->sector) {
+            Sector::AMBULANCE_PRIVEE => [
+                ['value' => 'ade', 'label' => 'Ambulancier DE (ADE)'],
+                ['value' => 'auxiliaire', 'label' => 'Auxiliaire ambulancier'],
+                ['value' => 'regulateur', 'label' => 'Régulateur'],
+                ['value' => 'administratif', 'label' => 'Administratif'],
+            ],
+            default => [],
+        };
+    }
+
+    /** @return list<string> */
+    public function jobRoleValues(): array
+    {
+        return array_map(fn (array $r) => $r['value'], $this->jobRoles());
+    }
+
     /** @return array<string, string> */
     public function toArray(): array
     {

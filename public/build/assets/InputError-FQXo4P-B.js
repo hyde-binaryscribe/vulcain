@@ -1,1 +1,0 @@
-import{E as e,R as t,_ as n,v as r}from"./app-BMIaoNi9.js";var i={key:0,class:`mt-1 text-sm text-red-700`},a={__name:`InputError`,props:{message:{type:String,default:``}},setup(a){return(o,s)=>a.message?(e(),r(`p`,i,t(a.message),1)):n(``,!0)}};export{a as t};

@@ -10,6 +10,7 @@ const props = defineProps({
     users: { type: Array, default: () => [] },
     pendingInvitations: { type: Array, default: () => [] },
     roles: { type: Array, default: () => [] },
+    jobRoles: { type: Array, default: () => [] },
     sites: { type: Array, default: () => [] },
     search: { type: String, default: '' },
 });
@@ -29,12 +30,13 @@ function invite() {
 
 // Édition
 const editing = ref(null);
-const editForm = useForm({ grade: '', role: '', is_active: true, site_ids: [] });
+const editForm = useForm({ grade: '', job_role: '', role: '', is_active: true, site_ids: [] });
 
 function openEdit(user) {
     editing.value = user;
     editForm.clearErrors();
     editForm.grade = user.grade ?? '';
+    editForm.job_role = user.job_role ?? '';
     editForm.role = user.role ?? props.roles[0]?.value;
     editForm.is_active = user.is_active;
     editForm.site_ids = [...(user.site_ids ?? [])];
@@ -165,6 +167,14 @@ function cancel(inv) {
                     <div>
                         <InputLabel value="Grade" />
                         <TextInput v-model="editForm.grade" />
+                    </div>
+                    <div v-if="jobRoles.length">
+                        <InputLabel value="Métier" />
+                        <select v-model="editForm.job_role" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
+                            <option value="">—</option>
+                            <option v-for="j in jobRoles" :key="j.value" :value="j.value">{{ j.label }}</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Sert aux règles de congés (effectif, droits).</p>
                     </div>
                     <div>
                         <InputLabel value="Rôle" />

@@ -105,6 +105,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::post('leave/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->name('leave.cancel');
     Route::post('leave/{leaveRequest}/decision', [LeaveController::class, 'decide'])
         ->middleware('permission:leave.manage')->name('leave.decide');
+    Route::post('leave/rules', [LeaveController::class, 'saveRules'])
+        ->middleware('permission:leave.manage')->name('leave.rules');
 
     // Historique des actions (journal d'activité).
     Route::middleware('permission:history.view')->group(function () {

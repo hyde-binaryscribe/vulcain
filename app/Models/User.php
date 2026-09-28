@@ -15,7 +15,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
 // organisation_id et is_active ne sont jamais renseignés en mass assignment public.
-#[Fillable(['first_name', 'last_name', 'name', 'username', 'grade', 'email', 'password', 'avatar_path'])]
+#[Fillable(['first_name', 'last_name', 'name', 'username', 'grade', 'job_role', 'email', 'password', 'avatar_path'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

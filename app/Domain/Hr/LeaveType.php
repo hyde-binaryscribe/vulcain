@@ -33,4 +33,10 @@ enum LeaveType: string
     {
         return array_map(fn (self $t) => ['value' => $t->value, 'label' => $t->label()], self::cases());
     }
+
+    /** Le type décompte-t-il les droits annuels de congés (solde) ? */
+    public function consumesEntitlement(): bool
+    {
+        return $this === self::CONGE_PAYE;
+    }
 }
