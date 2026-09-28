@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Reprise après un éventuel échec partiel : la table a pu être créée sans
+        // son index (le DDL MySQL n'est pas transactionnel). Elle est alors vide.
+        Schema::dropIfExists('disinfection_records');
+
         Schema::create('disinfection_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
@@ -23,13 +27,16 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['organisation_id', 'vehicle_id', 'performed_at']);
+            // Nom d'index explicite et court (< 64 car., limite MySQL).
+            $table->index(['organisation_id', 'vehicle_id', 'performed_at'], 'disinf_rec_org_veh_perf_idx');
         });
 
-        Schema::table('vehicle_types', function (Blueprint $table) {
-            // Périodicité de désinfection imposée (jours). Null = pas d'échéance.
-            $table->unsignedSmallInteger('disinfection_interval_days')->nullable()->after('is_active');
-        });
+        if (! Schema::hasColumn('vehicle_types', 'disinfection_interval_days')) {
+            Schema::table('vehicle_types', function (Blueprint $table) {
+                // Périodicité de désinfection imposée (jours). Null = pas d'échéance.
+                $table->unsignedSmallInteger('disinfection_interval_days')->nullable()->after('is_active');
+            });
+        }
     }
 
     public function down(): void
