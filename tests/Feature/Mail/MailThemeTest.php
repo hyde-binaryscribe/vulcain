@@ -21,7 +21,8 @@ class MailThemeTest extends TestCase
         $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
         $this->assertNotEmpty($messages, 'Aucun e-mail capturé.');
 
-        return $messages[count($messages) - 1]->toString();
+        // Corps HTML décodé (le MIME brut est en quoted-printable et coupe les mots).
+        return (string) $messages[count($messages) - 1]->getOriginalMessage()->getHtmlBody();
     }
 
     public function test_invitation_email_renders_with_vulkain_branding(): void

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Device;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -28,9 +29,10 @@ class HomeController extends Controller
             return redirect()->route('platform.dashboard');
         }
 
-        // Hôte applicatif (ou tout autre) : dashboard si connecté, sinon connexion.
+        // Hôte applicatif (ou tout autre) : si connecté, l'appli terrain sur
+        // téléphone (accès PWA direct), sinon le tableau de bord ; puis connexion.
         if (Auth::guard('web')->check()) {
-            return redirect()->route('dashboard');
+            return redirect()->route(Device::isMobile($request) ? 'terrain.home' : 'dashboard');
         }
 
         return redirect()->route('login');

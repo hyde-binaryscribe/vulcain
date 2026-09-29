@@ -34,7 +34,7 @@ const nav = [
             </Link>
             <div class="flex items-center gap-1">
                 <slot name="actions" />
-                <Link href="/" class="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white" title="Version complète">
+                <Link href="/dashboard" class="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white" title="Version complète">
                     <Icon name="external" :size="18" />
                 </Link>
             </div>

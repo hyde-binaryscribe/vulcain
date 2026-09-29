@@ -63,4 +63,16 @@ class HomeRoutingTest extends TestCase
             ->get('http://app.vulkain.eu/')
             ->assertRedirect('/dashboard');
     }
+
+    public function test_app_host_sends_authenticated_mobile_user_to_terrain(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $user = User::factory()->create(['organisation_id' => $org->id]);
+
+        // Depuis un téléphone, la racine ouvre directement l'appli terrain (PWA).
+        $this->actingAs($user, 'web')
+            ->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148')
+            ->get('http://app.vulkain.eu/')
+            ->assertRedirect('/t');
+    }
 }

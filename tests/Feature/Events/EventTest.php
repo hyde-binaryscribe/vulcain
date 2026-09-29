@@ -99,6 +99,7 @@ class EventTest extends TestCase
 
     public function test_assigning_an_event_notifies_the_assignee(): void
     {
+        config(['mail.default' => 'array']);
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
         $assignee = $this->tenant()->runFor($org, function () use ($org) {
             $u = User::factory()->create(['organisation_id' => $org->id]);
@@ -113,10 +114,18 @@ class EventTest extends TestCase
             'assigned_to' => $assignee->id,
         ])->assertSessionHasNoErrors();
 
+        // Notification in-app…
         $this->assertDatabaseHas('notifications', [
             'notifiable_id' => $assignee->id,
             'type' => EventAssigned::class,
         ]);
+
+        // …et e-mail brandé Vulkain à l'assigné (corps HTML décodé).
+        $messages = \Illuminate\Support\Facades\Mail::mailer('array')->getSymfonyTransport()->messages();
+        $this->assertNotEmpty($messages);
+        $html = (string) $messages[count($messages) - 1]->getOriginalMessage()->getHtmlBody();
+        $this->assertStringContainsString('VULKAIN', $html);
+        $this->assertStringContainsString('#C6362B', $html);
     }
 
     public function test_can_update_linked_material_status(): void
