@@ -200,8 +200,15 @@ class TerrainController extends Controller
         $tasks = $vehicle->tasks()->open()->with('creator:id,name')->get()
             ->map(fn ($t) => ['id' => $t->id, 'title' => $t->title, 'notes' => $t->notes, 'by' => $t->creator?->name]);
 
+        $docMap = fn ($d) => ['id' => $d->id, 'category' => $d->category, 'title' => $d->title, 'expires_at' => $d->expires_at?->format('d/m/Y')];
+
         return Inertia::render('Terrain/Vehicle', [
             'tasks' => $tasks,
+            'documents' => [
+                'vehicle' => $vehicle->documents()->get()->map($docMap)->values(),
+                'mine' => $user->documents_consent ? $user->documents()->get()->map($docMap)->values() : [],
+                'consent' => (bool) $user->documents_consent,
+            ],
             'fuel' => $fuel === null ? null : [
                 'last' => $fuel['last'],
                 'average' => $fuel['average'],

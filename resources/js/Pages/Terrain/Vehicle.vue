@@ -11,6 +11,7 @@ const props = defineProps({
     disinfection: { type: Object, default: () => ({}) },
     maintenance: { type: Object, default: () => ({}) },
     tasks: { type: Array, default: () => [] },
+    documents: { type: Object, default: () => ({ vehicle: [], mine: [], consent: false }) },
     fuel: { type: Object, default: null },
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
@@ -90,6 +91,23 @@ function deleteFuel(id) {
 function completeTask(id) {
     router.post(`/vehicles/${props.vehicle.id}/tasks/${id}/complete`, {}, { preserveScroll: true });
 }
+
+// --- Documents (consultation avec motif) ---
+const consulting = ref(null);
+const reason = ref('Contrôle routier');
+const reasonPresets = ['Contrôle routier', 'Contrôle ARS', 'Contrôle interne', 'Autre'];
+function openConsult(doc) { consulting.value = doc; reason.value = 'Contrôle routier'; }
+function confirmConsult() {
+    const doc = consulting.value;
+    if (!doc || !reason.value) return;
+    router.post(`/documents/${doc.id}/consult`, { reason: reason.value }, {
+        preserveScroll: true,
+        onSuccess: () => { consulting.value = null; window.open(`/documents/${doc.id}/file`, '_blank'); },
+    });
+}
+function setConsent(v) {
+    router.post('/documents/consent', { consent: v }, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -147,6 +165,51 @@ function completeTask(id) {
                     </span>
                 </li>
             </ul>
+        </section>
+
+        <!-- Documents du véhicule -->
+        <section v-if="documents.vehicle.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="template" :size="16" /> Documents du véhicule</h2>
+            <p class="mt-0.5 text-xs text-gray-500">Consultation tracée (motif demandé) — utile en cas de contrôle.</p>
+            <ul class="mt-2 divide-y divide-gray-100">
+                <li v-for="d in documents.vehicle" :key="d.id">
+                    <button type="button" class="flex w-full items-center gap-3 py-2.5 text-left" @click="openConsult(d)">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500"><Icon name="template" :size="16" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-sm font-medium text-gray-900">{{ d.title }}</span>
+                            <span class="block text-xs text-gray-400">{{ d.category }}<template v-if="d.expires_at"> · exp. {{ d.expires_at }}</template></span>
+                        </span>
+                        <Icon name="eye" :size="18" class="shrink-0 text-gray-300" />
+                    </button>
+                </li>
+            </ul>
+        </section>
+
+        <!-- Mes documents -->
+        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="user" :size="16" /> Mes documents</h2>
+            <template v-if="documents.consent">
+                <ul v-if="documents.mine.length" class="mt-2 divide-y divide-gray-100">
+                    <li v-for="d in documents.mine" :key="d.id">
+                        <button type="button" class="flex w-full items-center gap-3 py-2.5 text-left" @click="openConsult(d)">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500"><Icon name="template" :size="16" /></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-medium text-gray-900">{{ d.title }}</span>
+                                <span class="block text-xs text-gray-400">{{ d.category }}<template v-if="d.expires_at"> · exp. {{ d.expires_at }}</template></span>
+                            </span>
+                            <Icon name="eye" :size="18" class="shrink-0 text-gray-300" />
+                        </button>
+                    </li>
+                </ul>
+                <p v-else class="mt-2 text-xs text-gray-500">Aucun document personnel enregistré par l'administration.</p>
+                <button type="button" class="mt-2 text-xs font-medium text-gray-400 hover:text-red-600" @click="setConsent(false)">Retirer mon autorisation</button>
+            </template>
+            <div v-else class="mt-2">
+                <p class="text-xs text-gray-500">Pour présenter vos documents (diplômes, ARS, permis…) lors d'un contrôle, autorisez leur consultation dans l'application.</p>
+                <button type="button" class="mt-2 w-full rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="setConsent(true)">
+                    Autoriser la consultation de mes documents
+                </button>
+            </div>
         </section>
 
         <!-- Désinfection -->
@@ -332,6 +395,26 @@ function completeTask(id) {
                 <div class="mt-5 flex gap-2">
                     <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="showFuel = false">Annuler</button>
                     <button type="button" :disabled="fuelForm.processing || !fuelForm.liters || !fuelForm.mileage" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitFuel">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+        <!-- Modale motif de consultation -->
+        <div v-if="consulting" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="consulting = null">
+            <div class="w-full rounded-t-3xl bg-white p-5" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+                <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300"></div>
+                <h3 class="text-lg font-bold text-gray-900">Consulter « {{ consulting.title }} »</h3>
+                <p class="mt-1 text-sm text-gray-500">Indiquez le motif — la consultation est tracée.</p>
+                <div class="mt-3 space-y-2">
+                    <button
+                        v-for="r in reasonPresets" :key="r" type="button"
+                        class="w-full rounded-xl border px-4 py-3 text-left text-sm font-medium"
+                        :class="reason === r ? 'border-[var(--brand,#C6362B)] bg-[var(--brand,#C6362B)]/10 text-[var(--brand,#C6362B)]' : 'border-gray-300 text-gray-700'"
+                        @click="reason = r"
+                    >{{ r }}</button>
+                </div>
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="consulting = null">Annuler</button>
+                    <button type="button" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="confirmConsult">Ouvrir le document</button>
                 </div>
             </div>
         </div>

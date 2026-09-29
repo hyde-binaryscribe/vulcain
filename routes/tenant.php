@@ -22,6 +22,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FuelController;
 use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\ServiceSessionController;
@@ -48,6 +49,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     // Réalisation d'une tâche véhicule : accessible à tout agent connecté (terrain).
     Route::post('vehicles/{vehicle}/tasks/{task}/complete', [VehicleTaskController::class, 'complete'])->name('vehicles.tasks.complete');
+
+    // Documents : consultation (motif journalisé) + service du fichier + consentement.
+    // Le contrôle d'accès est fait dans le contrôleur (service en cours / titulaire / admin).
+    Route::post('documents/{document}/consult', [DocumentController::class, 'consult'])->name('documents.consult');
+    Route::get('documents/{document}/file', [DocumentController::class, 'file'])->name('documents.file');
+    Route::post('documents/consent', [DocumentController::class, 'consent'])->name('documents.consent');
 
     // Application terrain (PWA mobile salariés). Accessible à tout utilisateur
     // connecté ; les actions (désinfection, entretien, anomalie) restent soumises
@@ -113,6 +120,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
         // Suppression d'un plein (correction) : réservée aux gestionnaires.
         Route::delete('vehicles/{vehicle}/fuel/{fuel}', [FuelController::class, 'destroy'])->name('vehicles.fuel.destroy');
+
+        // Documents (agrément, CT, carte grise, diplômes, ARS, permis…) : admins seulement.
+        Route::middleware('permission:documents.manage')->group(function () {
+            Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
+            Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+        });
 
         // Tâches véhicule : création / gestion par les responsables.
         Route::post('vehicles/{vehicle}/tasks', [VehicleTaskController::class, 'store'])->name('vehicles.tasks.store');

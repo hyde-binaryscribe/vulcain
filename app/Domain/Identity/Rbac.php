@@ -40,6 +40,7 @@ final class Rbac
         'repairs.manage',
         'disinfections.record',
         'leave.manage',
+        'documents.manage',
         'history.view',
         'history.view_all',
         'audit.view',

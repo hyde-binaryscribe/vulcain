@@ -18,8 +18,21 @@ const props = defineProps({
     maintenance: { type: Object, default: () => ({ records: [], types: [], state: 'none' }) },
     fuel: { type: Object, default: null },
     tasks: { type: Array, default: () => [] },
+    documents: { type: Array, default: () => [] },
+    can_manage_documents: { type: Boolean, default: false },
     history: { type: Array, default: () => [] },
 });
+
+// --- Documents véhicule ---
+const docCategories = ['Agrément', 'Contrôle technique', 'Carte grise', 'Assurance', 'Autre'];
+const docForm = useForm({ subject_type: 'vehicle', subject_id: props.vehicle.id, category: 'Agrément', title: '', expires_at: '', file: null });
+function submitDoc() {
+    docForm.transform((d) => ({ ...d, expires_at: d.expires_at || null }))
+        .post('/documents', { preserveScroll: true, forceFormData: true, onSuccess: () => { docForm.reset(); docForm.subject_type = 'vehicle'; docForm.subject_id = props.vehicle.id; docForm.category = 'Agrément'; } });
+}
+function deleteDoc(id) {
+    if (confirm('Supprimer ce document ?')) router.delete(`/documents/${id}`, { preserveScroll: true });
+}
 
 // --- Tâches véhicule ---
 const taskForm = useForm({ title: '', notes: '' });
@@ -250,6 +263,52 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                         <button class="shrink-0 text-xs text-red-500 hover:underline" @click="deleteTask(t.id)">Suppr.</button>
                     </li>
                     <li v-if="tasks.length === 0" class="py-4 text-center text-sm text-gray-400">Aucune tâche.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Documents véhicule -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-100 px-6 py-4">
+                <h3 class="text-base font-semibold text-gray-900">Documents</h3>
+                <p class="mt-0.5 text-sm text-gray-500">Agrément, contrôle technique, carte grise… Consultables par l'agent en service (avec motif).</p>
+            </div>
+            <div class="px-6 py-4">
+                <form v-if="can_manage_documents" class="flex flex-wrap items-end gap-2" @submit.prevent="submitDoc">
+                    <div>
+                        <InputLabel value="Type" />
+                        <select v-model="docForm.category" class="block rounded-lg border-gray-300 px-3 py-2.5 text-sm">
+                            <option v-for="c in docCategories" :key="c" :value="c">{{ c }}</option>
+                        </select>
+                    </div>
+                    <div class="min-w-[10rem] flex-1">
+                        <InputLabel value="Intitulé" />
+                        <TextInput v-model="docForm.title" placeholder="Ex. CT valable jusqu'au…" />
+                        <InputError :message="docForm.errors.title" />
+                    </div>
+                    <div>
+                        <InputLabel value="Expiration" />
+                        <TextInput v-model="docForm.expires_at" type="date" />
+                    </div>
+                    <div>
+                        <InputLabel value="Fichier (PDF/image)" />
+                        <input type="file" accept=".pdf,image/*" class="block text-sm" @change="docForm.file = $event.target.files[0]" />
+                        <InputError :message="docForm.errors.file" />
+                    </div>
+                    <button type="submit" :disabled="docForm.processing || !docForm.title || !docForm.file" class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Ajouter</button>
+                </form>
+
+                <ul class="mt-4 divide-y divide-gray-100">
+                    <li v-for="d in documents" :key="d.id" class="flex items-center gap-3 py-2.5">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500"><Icon name="template" :size="16" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium text-gray-900">{{ d.title }}</span>
+                            <span class="block text-xs text-gray-400">{{ d.category }}<template v-if="d.expires_at"> · expire le {{ d.expires_at }}</template></span>
+                        </span>
+                        <a :href="`/documents/${d.id}/file`" target="_blank" class="text-xs font-medium text-[var(--brand)] hover:underline">Voir</a>
+                        <button v-if="can_manage_documents" class="text-xs text-red-500 hover:underline" @click="deleteDoc(d.id)">Suppr.</button>
+                    </li>
+                    <li v-if="documents.length === 0" class="py-4 text-center text-sm text-gray-400">Aucun document.</li>
                 </ul>
             </div>
         </section>

@@ -25,7 +25,7 @@ class UserController extends Controller
         $search = trim((string) $request->query('q', ''));
 
         $users = User::query()
-            ->with('sites:id')
+            ->with(['sites:id', 'documents'])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")))
@@ -40,6 +40,13 @@ class UserController extends Controller
                 'hire_date' => $u->hire_date?->toDateString(),
                 'role' => $u->getRoleNames()->first(),
                 'is_active' => $u->is_active,
+                'documents_consent' => (bool) $u->documents_consent,
+                'documents' => $u->documents->map(fn ($d) => [
+                    'id' => $d->id,
+                    'category' => $d->category,
+                    'title' => $d->title,
+                    'expires_at' => $d->expires_at?->format('d/m/Y'),
+                ])->values(),
                 'site_ids' => $u->sites->pluck('id'),
                 'last_login_at' => $u->last_login_at?->format('d/m/Y H:i'),
                 'is_self' => $u->id === $request->user()->id,
@@ -66,6 +73,7 @@ class UserController extends Controller
             'roles' => $this->roleOptions(),
             'jobRoles' => $this->tenant->organisation()->profile()->jobRoles(),
             'sites' => Site::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'canManageDocuments' => $request->user()->can('documents.manage'),
             'search' => $search,
             'status' => session('status'),
         ]);

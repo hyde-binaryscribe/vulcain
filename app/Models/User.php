@@ -32,8 +32,15 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'hire_date' => 'date',
             'is_active' => 'boolean',
+            'documents_consent' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    /** Documents personnels (diplômes, autorisations ARS, permis…). */
+    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable')->orderBy('category')->orderBy('title');
     }
 
     /** Véhicules sur lesquels l'utilisateur est autorisé. */

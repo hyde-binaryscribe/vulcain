@@ -81,4 +81,10 @@ class Vehicle extends Model
     {
         return $this->hasMany(VehicleTask::class)->orderByRaw('done_at is null desc')->latest('id');
     }
+
+    /** Documents du véhicule (agrément, CT, carte grise…). */
+    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable')->orderBy('category')->orderBy('title');
+    }
 }

@@ -138,6 +138,13 @@ class VehicleController extends Controller
                 ]),
             ],
             'fuel' => $fuel,
+            'can_manage_documents' => auth()->user()?->can('documents.manage') ?? false,
+            'documents' => $vehicle->documents()->get()->map(fn ($d) => [
+                'id' => $d->id,
+                'category' => $d->category,
+                'title' => $d->title,
+                'expires_at' => $d->expires_at?->format('d/m/Y'),
+            ]),
             'tasks' => $vehicle->tasks()->with(['creator:id,name', 'completer:id,name'])->get()
                 ->map(fn ($t) => [
                     'id' => $t->id,

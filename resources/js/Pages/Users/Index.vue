@@ -12,8 +12,28 @@ const props = defineProps({
     roles: { type: Array, default: () => [] },
     jobRoles: { type: Array, default: () => [] },
     sites: { type: Array, default: () => [] },
+    canManageDocuments: { type: Boolean, default: false },
     search: { type: String, default: '' },
 });
+
+// Documents personnel (dans la modale d'édition).
+const docCategories = ['Diplôme', 'Autorisation ARS', 'Permis de conduire', 'Attestation', 'Autre'];
+const docForm = useForm({ subject_type: 'user', subject_id: null, category: 'Diplôme', title: '', expires_at: '', file: null });
+function submitDoc() {
+    docForm.subject_id = editing.value.id;
+    docForm.transform((d) => ({ ...d, expires_at: d.expires_at || null }))
+        .post('/documents', { preserveScroll: true, forceFormData: true, onSuccess: () => {
+            const f = docForm.file; docForm.reset(); docForm.subject_type = 'user'; docForm.category = 'Diplôme';
+            // Rafraîchit la liste de la modale depuis les props mises à jour.
+            editing.value = props.users.find((u) => u.id === editing.value.id) ?? editing.value;
+        } });
+}
+function deleteDoc(id) {
+    if (confirm('Supprimer ce document ?')) router.delete(`/documents/${id}`, {
+        preserveScroll: true,
+        onSuccess: () => { editing.value = props.users.find((u) => u.id === editing.value.id) ?? editing.value; },
+    });
+}
 
 const searchTerm = ref(props.search);
 const siteWordPlural = computed(() => usePage().props.tenant?.profile?.site_label_plural || 'sites');
@@ -208,6 +228,40 @@ function cancel(inv) {
                         <button type="submit" :disabled="editForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>
                     </div>
                 </form>
+
+                <!-- Documents personnel -->
+                <div v-if="canManageDocuments" class="mt-4 border-t border-gray-100 pt-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-sm font-semibold text-gray-900">Documents</h4>
+                        <span class="rounded-full px-2 py-0.5 text-[11px] font-medium" :class="editing.documents_consent ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
+                            {{ editing.documents_consent ? 'Consultation autorisée' : 'Consultation non autorisée' }}
+                        </span>
+                    </div>
+                    <p class="mt-0.5 text-xs text-gray-500">Diplômes, autorisations ARS, permis… L'agent les consulte pendant son service s'il a donné son autorisation.</p>
+
+                    <form class="mt-3 flex flex-wrap items-end gap-2" @submit.prevent="submitDoc">
+                        <select v-model="docForm.category" class="rounded-lg border-gray-300 px-2 py-2 text-sm">
+                            <option v-for="c in docCategories" :key="c" :value="c">{{ c }}</option>
+                        </select>
+                        <input v-model="docForm.title" type="text" placeholder="Intitulé" class="min-w-[8rem] flex-1 rounded-lg border-gray-300 px-3 py-2 text-sm" />
+                        <input v-model="docForm.expires_at" type="date" class="rounded-lg border-gray-300 px-2 py-2 text-sm" />
+                        <input type="file" accept=".pdf,image/*" class="text-xs" @change="docForm.file = $event.target.files[0]" />
+                        <button type="submit" :disabled="docForm.processing || !docForm.title || !docForm.file" class="rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Ajouter</button>
+                    </form>
+                    <InputError :message="docForm.errors.file" />
+
+                    <ul class="mt-3 divide-y divide-gray-100">
+                        <li v-for="d in (editing.documents || [])" :key="d.id" class="flex items-center gap-2 py-2 text-sm">
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-gray-900">{{ d.title }}</span>
+                                <span class="block text-xs text-gray-400">{{ d.category }}<template v-if="d.expires_at"> · expire le {{ d.expires_at }}</template></span>
+                            </span>
+                            <a :href="`/documents/${d.id}/file`" target="_blank" class="text-xs font-medium text-[var(--brand)] hover:underline">Voir</a>
+                            <button class="text-xs text-red-500 hover:underline" @click="deleteDoc(d.id)">Suppr.</button>
+                        </li>
+                        <li v-if="!(editing.documents || []).length" class="py-3 text-center text-xs text-gray-400">Aucun document.</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </AppLayout>
