@@ -58,11 +58,6 @@ function submitDisinf() {
         });
 }
 
-// --- Kilométrage ---
-const mileageForm = useForm({ mileage: props.vehicle.mileage ?? '' });
-function submitMileage() {
-    mileageForm.post(`/vehicles/${props.vehicle.id}/mileage`, { preserveScroll: true });
-}
 
 // --- Carburant (plein) ---
 const showFuel = ref(false);
@@ -200,7 +195,10 @@ function setConsent(v) {
 
         <!-- Tâches à faire -->
         <section v-if="tasks.length" class="mt-3 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
-            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="check" :size="16" /> Tâches à faire ({{ tasks.length }})</h2>
+            <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700"><Icon name="check" :size="17" /></span>
+                Tâches à faire ({{ tasks.length }})
+            </h2>
             <ul class="mt-2 space-y-2">
                 <li v-for="t in tasks" :key="t.id" class="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm">
                     <button type="button" class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 text-transparent hover:border-green-500 hover:text-green-500" title="Marquer fait" @click="completeTask(t.id)">
@@ -217,8 +215,11 @@ function setConsent(v) {
 
         <!-- Documents du véhicule -->
         <section v-if="documents.vehicle.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="template" :size="16" /> Documents du véhicule</h2>
-            <p class="mt-0.5 text-xs text-gray-500">Consultation tracée (motif demandé) — utile en cas de contrôle.</p>
+            <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name="template" :size="17" /></span>
+                Documents du véhicule
+            </h2>
+            <p class="mt-1 text-xs text-gray-500">Consultation tracée (motif demandé) — utile en cas de contrôle.</p>
             <ul class="mt-2 divide-y divide-gray-100">
                 <li v-for="d in documents.vehicle" :key="d.id">
                     <button type="button" class="flex w-full items-center gap-3 py-2.5 text-left" @click="openConsult(d)">
@@ -235,7 +236,10 @@ function setConsent(v) {
 
         <!-- Mes documents -->
         <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="user" :size="16" /> Mes documents</h2>
+            <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600"><Icon name="user" :size="17" /></span>
+                Mes documents
+            </h2>
             <template v-if="documents.consent">
                 <ul v-if="documents.mine.length" class="mt-2 divide-y divide-gray-100">
                     <li v-for="d in documents.mine" :key="d.id">
@@ -263,7 +267,10 @@ function setConsent(v) {
         <!-- Désinfection -->
         <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="protocol" :size="16" /> Désinfection</h2>
+                <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600"><Icon name="protocol" :size="17" /></span>
+                    Désinfection
+                </h2>
                 <span v-if="disinfection.severity" class="rounded-full px-2 py-0.5 text-xs font-medium" :class="sevBadge[disinfection.severity]">{{ disinfection.state_label }}</span>
                 <span v-else class="text-xs text-gray-400">{{ disinfection.state_label }}</span>
             </div>
@@ -280,28 +287,32 @@ function setConsent(v) {
         <!-- Entretien -->
         <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="settings" :size="16" /> Entretien</h2>
+                <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon name="settings" :size="17" /></span>
+                    Entretien
+                </h2>
                 <span v-if="maintenance.severity" class="rounded-full px-2 py-0.5 text-xs font-medium" :class="sevBadge[maintenance.severity]">{{ maintenance.state_label }}</span>
                 <span v-else class="text-xs text-gray-400">{{ maintenance.state_label }}</span>
             </div>
-            <p class="mt-1 text-xs text-gray-500">
+            <p class="mt-1 text-sm text-gray-500">
                 <template v-if="maintenance.next_due_at">Échéance : {{ maintenance.next_due_at }}</template>
                 <template v-if="maintenance.next_due_mileage"> · {{ maintenance.next_due_mileage.toLocaleString('fr-FR') }} km</template>
                 <template v-if="!maintenance.next_due_at && !maintenance.next_due_mileage">Pas d'échéance planifiée.</template>
             </p>
-            <form v-if="maintenance.can_update" class="mt-3 flex items-end gap-2" @submit.prevent="submitMileage">
-                <div class="flex-1">
-                    <label class="text-xs font-medium text-gray-600">Kilométrage actuel</label>
-                    <input v-model="mileageForm.mileage" type="number" min="0" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
-                </div>
-                <button type="submit" :disabled="mileageForm.processing" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">Mettre à jour</button>
-            </form>
+            <!-- Lecture seule côté terrain : le kilométrage se met à jour à la prise / fin de service. -->
+            <div class="mt-3 flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5">
+                <span class="text-sm text-gray-500">Kilométrage actuel</span>
+                <span class="text-base font-semibold text-gray-900">{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span>
+            </div>
         </section>
 
         <!-- Carburant (si le suivi est activé) -->
         <section v-if="fuel" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="materials" :size="16" /> Carburant</h2>
+                <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><Icon name="materials" :size="17" /></span>
+                    Carburant
+                </h2>
                 <span v-if="fuel.last" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ fuel.last }} L/100</span>
             </div>
             <p class="mt-1 text-xs text-gray-500">
@@ -329,7 +340,10 @@ function setConsent(v) {
 
         <!-- Carrosserie -->
         <section v-if="body.enabled" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="vehicle" :size="16" /> Carrosserie</h2>
+            <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-[var(--brand,#C6362B)]"><Icon name="vehicle" :size="17" /></span>
+                Carrosserie
+            </h2>
             <p class="mt-0.5 text-xs text-gray-500">Contrôle à la prise et à la fin de service. Touchez le schéma pour signaler un choc, une rayure, un bris.</p>
             <div class="mt-3">
                 <VehicleBodyMap :damages="body.damages" :schematics="body.schematics || {}" editable @add="onBodyAdd" @select="bodyDetail = $event" />
@@ -346,7 +360,10 @@ function setConsent(v) {
 
         <!-- Anomalies ouvertes -->
         <section v-if="anomalies.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="bell" :size="16" /> Anomalies en cours ({{ anomalies.length }})</h2>
+            <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600"><Icon name="bell" :size="17" /></span>
+                Anomalies en cours ({{ anomalies.length }})
+            </h2>
             <ul class="mt-2 divide-y divide-gray-100">
                 <li v-for="a in anomalies" :key="a.id" class="flex items-center gap-2 py-2 text-sm">
                     <a v-if="a.photo_url" :href="a.photo_url" target="_blank" class="shrink-0">
