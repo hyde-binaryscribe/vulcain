@@ -80,7 +80,7 @@ function submit() {
                 <label v-else class="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-6 text-sm text-gray-500 hover:bg-gray-50">
                     <Icon name="camera" :size="20" />
                     Prendre / ajouter une photo
-                    <input type="file" accept="image/*" capture="environment" class="hidden" @change="onPhoto" />
+                    <input type="file" accept="image/*" class="hidden" @change="onPhoto" />
                 </label>
                 <p v-if="form.errors.photo" class="mt-1 text-xs text-red-600">{{ form.errors.photo }}</p>
                 <p v-if="form.progress" class="mt-1 text-xs text-gray-400">Envoi… {{ form.progress.percentage }}%</p>

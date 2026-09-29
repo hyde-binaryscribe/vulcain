@@ -58,7 +58,7 @@ const cfg = props.field.config || {};
             </div>
             <label v-else class="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-5 text-sm text-gray-500 hover:bg-gray-50">
                 <Icon name="camera" :size="18" /> Prendre une photo
-                <input type="file" accept="image/*" capture="environment" class="hidden" @change="onFile" />
+                <input type="file" accept="image/*" class="hidden" @change="onFile" />
             </label>
         </div>
 
