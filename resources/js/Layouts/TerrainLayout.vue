@@ -14,11 +14,13 @@ function active(prefix, exact = false) {
     return exact ? p === prefix : (p === prefix || p.startsWith(prefix + '/'));
 }
 
-const nav = [
-    { label: 'Accueil', href: '/t', icon: 'dashboard', exact: true },
-    { label: 'Scanner', href: '/t/scanner', icon: 'camera', exact: false },
-    { label: 'Congés', href: '/t/conges', icon: 'calendar', exact: false },
-];
+const myOpenEvents = computed(() => page.props.notifications?.myOpenEvents ?? 0);
+const nav = computed(() => [
+    { label: 'Accueil', href: '/t', icon: 'dashboard', exact: true, badge: 0 },
+    { label: 'Scanner', href: '/t/scanner', icon: 'camera', exact: false, badge: 0 },
+    { label: 'Événements', href: '/t/mes-evenements', icon: 'protocol', exact: false, badge: myOpenEvents.value },
+    { label: 'Congés', href: '/t/conges', icon: 'calendar', exact: false, badge: 0 },
+]);
 </script>
 
 <template>
@@ -74,7 +76,7 @@ const nav = [
 
         <!-- Navigation basse -->
         <nav
-            class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-gray-200 bg-white"
+            class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-gray-200 bg-white"
             style="padding-bottom: env(safe-area-inset-bottom, 0px)"
         >
             <Link
@@ -84,7 +86,10 @@ const nav = [
                 class="flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition"
                 :class="active(item.href, item.exact) ? 'text-[var(--brand,#C6362B)]' : 'text-gray-500 hover:text-gray-800'"
             >
-                <Icon :name="item.icon" :size="22" />
+                <span class="relative">
+                    <Icon :name="item.icon" :size="22" />
+                    <span v-if="item.badge > 0" class="absolute -right-2.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--brand,#C6362B)] px-1 text-[10px] font-bold text-white">{{ item.badge > 9 ? '9+' : item.badge }}</span>
+                </span>
                 {{ item.label }}
             </Link>
         </nav>

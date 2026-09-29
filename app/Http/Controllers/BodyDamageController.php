@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Events\EventStatus;
+use App\Domain\Events\EventType;
 use App\Models\BodyDamage;
+use App\Models\Event;
+use App\Models\KanbanBoard;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
@@ -20,6 +24,16 @@ use Illuminate\Validation\Rule;
 class BodyDamageController extends Controller
 {
     private const VIEWS = ['avant', 'arriere', 'gauche', 'droite', 'dessus'];
+
+    private const VIEW_LABELS = [
+        'avant' => 'Avant', 'arriere' => 'Arrière', 'gauche' => 'Côté gauche',
+        'droite' => 'Côté droit', 'dessus' => 'Dessus',
+    ];
+
+    private static function viewLabel(string $view): string
+    {
+        return self::VIEW_LABELS[$view] ?? $view;
+    }
 
     public function __construct(private readonly TenantContext $tenant) {}
 
@@ -40,7 +54,7 @@ class BodyDamageController extends Controller
             ? $request->file('photo')->store("body-damages/{$this->tenant->id()}", 'local')
             : null;
 
-        $vehicle->bodyDamages()->create([
+        $damage = $vehicle->bodyDamages()->create([
             'view' => $validated['view'],
             'pos_x' => $validated['pos_x'],
             'pos_y' => $validated['pos_y'],
@@ -48,6 +62,21 @@ class BodyDamageController extends Controller
             'photo_path' => $path,
             'status' => 'ouverte',
             'reported_by' => $request->user()->id,
+        ]);
+
+        // Un signalement carrosserie alimente le fil des événements (traité par
+        // l'administrateur) ; l'agent, lui, peut seulement lire et signaler.
+        Event::create([
+            'type' => EventType::ANOMALIE->value,
+            'source_key' => 'body:'.$damage->id,
+            'title' => "Carrosserie {$vehicle->name} — ".self::viewLabel($validated['view']),
+            'description' => $validated['description'],
+            'photo_path' => $path,
+            'status' => EventStatus::A_TRAITER->value,
+            'priority' => 'normale',
+            'vehicle_id' => $vehicle->id,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->tenant->organisation()),
+            'created_by' => $request->user()->id,
         ]);
 
         return back(303)->with('status', 'Anomalie carrosserie enregistrée.');
@@ -64,6 +93,12 @@ class BodyDamageController extends Controller
             'resolved_by' => $request->user()->id,
             'resolved_at' => now(),
         ]);
+
+        // Clôture l'événement lié s'il est encore ouvert.
+        Event::query()
+            ->where('source_key', 'body:'.$bodyDamage->id)
+            ->whereIn('status', [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value])
+            ->update(['status' => EventStatus::RESOLU->value, 'resolved_at' => now()]);
 
         return back(303)->with('status', 'Anomalie marquée comme résolue.');
     }

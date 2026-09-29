@@ -101,6 +101,11 @@ class HandleInertiaRequests extends Middleware
             // Notifications in-app de l'utilisateur métier.
             'notifications' => $user ? [
                 'unread' => $user->unreadNotifications()->count(),
+                // Événements ouverts qui impliquent l'agent (badge « Mes événements »).
+                'myOpenEvents' => \App\Models\Event::query()
+                    ->where(fn ($q) => $q->where('created_by', $user->id)->orWhere('assigned_to', $user->id))
+                    ->whereIn('status', ['a_traiter', 'en_cours'])
+                    ->count(),
                 'items' => $user->notifications()->latest()->limit(8)->get()->map(fn ($n) => [
                     'id' => $n->id,
                     'message' => $n->data['message'] ?? '',

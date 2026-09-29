@@ -135,6 +135,36 @@ class TerrainController extends Controller
         ]);
     }
 
+    /** Fil des événements qui impliquent l'agent (ses signalements, ceux qui lui sont assignés). */
+    public function myEvents(Request $request): Response
+    {
+        $user = $request->user();
+
+        $events = Event::query()
+            ->where(fn ($q) => $q->where('created_by', $user->id)->orWhere('assigned_to', $user->id))
+            ->with('vehicle:id,name,callsign')
+            ->latest('id')
+            ->limit(80)
+            ->get()
+            ->map(fn (Event $e) => [
+                'id' => $e->id,
+                'title' => $e->title,
+                'type_label' => $e->type->label(),
+                'status' => $e->status->value,
+                'status_label' => $e->status->label(),
+                'resolved' => $e->status->isClosed(),
+                'priority' => $e->priority,
+                'vehicle' => $e->vehicle?->callsign ?: $e->vehicle?->name,
+                'at' => $e->created_at?->fr('d/m/Y H:i'),
+                'assigned' => $e->assigned_to === $user->id,
+                'mine' => $e->created_by === $user->id,
+            ]);
+
+        return Inertia::render('Terrain/Events', [
+            'events' => $events,
+        ]);
+    }
+
     public function vehicle(Request $request, Vehicle $vehicle): Response|RedirectResponse
     {
         $user = $request->user();
