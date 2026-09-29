@@ -2,24 +2,35 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import TerrainLayout from '@/Layouts/TerrainLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import ProtocolFieldInput from '@/Components/ProtocolFieldInput.vue';
 
 const props = defineProps({
     vehicle: { type: Object, required: true },
-    steps: { type: Array, default: () => [] },
+    fields: { type: Array, default: () => [] },
     current_holder: { type: String, default: null },
     current_since: { type: String, default: null },
 });
 
+// Valeurs par défaut selon le type de champ.
+function defaultValue(type) {
+    if (type === 'checkbox') return false;
+    if (type === 'tristate') return '';
+    return null;
+}
+const initialResponses = {};
+props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f.type); });
+
 const form = useForm({
     mileage: props.vehicle.mileage ?? '',
-    steps: props.steps.map((label) => ({ label, done: false })),
     notes: '',
+    responses: { ...initialResponses },
+    photos: {},
 });
 
-const total = props.steps.length;
+function setPhoto(key, file) { form.photos[key] = file; }
 
 function submit() {
-    form.post(`/t/vehicules/${props.vehicle.id}/prise-de-service`, { preserveScroll: true });
+    form.post(`/t/vehicules/${props.vehicle.id}/prise-de-service`, { preserveScroll: true, forceFormData: true });
 }
 </script>
 
@@ -37,7 +48,7 @@ function submit() {
             </div>
         </div>
 
-        <!-- Passation : véhicule déjà pris par quelqu'un d'autre -->
+        <!-- Passation -->
         <div v-if="current_holder" class="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-800">
             <Icon name="bell" :size="18" class="mt-0.5 shrink-0" />
             <p>
@@ -46,7 +57,6 @@ function submit() {
             </p>
         </div>
 
-        <!-- Vérification obligatoire -->
         <div class="mt-3 flex items-start gap-2 rounded-2xl border border-gray-200 bg-white p-3.5 text-xs text-gray-500 shadow-sm">
             <Icon name="shield" :size="16" class="mt-0.5 shrink-0 text-[var(--brand,#C6362B)]" />
             <p>La vérification de prise de service est obligatoire pour accéder au véhicule.</p>
@@ -63,18 +73,16 @@ function submit() {
                 <p v-if="form.errors.mileage" class="mt-1 text-xs text-red-600">{{ form.errors.mileage }}</p>
             </div>
 
-            <!-- Procédure -->
-            <div v-if="form.steps.length" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h2 class="flex items-center justify-between text-sm font-semibold text-gray-800">
-                    Procédure de prise de service
-                    <span class="text-xs font-normal text-gray-400">{{ form.steps.filter((s) => s.done).length }}/{{ total }}</span>
-                </h2>
-                <div class="mt-2 space-y-1.5">
-                    <label v-for="(s, i) in form.steps" :key="i" class="flex items-start gap-3 rounded-lg bg-gray-50 px-3 py-2.5 text-sm">
-                        <input v-model="s.done" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300" />
-                        <span :class="s.done ? 'text-gray-400 line-through' : 'text-gray-700'">{{ s.label }}</span>
-                    </label>
-                </div>
+            <!-- Protocole (champs configurés) -->
+            <div v-if="fields.length" class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h2 class="text-sm font-semibold text-gray-800">Protocole de prise de service</h2>
+                <ProtocolFieldInput
+                    v-for="f in fields"
+                    :key="f.key"
+                    :field="f"
+                    v-model="form.responses[f.key]"
+                    @photo="(file) => setPhoto(f.key, file)"
+                />
             </div>
 
             <!-- Notes -->

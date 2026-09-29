@@ -27,11 +27,13 @@ class VehicleSession extends Model
         'opened_at',
         'open_mileage',
         'open_steps',
+        'open_responses',
         'open_notes',
         'closed_at',
         'closed_by',
         'close_mileage',
         'close_notes',
+        'close_responses',
         'close_reason',
     ];
 
@@ -41,6 +43,8 @@ class VehicleSession extends Model
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
             'open_steps' => 'array',
+            'open_responses' => 'array',
+            'close_responses' => 'array',
             'open_mileage' => 'integer',
             'close_mileage' => 'integer',
         ];

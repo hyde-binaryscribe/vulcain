@@ -2,19 +2,33 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import TerrainLayout from '@/Layouts/TerrainLayout.vue';
 import Icon from '@/Components/Icon.vue';
+import ProtocolFieldInput from '@/Components/ProtocolFieldInput.vue';
 
 const props = defineProps({
     vehicle: { type: Object, required: true },
+    fields: { type: Array, default: () => [] },
     opened_at: { type: String, default: null },
 });
+
+function defaultValue(type) {
+    if (type === 'checkbox') return false;
+    if (type === 'tristate') return '';
+    return null;
+}
+const initialResponses = {};
+props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f.type); });
 
 const form = useForm({
     mileage: props.vehicle.mileage ?? '',
     notes: '',
+    responses: { ...initialResponses },
+    photos: {},
 });
 
+function setPhoto(key, file) { form.photos[key] = file; }
+
 function submit() {
-    form.post(`/t/vehicules/${props.vehicle.id}/fin-de-service`, { preserveScroll: true });
+    form.post(`/t/vehicules/${props.vehicle.id}/fin-de-service`, { preserveScroll: true, forceFormData: true });
 }
 </script>
 
@@ -38,6 +52,18 @@ function submit() {
                     <input v-model="form.mileage" type="number" min="0" inputmode="numeric" class="block w-full rounded-lg border-gray-300 px-3 py-2.5 text-lg font-semibold" />
                     <span class="text-sm text-gray-400">km</span>
                 </div>
+            </div>
+
+            <!-- Protocole de fin de service (champs configurés) -->
+            <div v-if="fields.length" class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h2 class="text-sm font-semibold text-gray-800">Protocole de fin de service</h2>
+                <ProtocolFieldInput
+                    v-for="f in fields"
+                    :key="f.key"
+                    :field="f"
+                    v-model="form.responses[f.key]"
+                    @photo="(file) => setPhoto(f.key, file)"
+                />
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

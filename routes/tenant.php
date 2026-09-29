@@ -23,6 +23,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FuelController;
+use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\TerrainController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
@@ -111,6 +112,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'update'])->name('vehicle-types.update');
         Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
         Route::delete('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'destroy'])->name('vehicle-types.destroy');
+
+        // Protocoles de service (ouverture / fermeture) par type de véhicule.
+        Route::get('protocoles-service', [ServiceProtocolController::class, 'index'])->name('service-protocols.index');
+        Route::post('protocoles-service', [ServiceProtocolController::class, 'save'])->name('service-protocols.save');
 
         // Modèles de véhicule : gabarits d'emplacements générés à la création d'un véhicule.
         Route::get('vehicle-models', [VehicleModelController::class, 'index'])->name('vehicle-models.index');

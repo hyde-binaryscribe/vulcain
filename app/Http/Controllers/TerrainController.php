@@ -8,11 +8,17 @@ use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\DisinfectionType;
 use App\Domain\Fleet\FuelConsumption;
 use App\Domain\Fleet\MaintenanceStatus;
+use App\Domain\Fleet\ProtocolFieldType;
+use App\Domain\Fleet\ProtocolPhase;
+use App\Domain\Support\Severity;
 use App\Models\DisinfectionProtocol;
 use App\Models\DisinfectionRecord;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Material;
+use App\Models\ServiceProtocol;
+use App\Models\ServiceProtocolField;
+use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
 use App\Models\VehicleType;
@@ -304,7 +310,7 @@ class TerrainController extends Controller
                 'status_label' => $vehicle->status->label(),
                 'mileage' => $vehicle->mileage,
             ],
-            'steps' => $this->tenant->organisation()->serviceStartSteps(),
+            'fields' => $this->protocolFields($vehicle, ProtocolPhase::OUVERTURE),
             // Détenteur actuel : sa session sera clôturée par la passation.
             'current_holder' => $openSession?->user?->name,
             'current_since' => $openSession?->opened_at?->format('d/m/Y H:i'),
@@ -317,20 +323,14 @@ class TerrainController extends Controller
     {
         $validated = $request->validate([
             'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
-            'steps' => ['nullable', 'array', 'max:100'],
-            'steps.*.label' => ['required_with:steps', 'string', 'max:500'],
-            'steps.*.done' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'photos.*' => ['nullable', 'image', 'max:5120'],
         ]);
 
-        $steps = collect($validated['steps'] ?? [])
-            ->map(fn ($s) => ['label' => $s['label'], 'done' => (bool) ($s['done'] ?? false)])
-            ->values()
-            ->all();
-
         $user = $request->user();
+        $responses = $this->processResponses($request, $vehicle, ProtocolPhase::OUVERTURE);
 
-        DB::transaction(function () use ($vehicle, $user, $validated, $steps) {
+        DB::transaction(function () use ($vehicle, $user, $validated, $responses) {
             // Passation : toute session ouverte du véhicule est clôturée par cette prise.
             VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->get()
                 ->each(function (VehicleSession $s) use ($user) {
@@ -347,7 +347,7 @@ class TerrainController extends Controller
                 'user_id' => $user->id,
                 'opened_at' => now(),
                 'open_mileage' => $validated['mileage'] ?? null,
-                'open_steps' => $steps !== [] ? $steps : null,
+                'open_responses' => $responses !== [] ? $responses : null,
                 'open_notes' => $validated['notes'] ?? null,
             ]);
         });
@@ -375,6 +375,7 @@ class TerrainController extends Controller
                 'callsign' => $vehicle->callsign,
                 'mileage' => $vehicle->mileage,
             ],
+            'fields' => $this->protocolFields($vehicle, ProtocolPhase::FERMETURE),
             'opened_at' => $session->opened_at?->format('d/m/Y H:i'),
         ]);
     }
@@ -389,13 +390,17 @@ class TerrainController extends Controller
         $validated = $request->validate([
             'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'photos.*' => ['nullable', 'image', 'max:5120'],
         ]);
+
+        $responses = $this->processResponses($request, $vehicle, ProtocolPhase::FERMETURE);
 
         $session->update([
             'closed_at' => now(),
             'closed_by' => $request->user()->id,
             'close_mileage' => $validated['mileage'] ?? null,
             'close_notes' => $validated['notes'] ?? null,
+            'close_responses' => $responses !== [] ? $responses : null,
             'close_reason' => VehicleSession::REASON_MANUAL,
         ]);
 
@@ -420,5 +425,110 @@ class TerrainController extends Controller
         }
 
         return $query->first();
+    }
+
+    /**
+     * Champs du protocole d'une phase pour un véhicule : protocole configuré du
+     * type (ou par défaut), sinon procédure par défaut en contrôles vide/OK/NOK.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function protocolFields(Vehicle $vehicle, ProtocolPhase $phase): array
+    {
+        $protocol = ServiceProtocol::resolve($vehicle->type, $phase);
+
+        if ($protocol !== null) {
+            return $protocol->fields->map(fn (ServiceProtocolField $f) => [
+                'key' => (string) $f->id,
+                'label' => $f->label,
+                'type' => $f->type->value,
+                'required' => $f->required,
+                'config' => $f->config ?: [],
+            ])->all();
+        }
+
+        // Repli (ouverture uniquement) : procédure par défaut en contrôles vide/OK/NOK.
+        if ($phase === ProtocolPhase::OUVERTURE) {
+            return collect($this->tenant->organisation()->serviceStartSteps())
+                ->values()
+                ->map(fn ($label, $i) => ['key' => "s{$i}", 'label' => $label, 'type' => 'tristate', 'required' => false, 'config' => []])
+                ->all();
+        }
+
+        return [];
+    }
+
+    /**
+     * Traite les réponses soumises : stocke les photos (disque privé), construit
+     * les lignes normalisées et déclenche les alertes (événements) de la phase.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function processResponses(Request $request, Vehicle $vehicle, ProtocolPhase $phase): array
+    {
+        $inputs = (array) $request->input('responses', []);
+        $protocol = ServiceProtocol::resolve($vehicle->type, $phase);
+        $rows = [];
+
+        if ($protocol !== null) {
+            foreach ($protocol->fields as $f) {
+                $key = (string) $f->id;
+                $value = $inputs[$key] ?? null;
+
+                $photoPath = null;
+                if ($f->type === ProtocolFieldType::PHOTO && $request->hasFile("photos.$key")) {
+                    $photoPath = $request->file("photos.$key")->store("protocols/{$vehicle->organisation_id}", 'local');
+                }
+
+                $alert = $f->evaluateAlert($value);
+                $rows[] = [
+                    'label' => $f->label,
+                    'type' => $f->type->value,
+                    'value' => $f->type === ProtocolFieldType::PHOTO ? null : $value,
+                    'photo_path' => $photoPath,
+                    'alert' => $alert,
+                ];
+
+                if ($alert !== null) {
+                    $this->createProtocolAlert($vehicle, $request->user(), $phase, $f->label, $value, $alert);
+                }
+            }
+
+            return $rows;
+        }
+
+        // Repli : procédure par défaut (contrôles), pas d'alerte configurable.
+        foreach ($this->tenant->organisation()->serviceStartSteps() as $i => $label) {
+            $rows[] = ['label' => $label, 'type' => 'tristate', 'value' => $inputs["s{$i}"] ?? null, 'photo_path' => null, 'alert' => null];
+        }
+
+        return $rows;
+    }
+
+    /** Crée un événement (anomalie) à partir d'une alerte de protocole déclenchée. */
+    private function createProtocolAlert(Vehicle $vehicle, User $user, ProtocolPhase $phase, string $label, mixed $value, array $alert): void
+    {
+        $priority = match ($alert['severity']) {
+            Severity::CRITICAL->value => 'haute',
+            Severity::WATCH->value => 'basse',
+            default => 'normale',
+        };
+
+        $valueStr = match (true) {
+            is_bool($value) => $value ? 'coché' : 'non coché',
+            $value === 'ok' => 'OK',
+            $value === 'nok' => 'NOK',
+            default => trim((string) $value),
+        };
+
+        Event::create([
+            'type' => EventType::ANOMALIE->value,
+            'title' => '['.$phase->label().'] '.$label.($valueStr !== '' ? " : {$valueStr}" : ''),
+            'description' => $alert['message'],
+            'priority' => $priority,
+            'status' => EventStatus::A_TRAITER->value,
+            'vehicle_id' => $vehicle->id,
+            'created_by' => $user->id,
+        ]);
     }
 }
