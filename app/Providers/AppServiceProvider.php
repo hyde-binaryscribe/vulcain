@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Domain\Identity\InvitationService;
 use App\Domain\Identity\LoginThrottle;
 use App\Domain\Identity\PasswordResetService;
+use App\Support\Tenancy\CrossTenantUserProvider;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -40,6 +42,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Résolution des comptes d'authentification toujours en inter-tenant :
+        // recharger l'utilisateur depuis la session (par id ou jeton « remember »)
+        // ne doit jamais dépendre d'un tenant déjà résolu — c'est justement ce qui
+        // permet de le déterminer. Sans cela, une session obsolète (compte
+        // supprimé) ou une page invité fait lever TenancyContextMissing au scope.
+        Auth::provider('eloquent', fn ($app, array $config) => new CrossTenantUserProvider(
+            $app->make(TenantContext::class),
+            $app->make('hash'),
+            $config['model'],
+        ));
+
         // Garde-fou HTTP complémentaire au blocage applicatif (table login_attempts).
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(10)
             ->by(mb_strtolower((string) $request->input('email')).'|'.$request->ip()));
