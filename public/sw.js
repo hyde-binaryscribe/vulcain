@@ -9,7 +9,7 @@
  *    hash, immuables) et l'app shell statique (icônes, manifeste, page offline) ;
  *  - en cas de navigation hors-ligne, on sert une page offline de repli.
  */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL_CACHE = `vulkain-shell-${VERSION}`;
 const ASSET_CACHE = `vulkain-assets-${VERSION}`;
 const OFFLINE_URL = '/offline.html';

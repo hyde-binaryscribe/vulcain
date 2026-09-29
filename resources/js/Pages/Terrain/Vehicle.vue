@@ -68,18 +68,24 @@ const fuelForm = useForm({
     price_per_liter: '',
     full_tank: true,
 });
+// Normalise un nombre saisi au clavier FR (virgule décimale) → point.
+const num = (v) => String(v ?? '').replace(',', '.').trim();
 // Coût total calculé depuis le prix au litre.
 const fuelTotal = computed(() => {
-    const l = parseFloat(fuelForm.liters);
-    const p = parseFloat(fuelForm.price_per_liter);
+    const l = parseFloat(num(fuelForm.liters));
+    const p = parseFloat(num(fuelForm.price_per_liter));
     return l > 0 && p > 0 ? (l * p).toFixed(2) : null;
 });
 function submitFuel() {
-    fuelForm.transform((d) => ({ ...d, price_per_liter: d.price_per_liter || null }))
-        .post(`/vehicles/${props.vehicle.id}/fuel`, {
-            preserveScroll: true,
-            onSuccess: () => { showFuel.value = false; fuelForm.reset(); fuelForm.filled_at = nowLocal(); fuelForm.mileage = props.vehicle.mileage ?? ''; },
-        });
+    fuelForm.transform((d) => ({
+        ...d,
+        liters: num(d.liters),
+        mileage: String(d.mileage ?? '').replace(/[^0-9]/g, ''),
+        price_per_liter: d.price_per_liter ? num(d.price_per_liter) : null,
+    })).post(`/vehicles/${props.vehicle.id}/fuel`, {
+        preserveScroll: true,
+        onSuccess: () => { showFuel.value = false; fuelForm.reset(); fuelForm.filled_at = nowLocal(); fuelForm.mileage = props.vehicle.mileage ?? ''; },
+    });
 }
 function deleteFuel(id) {
     if (confirm('Supprimer ce plein ?')) {
@@ -365,17 +371,17 @@ function setConsent(v) {
                 <div class="mt-4 grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Litres</label>
-                        <input v-model="fuelForm.liters" type="number" step="0.01" min="0" inputmode="decimal" placeholder="ex. 48,5" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                        <input v-model="fuelForm.liters" type="text" inputmode="decimal" placeholder="ex. 48,5" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
                         <p v-if="fuelForm.errors.liters" class="mt-1 text-xs text-red-600">{{ fuelForm.errors.liters }}</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Kilométrage</label>
-                        <input v-model="fuelForm.mileage" type="number" min="0" inputmode="numeric" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                        <input v-model="fuelForm.mileage" type="text" inputmode="numeric" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
                         <p v-if="fuelForm.errors.mileage" class="mt-1 text-xs text-red-600">{{ fuelForm.errors.mileage }}</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Prix au litre (€, optionnel)</label>
-                        <input v-model="fuelForm.price_per_liter" type="number" step="0.001" min="0" inputmode="decimal" placeholder="ex. 1,859" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                        <input v-model="fuelForm.price_per_liter" type="text" inputmode="decimal" placeholder="ex. 1,859" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Date</label>
