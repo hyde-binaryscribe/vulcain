@@ -4,7 +4,24 @@ import Icon from '@/Components/Icon.vue';
 
 const deferred = ref(null);
 const visible = ref(false);
+const mode = ref('android'); // 'android' (invite native) | 'ios' (instructions)
 const DISMISS_KEY = 'vulkain.pwa.install.dismissed';
+
+// iOS n'émet pas « beforeinstallprompt » : l'installation se fait à la main via
+// Partager → « Sur l'écran d'accueil ». On détecte iOS hors mode installé pour
+// afficher les instructions.
+function isIosSafari() {
+    const ua = navigator.userAgent || '';
+    const iOS = /iphone|ipad|ipod/i.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS
+    if (!iOS) return false;
+    // Autres navigateurs iOS (Chrome/Firefox) ne proposent pas « écran d'accueil ».
+    return !/crios|fxios|edgios|opt\//i.test(ua);
+}
+function isStandalone() {
+    return window.matchMedia?.('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+}
 
 function dismissed() {
     try {
@@ -22,6 +39,7 @@ function remember() {
 function onBeforeInstall(e) {
     e.preventDefault();
     deferred.value = e;
+    mode.value = 'android';
     if (!dismissed()) visible.value = true;
 }
 function onInstalled() {
@@ -47,6 +65,12 @@ function close() {
 onMounted(() => {
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
+
+    // iOS : pas d'événement natif -> on affiche les instructions manuelles.
+    if (isIosSafari() && !isStandalone() && !dismissed()) {
+        mode.value = 'ios';
+        visible.value = true;
+    }
 });
 onBeforeUnmount(() => {
     window.removeEventListener('beforeinstallprompt', onBeforeInstall);
@@ -74,15 +98,27 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold">Installer Vulkain</p>
-                    <p class="mt-0.5 text-xs text-white/60">Accès rapide depuis l'écran d'accueil, en plein écran.</p>
+                    <p v-if="mode !== 'ios'" class="mt-0.5 text-xs text-white/60">Accès rapide depuis l'écran d'accueil, en plein écran.</p>
+                    <p v-else class="mt-0.5 text-xs text-white/60">
+                        Dans Safari : appuyez sur
+                        <span class="mx-0.5 inline-flex translate-y-0.5 items-center">
+                            <!-- Icône « Partager » iOS -->
+                            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Partager">
+                                <path d="M12 15V3" /><path d="m8 7 4-4 4 4" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+                            </svg>
+                        </span>
+                        <span class="font-medium text-white/80">Partager</span>, puis « Sur l'écran d'accueil ».
+                    </p>
                 </div>
                 <button class="shrink-0 rounded-lg p-1 text-white/50 hover:bg-white/10 hover:text-white" title="Plus tard" @click="close">
                     <Icon name="x" :size="16" />
                 </button>
             </div>
             <div class="mt-3 flex justify-end gap-2">
-                <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-white/70 hover:bg-white/10" @click="close">Plus tard</button>
-                <button class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand,#C6362B)] px-3 py-1.5 text-xs font-semibold hover:brightness-110" @click="install">
+                <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-white/70 hover:bg-white/10" @click="close">
+                    {{ mode === 'ios' ? 'Compris' : 'Plus tard' }}
+                </button>
+                <button v-if="mode !== 'ios'" class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand,#C6362B)] px-3 py-1.5 text-xs font-semibold hover:brightness-110" @click="install">
                     <Icon name="download" :size="14" /> Installer
                 </button>
             </div>
