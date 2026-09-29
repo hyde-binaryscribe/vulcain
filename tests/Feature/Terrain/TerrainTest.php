@@ -64,6 +64,28 @@ class TerrainTest extends TestCase
             ->assertInertia(fn (Assert $p) => $p->component('Terrain/Leave'));
     }
 
+    public function test_home_focuses_on_active_session_and_hides_list(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            \App\Models\VehicleSession::create([
+                'vehicle_id' => $vehicle->id, 'user_id' => $agent->id, 'opened_at' => now(),
+            ]);
+
+            return [$agent, $vehicle];
+        });
+
+        $this->actingAs($agent)->get('http://caserne.localhost/t')
+            ->assertInertia(fn (Assert $p) => $p
+                ->component('Terrain/Home')
+                ->where('active_session.vehicle_id', $vehicle->id)
+                ->where('vehicles', [])); // liste masquée pendant le service
+    }
+
     public function test_reporting_an_anomaly_creates_an_event(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

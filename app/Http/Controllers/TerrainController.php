@@ -46,6 +46,19 @@ class TerrainController extends Controller
     {
         $user = $request->user();
 
+        // Service en cours de l'agent : on met la fiche en avant et on masque la liste.
+        $myOpen = VehicleSession::query()->open()
+            ->where('user_id', $user->id)
+            ->with('vehicle:id,name,callsign,type')
+            ->latest('opened_at')
+            ->first();
+        $activeSession = $myOpen?->vehicle === null ? null : ($myOpen ? [
+            'vehicle_id' => $myOpen->vehicle->id,
+            'name' => $myOpen->vehicle->callsign ?: $myOpen->vehicle->name,
+            'type' => $myOpen->vehicle->type,
+            'opened_at' => $myOpen->opened_at?->format('H:i'),
+        ] : null);
+
         // Accès par QR uniquement : le personnel sans droit « véhicules » ne voit
         // pas la liste et doit scanner le QR à bord pour ouvrir une fiche.
         $qrOnly = $this->tenant->organisation()->vehicleAccessQrOnly() && ! $user->can('vehicles.manage');
@@ -54,7 +67,9 @@ class TerrainController extends Controller
         $siteIds = SiteScope::forUser($user, session('current_site_id'));
         $assigned = $user->vehicles()->pluck('vehicles.id');
 
-        $vehicles = $qrOnly ? collect() : Vehicle::query()
+        // On masque la liste tant qu'un service est en cours (focus sur la fiche)
+        // ou en mode accès par QR uniquement.
+        $vehicles = ($qrOnly || $activeSession !== null) ? collect() : Vehicle::query()
             ->when($assigned->isNotEmpty(), fn ($q) => $q->whereIn('id', $assigned))
             ->when($assigned->isEmpty() && $siteIds !== null, fn ($q) => $q->whereIn('site_id', $siteIds))
             ->orderBy('name')
@@ -108,6 +123,7 @@ class TerrainController extends Controller
                 'maintenance_due' => $cards->whereIn('maintenance_severity', ['critical', 'warning'])->count(),
             ],
             'qr_only' => $qrOnly,
+            'active_session' => $activeSession,
             'can_report_anomaly' => $user->can('anomalies.manage'),
         ]);
     }
