@@ -423,6 +423,17 @@ function setConsent(v) {
                 <template v-else>Aucune désinfection enregistrée.</template>
                 <template v-if="disinfection.due_at"> · Prochaine : {{ disinfection.due_at }}</template>
             </p>
+            <!-- Détail par protocole affecté (échéance propre à chacun) -->
+            <div v-if="disinfection.schedules && disinfection.schedules.length" class="mt-3 space-y-1.5">
+                <div v-for="s in disinfection.schedules" :key="s.id" class="flex items-center justify-between gap-2 rounded-xl bg-gray-50 px-3 py-2">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-medium text-gray-900">{{ s.name }}</span>
+                        <span class="block text-xs text-gray-500">{{ s.frequency_days ? 'tous les ' + s.frequency_days + ' j' : 'à l’usage' }}<template v-if="s.last_at"> · dernière {{ s.last_at }}</template></span>
+                    </span>
+                    <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" :class="s.severity ? sevBadge[s.severity] : 'bg-green-100 text-green-700'">{{ s.state_label }}</span>
+                </div>
+            </div>
+
             <button v-if="disinfection.can_record" class="mt-3 w-full rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="showDisinf = true">
                 Réaliser une désinfection
             </button>

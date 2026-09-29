@@ -141,6 +141,34 @@ class DisinfectionTest extends TestCase
                 ->where('alerts.disinfection_overdue', 1));
     }
 
+    public function test_recording_with_the_assigned_protocol_clears_the_never_state(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+        [$vehicle, $protocol] = $this->tenant()->runFor($org, function () use ($org) {
+            $v = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $p = DisinfectionProtocol::create(['name' => 'Hebdo', 'type' => 'desinfection', 'frequency_days' => 7]);
+            $v->disinfectionProtocols()->attach($p->id, ['organisation_id' => $org->id]);
+
+            return [$v, $p];
+        });
+
+        // Avant enregistrement : jamais fait pour ce protocole.
+        $before = $this->tenant()->runFor($org, fn () => \App\Domain\Fleet\VehicleDisinfection::statusFor($vehicle));
+        $this->assertSame('never', $before->state);
+
+        // L'agent enregistre une désinfection EN POINTANT le protocole affecté.
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/disinfections", [
+            'type' => 'desinfection',
+            'disinfection_protocol_id' => $protocol->id,
+            'performed_at' => now()->format('Y-m-d\TH:i'),
+        ])->assertSessionHasNoErrors();
+
+        // Après : à jour (l'échéance du protocole est calée).
+        $after = $this->tenant()->runFor($org, fn () => \App\Domain\Fleet\VehicleDisinfection::statusFor($vehicle->fresh()));
+        $this->assertSame('ok', $after->state);
+        $this->assertNull($after->severity);
+    }
+
     public function test_admin_can_assign_protocols_and_status_uses_them(): void
     {
         [$org, $admin] = $this->orgWithAdmin();

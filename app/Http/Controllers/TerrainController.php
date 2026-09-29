@@ -213,6 +213,14 @@ class TerrainController extends Controller
             : DisinfectionProtocol::query()->where('is_active', true)->orderBy('display_order')->orderBy('name')->get())
             ->map(fn (DisinfectionProtocol $p) => ['id' => $p->id, 'name' => $p->name, 'type' => $p->type->value, 'steps' => $p->steps()]);
 
+        // Dernière désinfection par protocole (pour le détail d'échéance par protocole).
+        $lastByProtocol = DisinfectionRecord::query()
+            ->where('vehicle_id', $vehicle->id)
+            ->whereNotNull('disinfection_protocol_id')
+            ->selectRaw('disinfection_protocol_id, max(performed_at) as last_at')
+            ->groupBy('disinfection_protocol_id')
+            ->pluck('last_at', 'disinfection_protocol_id');
+
         $maintenanceStatus = MaintenanceStatus::forVehicleRecords(
             $vehicle->maintenances()->get(),
             $vehicle->mileage !== null ? (int) $vehicle->mileage : null,
@@ -291,6 +299,21 @@ class TerrainController extends Controller
                 'state_label' => $disinfectionStatus->label(),
                 'types' => DisinfectionType::options(),
                 'protocols' => $protocols,
+                // Détail par protocole affecté (chacun sa périodicité/échéance).
+                'schedules' => $assignedProtocols->map(function (DisinfectionProtocol $p) use ($lastByProtocol) {
+                    $last = isset($lastByProtocol[$p->id]) ? \Illuminate\Support\Carbon::parse($lastByProtocol[$p->id]) : null;
+                    $st = \App\Domain\Fleet\DisinfectionStatus::compute($last, $p->hasSchedule() ? (int) $p->frequency_days : null);
+
+                    return [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'frequency_days' => $p->frequency_days,
+                        'last_at' => $last?->fr('d/m/Y H:i'),
+                        'due_at' => $st->dueAt?->format('d/m/Y'),
+                        'severity' => $st->severity?->value,
+                        'state_label' => $st->label(),
+                    ];
+                }),
                 'can_record' => $request->user()->can('disinfections.record'),
                 'records' => $disinfections->map(fn (DisinfectionRecord $d) => [
                     'type_label' => $d->type->label(),
