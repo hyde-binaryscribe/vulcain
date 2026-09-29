@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CronController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImpersonationController;
@@ -12,6 +13,11 @@ Route::get('/', HomeController::class)->name('home');
 
 // Prévisualisation vitrine (accès direct).
 Route::get('/accueil', [VitrineController::class, 'home'])->name('vitrine.home');
+
+// Déclencheur de tâches planifiées par URL (jeton secret), tous hôtes — pour les
+// hébergements sans PHP CLI dans le cron (tâche Plesk « Récupérer une URL »).
+Route::get('/cron/echeances', [CronController::class, 'echeances'])
+    ->middleware('throttle:12,1')->name('cron.echeances');
 
 // ————————————————————————————————————————————————————————————————
 // ESPACE CLIENT — hôte applicatif (app.vulkain.eu) UNIQUEMENT.

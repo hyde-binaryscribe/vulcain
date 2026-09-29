@@ -343,7 +343,13 @@ fonctionne, mais le fil « Événements » et les alertes d'échéance restent v
 
 **Où :** Plesk > *Sites & domaines* > **Tâches planifiées** > *Ajouter une tâche*.
 
-### Option A — Planificateur Laravel (recommandé)
+> ⚠️ **Hébergement sans PHP CLI (shell chrooté, ex. brocloud) :** si une tâche
+> « Exécuter une commande » avec `/opt/plesk/php/8.x/bin/php` renvoie
+> *« No such file or directory »*, c'est que le cron n'a pas accès à PHP en
+> ligne de commande. Utilise alors l'**Option C (déclencheur par URL)** ci-dessous,
+> qui ne dépend pas du PHP CLI.
+
+### Option A — Planificateur Laravel (si le PHP CLI est accessible)
 
 Une seule tâche qui tourne **chaque minute** ; Laravel décide quand exécuter
 (la génération est calée à 06:30). C'est le mécanisme standard et il servira
@@ -371,6 +377,26 @@ commande **une fois par jour** :
   /opt/plesk/php/8.3/bin/php ~/vulkain.eu/artisan vulcain:generate-echeance-events >/dev/null 2>&1
   ```
 - **Fréquence :** une fois par jour, p. ex. `35 6 * * *` (06 h 35).
+
+### Option C — Déclencheur par URL (recommandé sans PHP CLI)
+
+Fonctionne même quand le cron n'a pas de PHP (shell chrooté). L'application
+expose un endpoint protégé par un **jeton secret** ; Plesk l'appelle en HTTP.
+
+1. **Générer un jeton** (chaîne aléatoire longue) et l'ajouter au `.env` :
+   ```
+   CRON_TOKEN=colle-ici-une-longue-chaine-aleatoire
+   ```
+   puis, via l'extension Laravel : `optimize:clear` (recharge la config).
+2. **Créer la tâche planifiée** de type **« Récupérer une URL »** (*Fetch a URL*) :
+   ```
+   https://app.vulkain.eu/cron/echeances?token=LE_MEME_JETON
+   ```
+3. **Fréquence :** une fois par jour, p. ex. `35 6 * * *` (06 h 35).
+
+L'endpoint renvoie `OK — X créé(s), Y clôturé(s).` en cas de succès, `404` si le
+jeton est absent/incorrect (il est désactivé tant que `CRON_TOKEN` n'est pas défini).
+Test manuel : ouvrir l'URL dans le navigateur.
 
 ### Vérifier
 

@@ -31,4 +31,15 @@ return [
         'expires_minutes' => (int) env('INVITATION_EXPIRES', 60 * 24 * 7), // 7 jours
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Déclencheur de tâches planifiées par URL (hébergements sans PHP CLI)
+    |--------------------------------------------------------------------------
+    | Jeton secret exigé pour appeler /cron/* (tâche Plesk « Récupérer une URL »).
+    | Laisser vide désactive l'endpoint (404).
+    */
+    'cron' => [
+        'token' => env('CRON_TOKEN'),
+    ],
+
 ];
