@@ -104,6 +104,14 @@ class Organisation extends Model
         return (bool) ($this->settings['fuel_tracking_enabled'] ?? true);
     }
 
+    /** Colonne Kanban où atterrissent les nouvelles anomalies (ou null → 1re colonne). */
+    public function anomalyEntryColumnId(): ?int
+    {
+        $id = $this->settings['anomaly_entry_column_id'] ?? null;
+
+        return $id !== null ? (int) $id : null;
+    }
+
     /** Procédure de prise de service par défaut (secteur secours). */
     public const DEFAULT_SERVICE_START_STEPS = [
         'Contrôle des niveaux (huile, liquide de refroidissement)',

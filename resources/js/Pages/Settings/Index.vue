@@ -4,6 +4,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     settings: { type: Object, default: () => ({ track_expiry_in_mobile: true }) },
+    kanbanColumns: { type: Array, default: () => [] },
 });
 
 const form = useForm({
@@ -11,6 +12,7 @@ const form = useForm({
     bags_enabled: props.settings.bags_enabled,
     vehicle_access_qr_only: props.settings.vehicle_access_qr_only,
     fuel_tracking_enabled: props.settings.fuel_tracking_enabled,
+    anomaly_entry_column_id: props.settings.anomaly_entry_column_id ?? '',
     service_start_steps: [...(props.settings.service_start_steps ?? [])],
 });
 
@@ -147,6 +149,33 @@ function save() {
                         Aucune étape : la procédure par défaut du secteur sera utilisée.
                     </p>
                 </div>
+
+                <div class="mt-6">
+                    <button
+                        type="button"
+                        :disabled="form.processing"
+                        class="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60"
+                        @click="save"
+                    >
+                        Enregistrer
+                    </button>
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="text-base font-semibold text-gray-900">Événements (Kanban)</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Colonne dans laquelle arrivent les nouvelles anomalies signalées. Les colonnes et tableaux
+                    se gèrent depuis la page <span class="font-medium text-gray-700">Événements</span>.
+                </p>
+
+                <label class="mt-4 block">
+                    <span class="block text-sm font-medium text-gray-900">Colonne d'entrée des anomalies</span>
+                    <select v-model="form.anomaly_entry_column_id" class="mt-1 block w-full max-w-sm rounded-lg border-gray-300 px-3 py-2.5 text-sm">
+                        <option value="">1re colonne par défaut</option>
+                        <option v-for="c in kanbanColumns" :key="c.id" :value="c.id">{{ c.label }}</option>
+                    </select>
+                </label>
 
                 <div class="mt-6">
                     <button

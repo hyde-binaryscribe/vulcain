@@ -14,6 +14,7 @@ use App\Domain\Support\Severity;
 use App\Models\DisinfectionProtocol;
 use App\Models\DisinfectionRecord;
 use App\Models\Event;
+use App\Models\KanbanBoard;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\ServiceProtocol;
@@ -282,6 +283,7 @@ class TerrainController extends Controller
             'vehicle_id' => $validated['vehicle_id'] ?? null,
             'photo_path' => $photoPath,
             'status' => EventStatus::A_TRAITER->value,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->tenant->organisation()),
             'created_by' => $request->user()->id,
         ]);
 
@@ -544,6 +546,7 @@ class TerrainController extends Controller
             'description' => $alert['message'],
             'priority' => $priority,
             'status' => EventStatus::A_TRAITER->value,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->tenant->organisation()),
             'vehicle_id' => $vehicle->id,
             'created_by' => $user->id,
         ]);

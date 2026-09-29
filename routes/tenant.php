@@ -170,6 +170,13 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('events/{event}/comments', [EventController::class, 'comment'])->name('events.comment');
         Route::patch('events/{event}/material-status', [EventController::class, 'materialStatus'])->name('events.material-status');
         Route::delete('events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
+
+        // Tableaux et colonnes Kanban (personnalisation).
+        Route::post('kanban/boards', [EventController::class, 'storeBoard'])->name('events.boards.store');
+        Route::delete('kanban/boards/{board}', [EventController::class, 'destroyBoard'])->name('events.boards.destroy');
+        Route::post('kanban/boards/{board}/columns', [EventController::class, 'storeColumn'])->name('events.columns.store');
+        Route::patch('kanban/columns/{column}', [EventController::class, 'updateColumn'])->name('events.columns.update');
+        Route::delete('kanban/columns/{column}', [EventController::class, 'destroyColumn'])->name('events.columns.destroy');
     });
 
     // Réglages de l'organisation (propriétaire / administrateur).

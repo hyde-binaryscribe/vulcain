@@ -67,18 +67,25 @@ class EventTest extends TestCase
         ]);
     }
 
-    public function test_moving_to_closed_column_sets_resolved_at(): void
+    public function test_moving_to_a_done_column_sets_resolved_at(): void
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
-        $event = Event::factory()->create(['organisation_id' => $org->id, 'status' => 'a_traiter']);
+        [$event, $doneColumnId] = $this->tenant()->runFor($org, function () use ($org) {
+            \App\Models\KanbanBoard::ensureSeeded($org);
+            $event = Event::factory()->create(['organisation_id' => $org->id, 'status' => 'a_traiter']);
+            $done = \App\Models\KanbanColumn::query()->where('is_done', true)->firstOrFail();
+
+            return [$event, $done->id];
+        });
 
         $this->actingAs($admin)->patch("http://caserne.localhost/events/{$event->id}/move", [
-            'status' => 'resolu',
+            'status' => $doneColumnId,
         ])->assertSessionHasNoErrors();
 
         $event->refresh();
-        $this->assertSame('resolu', $event->status->value);
+        $this->assertSame('ferme', $event->status->value);
         $this->assertNotNull($event->resolved_at);
+        $this->assertSame($doneColumnId, $event->kanban_column_id);
     }
 
     public function test_can_add_a_comment(): void

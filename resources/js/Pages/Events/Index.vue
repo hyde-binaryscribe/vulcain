@@ -9,6 +9,9 @@ import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     columns: { type: Array, default: () => [] },
+    boards: { type: Array, default: () => [] },
+    current_board: { type: [Number, String], default: null },
+    can_manage_board: { type: Boolean, default: false },
     types: { type: Array, default: () => [] },
     priorities: { type: Array, default: () => [] },
     vehicles: { type: Array, default: () => [] },
@@ -16,6 +19,33 @@ const props = defineProps({
     users: { type: Array, default: () => [] },
     materialStatuses: { type: Array, default: () => [] },
 });
+
+// --- Tableaux & colonnes ---
+function selectBoard(id) {
+    router.get('/events', { board: id }, { preserveState: false, preserveScroll: true });
+}
+function addBoard() {
+    const name = window.prompt('Nom du nouveau tableau ?');
+    if (name && name.trim()) router.post('/kanban/boards', { name: name.trim() });
+}
+function removeBoard() {
+    if (props.boards.length <= 1) return;
+    if (window.confirm('Supprimer ce tableau ? (il doit être vide)')) router.delete(`/kanban/boards/${props.current_board}`);
+}
+function addColumn() {
+    const name = window.prompt('Nom de la nouvelle colonne ?');
+    if (name && name.trim()) router.post(`/kanban/boards/${props.current_board}/columns`, { name: name.trim() }, { preserveScroll: true });
+}
+function renameColumn(col) {
+    const name = window.prompt('Renommer la colonne :', col.label);
+    if (name && name.trim()) router.patch(`/kanban/columns/${col.value}`, { name: name.trim(), is_done: col.is_done }, { preserveScroll: true });
+}
+function toggleDone(col) {
+    router.patch(`/kanban/columns/${col.value}`, { name: col.label, is_done: !col.is_done }, { preserveScroll: true });
+}
+function removeColumn(col) {
+    if (window.confirm(`Supprimer la colonne « ${col.label} » ? (elle doit être vide)`)) router.delete(`/kanban/columns/${col.value}`, { preserveScroll: true });
+}
 
 const statusOrder = computed(() => props.columns.map((c) => c.value));
 const showForm = ref(false);
@@ -167,12 +197,34 @@ function remove(event) {
             </form>
         </div>
 
+        <!-- Tableaux -->
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+            <button
+                v-for="b in boards" :key="b.id" type="button"
+                class="rounded-full px-3 py-1.5 text-sm font-medium"
+                :class="b.id === current_board ? 'bg-[var(--brand)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                @click="selectBoard(b.id)"
+            >{{ b.name }}</button>
+            <button v-if="can_manage_board" type="button" class="rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50" @click="addBoard">+ Tableau</button>
+            <button v-if="can_manage_board && boards.length > 1" type="button" class="rounded-full p-1.5 text-gray-400 hover:text-red-600" title="Supprimer ce tableau" @click="removeBoard"><Icon name="x" :size="14" /></button>
+        </div>
+
         <!-- Kanban -->
         <div class="flex gap-4 overflow-x-auto pb-4">
             <section v-for="col in columns" :key="col.value" class="flex w-72 shrink-0 flex-col rounded-2xl bg-gray-100/70 p-3">
                 <div class="mb-2 flex items-center justify-between px-1">
-                    <h2 class="text-sm font-semibold text-gray-700">{{ col.label }}</h2>
-                    <span class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500">{{ col.events.length }}</span>
+                    <h2 class="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+                        {{ col.label }}
+                        <Icon v-if="col.is_done" name="check" :size="13" class="text-green-600" title="Colonne terminée" />
+                    </h2>
+                    <div class="flex items-center gap-1">
+                        <span class="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500">{{ col.events.length }}</span>
+                        <template v-if="can_manage_board">
+                            <button class="rounded p-0.5 text-gray-300 hover:text-gray-700" title="Marquer terminée / active" @click="toggleDone(col)"><Icon name="check" :size="13" /></button>
+                            <button class="rounded p-0.5 text-gray-300 hover:text-gray-700" title="Renommer" @click="renameColumn(col)"><Icon name="settings" :size="13" /></button>
+                            <button class="rounded p-0.5 text-gray-300 hover:text-red-600" title="Supprimer" @click="removeColumn(col)"><Icon name="x" :size="13" /></button>
+                        </template>
+                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -212,6 +264,10 @@ function remove(event) {
                     <p v-if="col.events.length === 0" class="rounded-lg border border-dashed border-gray-300 py-6 text-center text-xs text-gray-400">Aucun</p>
                 </div>
             </section>
+
+            <button v-if="can_manage_board" type="button" class="flex h-12 w-56 shrink-0 items-center justify-center gap-1.5 self-start rounded-2xl border-2 border-dashed border-gray-300 text-sm font-medium text-gray-500 hover:bg-gray-50" @click="addColumn">
+                <Icon name="plus" :size="16" /> Ajouter une colonne
+            </button>
         </div>
 
         <!-- Détail d'un événement -->

@@ -25,6 +25,7 @@ class Event extends Model
         'description',
         'photo_path',
         'status',
+        'kanban_column_id',
         'priority',
         'vehicle_id',
         'material_id',
@@ -47,6 +48,11 @@ class Event extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function column(): BelongsTo
+    {
+        return $this->belongsTo(KanbanColumn::class, 'kanban_column_id');
     }
 
     public function material(): BelongsTo

@@ -6,6 +6,8 @@ use App\Domain\Catalog\MaterialStatus;
 use App\Domain\Events\EventStatus;
 use App\Domain\Events\EventType;
 use App\Models\Event;
+use App\Models\KanbanBoard;
+use App\Models\KanbanColumn;
 use App\Models\Material;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -21,9 +23,23 @@ class EventController extends Controller
 {
     public function __construct(private readonly TenantContext $tenant) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        KanbanBoard::ensureSeeded($this->tenant->organisation());
+
+        $boards = KanbanBoard::query()->orderBy('display_order')->orderBy('id')->get(['id', 'name']);
+        $currentBoardId = (int) ($request->integer('board') ?: $boards->first()?->id);
+        if (! $boards->contains('id', $currentBoardId)) {
+            $currentBoardId = (int) $boards->first()?->id;
+        }
+
+        $boardColumns = KanbanColumn::query()
+            ->where('kanban_board_id', $currentBoardId)
+            ->orderBy('display_order')->orderBy('id')
+            ->get();
+
         $events = Event::query()
+            ->whereIn('kanban_column_id', $boardColumns->pluck('id'))
             ->with(['vehicle:id,name', 'material:id,name,status', 'assignee:id,name', 'comments.author:id,name'])
             ->orderByDesc('created_at')
             ->get()
@@ -33,7 +49,8 @@ class EventController extends Controller
                 'type_label' => $e->type->label(),
                 'title' => $e->title,
                 'description' => $e->description,
-                'status' => $e->status->value,
+                // « status » = clé de colonne (le board est générique sur les colonnes).
+                'status' => (string) $e->kanban_column_id,
                 'priority' => $e->priority,
                 'vehicle' => $e->vehicle?->name,
                 'material' => $e->material?->name,
@@ -51,15 +68,19 @@ class EventController extends Controller
                 ])->values(),
             ]);
 
-        // Kanban : une colonne par statut, dans l'ordre.
-        $columns = collect(EventStatus::ordered())->map(fn (EventStatus $s) => [
-            'value' => $s->value,
-            'label' => $s->label(),
-            'events' => $events->where('status', $s->value)->values(),
+        // Kanban : les colonnes configurées du tableau courant.
+        $columns = $boardColumns->map(fn (KanbanColumn $c) => [
+            'value' => (string) $c->id,
+            'label' => $c->name,
+            'is_done' => $c->is_done,
+            'events' => $events->where('status', (string) $c->id)->values(),
         ]);
 
         return Inertia::render('Events/Index', [
             'columns' => $columns,
+            'boards' => $boards,
+            'current_board' => $currentBoardId,
+            'can_manage_board' => $request->user()->can('anomalies.manage'),
             'types' => EventType::options(),
             'priorities' => Event::PRIORITIES,
             'vehicles' => Vehicle::query()->orderBy('name')->get(['id', 'name']),
@@ -107,6 +128,7 @@ class EventController extends Controller
         $event = Event::create([
             ...$validated,
             'status' => EventStatus::A_TRAITER->value,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->tenant->organisation()),
             'created_by' => $request->user()->id,
         ]);
 
@@ -135,21 +157,90 @@ class EventController extends Controller
         $event->assignee?->notify(new EventAssigned($event));
     }
 
-    /** Déplacer une carte d'une colonne à l'autre (Kanban). */
+    /** Déplacer une carte vers une autre colonne (Kanban). */
     public function move(Request $request, Event $event): RedirectResponse
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::enum(EventStatus::class)],
+            'status' => ['required', 'integer'], // id de colonne
         ]);
 
-        $status = EventStatus::from($validated['status']);
+        $column = KanbanColumn::query()->whereKey($validated['status'])->first();
+        abort_if($column === null, 422, 'Colonne invalide.');
 
         $event->update([
-            'status' => $status->value,
-            'resolved_at' => $status->isClosed() ? ($event->resolved_at ?? now()) : null,
+            'kanban_column_id' => $column->id,
+            // Statut grossier (ouvert / clos) conservé pour le tableau de bord.
+            'status' => $column->is_done ? EventStatus::FERME->value : EventStatus::A_TRAITER->value,
+            'resolved_at' => $column->is_done ? ($event->resolved_at ?? now()) : null,
         ]);
 
-        return back(303)->with('status', 'Statut mis à jour.');
+        return back(303)->with('status', 'Carte déplacée.');
+    }
+
+    // --- Gestion des tableaux et colonnes ---
+
+    public function storeBoard(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(['name' => ['required', 'string', 'max:100']]);
+
+        $board = KanbanBoard::create([
+            'name' => $validated['name'],
+            'display_order' => (int) KanbanBoard::query()->max('display_order') + 1,
+        ]);
+        // Un tableau utilisable a au moins deux colonnes.
+        $board->columns()->create(['name' => 'À faire', 'display_order' => 0, 'is_done' => false]);
+        $board->columns()->create(['name' => 'Terminé', 'display_order' => 1, 'is_done' => true]);
+
+        return redirect()->route('events.index', ['board' => $board->id])->with('status', 'Tableau créé.');
+    }
+
+    public function destroyBoard(KanbanBoard $board): RedirectResponse
+    {
+        abort_if(KanbanBoard::query()->count() <= 1, 422, 'Au moins un tableau est requis.');
+        $hasEvents = Event::query()->whereIn('kanban_column_id', $board->columns()->pluck('id'))->exists();
+        abort_if($hasEvents, 422, 'Ce tableau contient des cartes ; videz-le d’abord.');
+
+        $board->delete();
+
+        return redirect()->route('events.index')->with('status', 'Tableau supprimé.');
+    }
+
+    public function storeColumn(Request $request, KanbanBoard $board): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'is_done' => ['boolean'],
+        ]);
+
+        $board->columns()->create([
+            'name' => $validated['name'],
+            'is_done' => $request->boolean('is_done'),
+            'display_order' => (int) $board->columns()->max('display_order') + 1,
+        ]);
+
+        return back()->with('status', 'Colonne ajoutée.');
+    }
+
+    public function updateColumn(Request $request, KanbanColumn $column): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'is_done' => ['boolean'],
+        ]);
+
+        $column->update(['name' => $validated['name'], 'is_done' => $request->boolean('is_done')]);
+
+        return back()->with('status', 'Colonne mise à jour.');
+    }
+
+    public function destroyColumn(KanbanColumn $column): RedirectResponse
+    {
+        abort_if($column->events()->exists(), 422, 'Cette colonne contient des cartes ; déplacez-les d’abord.');
+        abort_if($column->board->columns()->count() <= 1, 422, 'Un tableau doit garder au moins une colonne.');
+
+        $column->delete();
+
+        return back()->with('status', 'Colonne supprimée.');
     }
 
     public function destroy(Event $event): RedirectResponse
