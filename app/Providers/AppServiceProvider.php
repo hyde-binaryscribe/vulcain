@@ -8,6 +8,7 @@ use App\Domain\Identity\PasswordResetService;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -42,5 +43,11 @@ class AppServiceProvider extends ServiceProvider
         // Garde-fou HTTP complémentaire au blocage applicatif (table login_attempts).
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(10)
             ->by(mb_strtolower((string) $request->input('email')).'|'.$request->ip()));
+
+        // Formatage des horodatages en heure locale (stockage UTC → affichage FR).
+        Carbon::macro('fr', function (string $format = 'd/m/Y H:i') {
+            /** @var Carbon $this */
+            return $this->copy()->timezone(config('app.display_timezone', 'Europe/Paris'))->format($format);
+        });
     }
 }

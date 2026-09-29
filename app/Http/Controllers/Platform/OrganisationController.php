@@ -129,7 +129,7 @@ class OrganisationController extends Controller
                 'admin' => $adminUser ? [
                     'name' => $adminUser->name,
                     'email' => $adminUser->email,
-                    'last_login' => $adminUser->last_login_at?->format('d/m/Y H:i'),
+                    'last_login' => $adminUser->last_login_at?->fr('d/m/Y H:i'),
                 ] : null,
                 'pending_invitation' => Invitation::query()->whereNull('accepted_at')->latest()->value('email'),
                 'activity' => ActivityLog::query()->latest()->limit(10)->get()

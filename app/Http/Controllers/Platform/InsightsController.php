@@ -40,7 +40,7 @@ class InsightsController extends Controller
                 'email' => $u->email,
                 'grade' => $u->grade,
                 'is_active' => $u->is_active,
-                'last_login' => $u->last_login_at?->format('d/m/Y H:i'),
+                'last_login' => $u->last_login_at?->fr('d/m/Y H:i'),
                 'org' => $u->organisation?->name,
                 'org_id' => $u->organisation_id,
             ]));

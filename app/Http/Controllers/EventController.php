@@ -64,7 +64,7 @@ class EventController extends Controller
                     'id' => $c->id,
                     'author' => $c->author?->name,
                     'body' => $c->body,
-                    'at' => $c->created_at?->format('d/m/Y H:i'),
+                    'at' => $c->created_at?->fr('d/m/Y H:i'),
                 ])->values(),
             ]);
 

@@ -58,7 +58,7 @@ class TerrainController extends Controller
             'vehicle_id' => $myOpen->vehicle->id,
             'name' => $myOpen->vehicle->callsign ?: $myOpen->vehicle->name,
             'type' => $myOpen->vehicle->type,
-            'opened_at' => $myOpen->opened_at?->format('H:i'),
+            'opened_at' => $myOpen->opened_at?->fr('H:i'),
         ] : null);
 
         // Accès par QR uniquement : le personnel sans droit « véhicules » ne voit
@@ -220,7 +220,7 @@ class TerrainController extends Controller
             'session' => $openSession === null ? null : [
                 'holder' => $openSession->user?->name,
                 'is_mine' => $mine,
-                'opened_at' => $openSession->opened_at?->format('d/m/Y H:i'),
+                'opened_at' => $openSession->opened_at?->fr('d/m/Y H:i'),
             ],
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -234,7 +234,7 @@ class TerrainController extends Controller
             'locations' => $grouped,
             'disinfection' => [
                 'interval_days' => $intervalDays,
-                'last_at' => $disinfectionStatus->lastAt?->format('d/m/Y H:i'),
+                'last_at' => $disinfectionStatus->lastAt?->fr('d/m/Y H:i'),
                 'due_at' => $disinfectionStatus->dueAt?->format('d/m/Y'),
                 'severity' => $disinfectionStatus->severity?->value,
                 'state_label' => $disinfectionStatus->label(),
@@ -243,7 +243,7 @@ class TerrainController extends Controller
                 'can_record' => $request->user()->can('disinfections.record'),
                 'records' => $disinfections->map(fn (DisinfectionRecord $d) => [
                     'type_label' => $d->type->label(),
-                    'performed_at' => $d->performed_at?->format('d/m/Y H:i'),
+                    'performed_at' => $d->performed_at?->fr('d/m/Y H:i'),
                     'user' => $d->user?->name,
                 ]),
             ],
@@ -405,7 +405,7 @@ class TerrainController extends Controller
             'body' => $this->bodyInspectionData($vehicle),
             // Détenteur actuel : sa session sera clôturée par la passation.
             'current_holder' => $openSession?->user?->name,
-            'current_since' => $openSession?->opened_at?->format('d/m/Y H:i'),
+            'current_since' => $openSession?->opened_at?->fr('d/m/Y H:i'),
             'status' => session('status'),
         ]);
     }
@@ -471,7 +471,7 @@ class TerrainController extends Controller
             ],
             'fields' => $this->protocolFields($vehicle, ProtocolPhase::FERMETURE),
             'body' => $this->bodyInspectionData($vehicle),
-            'opened_at' => $session->opened_at?->format('d/m/Y H:i'),
+            'opened_at' => $session->opened_at?->fr('d/m/Y H:i'),
         ]);
     }
 

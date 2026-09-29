@@ -40,8 +40,8 @@ class ProtocolController extends Controller
                 'type_labels' => $i->typeLabels(),
                 'verifier' => $i->verifier?->name,
                 'status' => $i->status,
-                'started_at' => $i->started_at?->format('d/m/Y H:i'),
-                'validated_at' => $i->validated_at?->format('d/m/Y H:i'),
+                'started_at' => $i->started_at?->fr('d/m/Y H:i'),
+                'validated_at' => $i->validated_at?->fr('d/m/Y H:i'),
                 'is_owner' => $i->user_id === $request->user()->id,
             ]);
 
@@ -135,8 +135,8 @@ class ProtocolController extends Controller
                 'type_labels' => $protocol->typeLabels(),
                 'verifier' => $protocol->verifier?->name,
                 'status' => $protocol->status,
-                'started_at' => $protocol->started_at?->format('d/m/Y H:i'),
-                'validated_at' => $protocol->validated_at?->format('d/m/Y H:i'),
+                'started_at' => $protocol->started_at?->fr('d/m/Y H:i'),
+                'validated_at' => $protocol->validated_at?->fr('d/m/Y H:i'),
                 'duration' => $this->humanDuration($protocol->duration_seconds),
                 'editable' => $protocol->isDraft() && $this->canEdit($request, $protocol),
             ],

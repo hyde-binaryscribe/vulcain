@@ -52,7 +52,7 @@ class ActivityController extends Controller
             'subject_type' => self::SUBJECTS[$log->subject_type] ?? class_basename((string) $log->subject_type),
             'description' => $log->description,
             'changes' => $log->properties,
-            'at' => $log->created_at?->format('d/m/Y H:i'),
+            'at' => $log->created_at?->fr('d/m/Y H:i'),
         ];
     }
 }

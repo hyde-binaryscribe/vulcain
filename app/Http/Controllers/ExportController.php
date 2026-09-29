@@ -54,7 +54,7 @@ class ExportController extends Controller
                     $e->vehicle?->name,
                     $e->material?->name,
                     $e->assignee?->name,
-                    $e->created_at?->format('d/m/Y H:i'),
+                    $e->created_at?->fr('d/m/Y H:i'),
                 ], ';');
             }
         });

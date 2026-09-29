@@ -55,7 +55,7 @@ class BagController extends Controller
                 'from' => $m->fromVehicle?->callsign ?: $m->fromVehicle?->name,
                 'to' => $m->toVehicle?->callsign ?: $m->toVehicle?->name,
                 'user' => $m->user?->name,
-                'at' => $m->moved_at?->format('d/m/Y H:i'),
+                'at' => $m->moved_at?->fr('d/m/Y H:i'),
             ]);
 
         return Inertia::render('Bags/Index', [

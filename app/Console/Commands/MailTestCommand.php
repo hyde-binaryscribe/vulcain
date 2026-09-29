@@ -44,7 +44,7 @@ class MailTestCommand extends Command
             Mail::raw(
                 "Ceci est un e-mail de test envoyé par Vulkain.\n\n".
                 "Si vous le recevez, la configuration SMTP est opérationnelle.\n".
-                'Envoyé le '.now()->format('d/m/Y à H:i').'.',
+                'Envoyé le '.now()->fr('d/m/Y à H:i').'.',
                 function ($message) use ($to) {
                     $message->to($to)->subject('Vulkain — test de configuration e-mail');
                 },

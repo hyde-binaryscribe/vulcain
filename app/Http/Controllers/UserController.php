@@ -48,7 +48,7 @@ class UserController extends Controller
                     'expires_at' => $d->expires_at?->format('d/m/Y'),
                 ])->values(),
                 'site_ids' => $u->sites->pluck('id'),
-                'last_login_at' => $u->last_login_at?->format('d/m/Y H:i'),
+                'last_login_at' => $u->last_login_at?->fr('d/m/Y H:i'),
                 'is_self' => $u->id === $request->user()->id,
             ])
             ->values();
