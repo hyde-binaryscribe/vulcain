@@ -306,7 +306,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             </div>
             <div class="grid gap-6 p-6 lg:grid-cols-2">
                 <div>
-                    <VehicleBodyMap :damages="body.damages" editable @add="onBodyAdd" @select="bodyDetail = $event" />
+                    <VehicleBodyMap :damages="body.damages" :schematics="body.schematics || {}" editable @add="onBodyAdd" @select="bodyDetail = $event" />
                 </div>
                 <div>
                     <h4 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Anomalies ({{ body.damages.filter((d) => d.status === 'ouverte').length }} ouvertes)</h4>

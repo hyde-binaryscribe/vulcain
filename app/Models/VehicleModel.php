@@ -68,6 +68,12 @@ class VehicleModel extends Model
         return $this->hasMany(VehicleMotorization::class)->orderBy('display_order');
     }
 
+    /** Schémas de carrosserie (une image par vue). */
+    public function schematics(): HasMany
+    {
+        return $this->hasMany(VehicleModelSchematic::class);
+    }
+
     /**
      * Gabarit sous forme d'arbre : liste des emplacements racines, chacun
      * portant ses enfants dans « children ».

@@ -258,6 +258,10 @@ class TerrainController extends Controller
             'can_report_anomaly' => $request->user()->can('anomalies.manage'),
             'body' => [
                 'can_delete' => $request->user()->can('vehicles.manage'),
+                'schematics' => $vehicle->vehicleModel
+                    ? $vehicle->vehicleModel->schematics()->get()
+                        ->mapWithKeys(fn ($s) => [$s->view => route('vehicle-models.schematic', [$vehicle->vehicle_model_id, $s->view])])->all()
+                    : [],
                 'damages' => $vehicle->bodyDamages()->with('reporter:id,name')->get()
                     ->map(fn (BodyDamage $d) => [
                         'id' => $d->id,

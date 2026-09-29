@@ -17,6 +17,24 @@ const props = defineProps({
 const editingId = ref(null);
 const form = useForm({ brand: '', model: '', year: '', coachbuilder: '', display_order: 0, template: [], motorizations: [] });
 
+// Schémas carrosserie par vue.
+const schematicViews = [
+    { key: 'gauche', label: 'Côté g.' },
+    { key: 'droite', label: 'Côté d.' },
+    { key: 'avant', label: 'Avant' },
+    { key: 'arriere', label: 'Arrière' },
+    { key: 'dessus', label: 'Dessus' },
+];
+function uploadSchematic(model, view, event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    router.post(`/vehicle-models/${model.id}/schematic`, { view, image: file }, { preserveScroll: true, forceFormData: true });
+    event.target.value = '';
+}
+function deleteSchematic(model, view) {
+    if (confirm('Supprimer ce schéma ?')) router.delete(`/vehicle-models/${model.id}/schematic/${view}`, { preserveScroll: true });
+}
+
 function resetForm() {
     editingId.value = null;
     form.clearErrors();
@@ -158,6 +176,25 @@ function kindLabel(value) {
                             <span v-if="mo.plans && mo.plans.length" class="text-gray-400">· {{ mo.plans.length }} plan(s)</span>
                         </li>
                     </ul>
+
+                    <!-- Schémas de carrosserie (par vue) -->
+                    <div class="mt-4 border-t border-gray-100 pt-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Schémas carrosserie</p>
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                            <div v-for="v in schematicViews" :key="v.key" class="text-center">
+                                <div class="relative aspect-[4/3] overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                                    <img v-if="m.schematics && m.schematics[v.key]" :src="m.schematics[v.key]" :alt="v.label" class="h-full w-full object-contain p-1" />
+                                    <span v-else class="flex h-full w-full items-center justify-center text-[10px] text-gray-300">générique</span>
+                                    <button v-if="m.schematics && m.schematics[v.key]" type="button" class="absolute right-0.5 top-0.5 rounded bg-white/90 p-0.5 text-red-500 hover:text-red-700" title="Supprimer" @click="deleteSchematic(m, v.key)"><Icon name="default" :size="12" /></button>
+                                </div>
+                                <label class="mt-1 block cursor-pointer text-[11px] font-medium text-[var(--brand)] hover:underline">
+                                    {{ v.label }}
+                                    <input type="file" accept="image/*" class="hidden" @change="uploadSchematic(m, v.key, $event)" />
+                                </label>
+                            </div>
+                        </div>
+                        <p class="mt-1.5 text-[11px] text-gray-400">Téléversez un plan/silhouette par vue pour un pointage carrosserie fidèle au modèle. Vues sans image : silhouette générique.</p>
+                    </div>
                 </div>
 
                 <div v-if="models.length === 0" class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">

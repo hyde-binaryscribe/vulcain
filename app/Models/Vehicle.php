@@ -46,6 +46,11 @@ class Vehicle extends Model
         return $this->belongsTo(Site::class);
     }
 
+    public function vehicleModel(): BelongsTo
+    {
+        return $this->belongsTo(VehicleModel::class);
+    }
+
     /** Utilisateurs autorisés sur ce véhicule. */
     public function users(): BelongsToMany
     {

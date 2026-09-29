@@ -332,7 +332,7 @@ function setConsent(v) {
             <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="vehicle" :size="16" /> Carrosserie</h2>
             <p class="mt-0.5 text-xs text-gray-500">Contrôle à la prise et à la fin de service. Touchez le schéma pour signaler un choc, une rayure, un bris.</p>
             <div class="mt-3">
-                <VehicleBodyMap :damages="body.damages" editable @add="onBodyAdd" @select="bodyDetail = $event" />
+                <VehicleBodyMap :damages="body.damages" :schematics="body.schematics || {}" editable @add="onBodyAdd" @select="bodyDetail = $event" />
             </div>
             <ul v-if="body.damages.length" class="mt-3 space-y-1.5">
                 <li v-for="(d, i) in body.damages" :key="d.id" class="flex items-center gap-2 text-sm">

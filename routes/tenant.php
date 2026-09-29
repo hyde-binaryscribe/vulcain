@@ -57,6 +57,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::post('vehicles/{vehicle}/body-damages/{bodyDamage}/resolve', [BodyDamageController::class, 'resolve'])->name('vehicles.body-damages.resolve');
     Route::get('vehicles/{vehicle}/body-damages/{bodyDamage}/photo', [BodyDamageController::class, 'photo'])->name('vehicles.body-damages.photo');
 
+    // Schéma de carrosserie d'un modèle (image servie depuis le disque privé),
+    // visible par tout agent (affichage du contrôle carrosserie).
+    Route::get('vehicle-models/{vehicleModel}/schematic/{view}', [VehicleModelController::class, 'schematic'])->name('vehicle-models.schematic');
+
     // Documents : consultation (motif journalisé) + service du fichier + consentement.
     // Le contrôle d'accès est fait dans le contrôleur (service en cours / titulaire / admin).
     Route::post('documents/{document}/consult', [DocumentController::class, 'consult'])->name('documents.consult');
@@ -158,6 +162,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicle-models/{vehicleModel}', [VehicleModelController::class, 'update'])->name('vehicle-models.update');
         Route::post('vehicle-models/{vehicleModel}/toggle', [VehicleModelController::class, 'toggle'])->name('vehicle-models.toggle');
         Route::delete('vehicle-models/{vehicleModel}', [VehicleModelController::class, 'destroy'])->name('vehicle-models.destroy');
+        // Schémas de carrosserie du modèle (par vue).
+        Route::post('vehicle-models/{vehicleModel}/schematic', [VehicleModelController::class, 'uploadSchematic'])->name('vehicle-models.schematic.upload');
+        Route::delete('vehicle-models/{vehicleModel}/schematic/{view}', [VehicleModelController::class, 'deleteSchematic'])->name('vehicle-models.schematic.delete');
     });
 
     // Traçabilité des désinfections / nettoyages (accessible aux opérateurs habilités).

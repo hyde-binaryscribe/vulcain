@@ -4,6 +4,9 @@ import { computed, ref } from 'vue';
 const props = defineProps({
     damages: { type: Array, default: () => [] },
     editable: { type: Boolean, default: false },
+    // Schémas précis du modèle : { avant: url, gauche: url, ... }. Repli sur la
+    // silhouette générique pour les vues sans image.
+    schematics: { type: Object, default: () => ({}) },
 });
 const emit = defineEmits(['add', 'select']);
 
@@ -21,6 +24,7 @@ const pointsForView = computed(() =>
         .map((d, i) => ({ ...d, num: i + 1 }))
         .filter((d) => d.view === active.value),
 );
+const activeImage = computed(() => props.schematics?.[active.value] ?? null);
 const openCount = (key) => props.damages.filter((d) => d.view === key && d.status === 'ouverte').length;
 
 function onCanvasClick(e) {
@@ -57,7 +61,11 @@ function onCanvasClick(e) {
             :class="editable ? 'cursor-crosshair' : ''"
             @click="onCanvasClick"
         >
-            <svg viewBox="0 0 320 200" class="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+            <!-- Schéma précis du modèle si disponible -->
+            <img v-if="activeImage" :src="activeImage" alt="Schéma du modèle" class="absolute inset-0 h-full w-full object-contain p-2" draggable="false" />
+
+            <!-- Sinon, silhouette générique -->
+            <svg v-else viewBox="0 0 320 200" class="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
                 <!-- Côté (gauche = avant à gauche ; droite = miroir) -->
                 <g v-if="active === 'gauche' || active === 'droite'" :transform="active === 'droite' ? 'translate(320,0) scale(-1,1)' : ''">
                     <path d="M18,142 V96 C18,80 30,68 52,66 L96,66 L122,44 H250 C276,44 293,62 295,96 V142" />

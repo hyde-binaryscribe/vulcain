@@ -12,6 +12,8 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,6 +25,8 @@ use Inertia\Response;
  */
 class VehicleModelController extends Controller
 {
+    private const SCHEMATIC_VIEWS = ['avant', 'arriere', 'gauche', 'droite', 'dessus'];
+
     public function __construct(private readonly TenantContext $tenant) {}
 
     public function index(): Response
@@ -34,7 +38,7 @@ class VehicleModelController extends Controller
             ->pluck('total', 'vehicle_model_id');
 
         $models = VehicleModel::query()
-            ->with(['templateLocations', 'motorizations.maintenancePlans'])
+            ->with(['templateLocations', 'motorizations.maintenancePlans', 'schematics'])
             ->orderBy('display_order')
             ->orderBy('name')
             ->get()
@@ -60,6 +64,9 @@ class VehicleModelController extends Controller
                     ])->values(),
                 ])->values(),
                 'vehicles_count' => (int) ($usage[$m->id] ?? 0),
+                'schematics' => $m->schematics
+                    ->mapWithKeys(fn ($s) => [$s->view => route('vehicle-models.schematic', [$m->id, $s->view])])
+                    ->all(),
             ]);
 
         return Inertia::render('VehicleModels/Index', [
@@ -109,6 +116,55 @@ class VehicleModelController extends Controller
         $vehicleModel->delete();
 
         return back()->with('status', 'Modèle de véhicule supprimé.');
+    }
+
+    /** Téléverse (ou remplace) le schéma de carrosserie d'une vue du modèle. */
+    public function uploadSchematic(Request $request, VehicleModel $vehicleModel): RedirectResponse
+    {
+        $validated = $request->validate([
+            'view' => ['required', Rule::in(self::SCHEMATIC_VIEWS)],
+            'image' => ['required', 'file', 'image', 'max:10240'],
+        ]);
+
+        $path = $request->file('image')->store("vehicle-schematics/{$this->tenant->id()}", 'local');
+
+        $existing = $vehicleModel->schematics()->where('view', $validated['view'])->first();
+        if ($existing !== null) {
+            if ($existing->image_path && Storage::disk('local')->exists($existing->image_path)) {
+                Storage::disk('local')->delete($existing->image_path);
+            }
+            $existing->update(['image_path' => $path]);
+        } else {
+            $vehicleModel->schematics()->create(['view' => $validated['view'], 'image_path' => $path]);
+        }
+
+        return back()->with('status', 'Schéma enregistré.');
+    }
+
+    /** Supprime le schéma d'une vue. */
+    public function deleteSchematic(VehicleModel $vehicleModel, string $view): RedirectResponse
+    {
+        $schematic = $vehicleModel->schematics()->where('view', $view)->first();
+        if ($schematic !== null) {
+            if ($schematic->image_path && Storage::disk('local')->exists($schematic->image_path)) {
+                Storage::disk('local')->delete($schematic->image_path);
+            }
+            $schematic->delete();
+        }
+
+        return back()->with('status', 'Schéma supprimé.');
+    }
+
+    /** Sert l'image d'un schéma (disque privé) — visible par tout utilisateur de l'organisation. */
+    public function schematic(VehicleModel $vehicleModel, string $view)
+    {
+        $schematic = $vehicleModel->schematics()->where('view', $view)->first();
+        abort_unless(
+            $schematic !== null && $schematic->image_path && Storage::disk('local')->exists($schematic->image_path),
+            404
+        );
+
+        return response()->file(Storage::disk('local')->path($schematic->image_path));
     }
 
     /**
