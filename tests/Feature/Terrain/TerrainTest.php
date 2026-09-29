@@ -58,6 +58,10 @@ class TerrainTest extends TestCase
         $this->actingAs($admin)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}")->assertOk();
         $this->actingAs($admin)->get('http://caserne.localhost/t/scanner')->assertOk();
         $this->actingAs($admin)->get('http://caserne.localhost/t/anomalie')->assertOk();
+        // Congés natifs terrain (pas de redirection vers l'app complète).
+        $this->actingAs($admin)->get('http://caserne.localhost/t/conges')
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('Terrain/Leave'));
     }
 
     public function test_reporting_an_anomaly_creates_an_event(): void

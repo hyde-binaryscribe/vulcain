@@ -21,7 +21,7 @@
     ],
     "shortcuts": [
         { "name": "Tableau de bord", "short_name": "Accueil", "url": "/?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-        { "name": "Mes congés", "short_name": "Congés", "url": "/leave?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+        { "name": "Mes congés", "short_name": "Congés", "url": "/t/conges?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
         { "name": "Recherche", "short_name": "Rechercher", "url": "/search?source=pwa-shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
     ]
 }

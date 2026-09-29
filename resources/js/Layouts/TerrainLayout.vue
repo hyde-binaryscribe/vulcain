@@ -17,7 +17,7 @@ function active(prefix, exact = false) {
 const nav = [
     { label: 'Accueil', href: '/t', icon: 'dashboard', exact: true },
     { label: 'Scanner', href: '/t/scanner', icon: 'camera', exact: false },
-    { label: 'Congés', href: '/leave', icon: 'calendar', exact: false },
+    { label: 'Congés', href: '/t/conges', icon: 'calendar', exact: false },
 ];
 </script>
 

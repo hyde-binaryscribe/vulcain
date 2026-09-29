@@ -108,6 +108,42 @@ class LeaveController extends Controller
         return Inertia::render('Leave/Index', $data);
     }
 
+    /** Version terrain (PWA mobile) : mes congés + solde + nouvelle demande. */
+    public function terrain(Request $request): Response
+    {
+        $user = $request->user();
+
+        $mine = LeaveRequest::query()
+            ->where('user_id', $user->id)
+            ->with('reviewer:id,name')
+            ->latest('start_date')
+            ->get()
+            ->map(fn (LeaveRequest $l) => [
+                'id' => $l->id,
+                'type_label' => $l->type->label(),
+                'start_date' => $l->start_date?->format('d/m/Y'),
+                'end_date' => $l->end_date?->format('d/m/Y'),
+                'days' => $l->days(),
+                'status' => $l->status->value,
+                'status_label' => $l->status->label(),
+                'reviewer' => $l->reviewer?->name,
+                'decision_note' => $l->decision_note,
+            ]);
+
+        // Nombre de demandes à valider (pour orienter le responsable vers l'app complète).
+        $toValidate = $user->can('leave.manage')
+            ? LeaveRequest::query()->where('status', LeaveStatus::PENDING->value)->count()
+            : 0;
+
+        return Inertia::render('Terrain/Leave', [
+            'mine' => $mine,
+            'types' => LeaveType::options(),
+            'myBalance' => $this->balanceFor($user),
+            'to_validate' => $toValidate,
+            'status' => session('status'),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
