@@ -203,7 +203,7 @@ class TerrainController extends Controller
             ])->values(),
         ]);
 
-        $disinfections = $vehicle->disinfections()->with('user:id,name')->limit(10)->get();
+        $disinfections = $vehicle->disinfections()->with(['user:id,name', 'protocol:id,name'])->limit(10)->get();
         $disinfectionStatus = VehicleDisinfection::statusFor($vehicle);
         // Protocoles proposés à la saisie : ceux affectés au véhicule (sinon toute
         // la bibliothèque active, pour ne pas bloquer un enregistrement terrain).
@@ -282,7 +282,10 @@ class TerrainController extends Controller
             ],
             'locations' => $grouped,
             'disinfection' => [
-                'last_at' => $disinfectionStatus->lastAt?->fr('d/m/Y H:i'),
+                // « Dernière » = dernier enregistrement réel du véhicule (indépendant
+                // des protocoles affectés), tandis que l'échéance/gravité vient du
+                // statut agrégé par protocole.
+                'last_at' => $disinfections->first()?->performed_at?->fr('d/m/Y H:i'),
                 'due_at' => $disinfectionStatus->dueAt?->format('d/m/Y'),
                 'severity' => $disinfectionStatus->severity?->value,
                 'state_label' => $disinfectionStatus->label(),
@@ -291,6 +294,7 @@ class TerrainController extends Controller
                 'can_record' => $request->user()->can('disinfections.record'),
                 'records' => $disinfections->map(fn (DisinfectionRecord $d) => [
                     'type_label' => $d->type->label(),
+                    'protocol' => $d->protocol?->name,
                     'performed_at' => $d->performed_at?->fr('d/m/Y H:i'),
                     'user' => $d->user?->name,
                 ]),

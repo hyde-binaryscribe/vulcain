@@ -120,7 +120,8 @@ class VehicleController extends Controller
                 'anomalies' => $materials->whereNotIn('status', ['conforme'])->count(),
             ],
             'disinfection' => [
-                'last_at' => $disinfectionStatus->lastAt?->fr('d/m/Y H:i'),
+                // « Dernière » = dernier enregistrement réel ; l'échéance vient du statut agrégé.
+                'last_at' => $disinfections->first()?->performed_at?->fr('d/m/Y H:i'),
                 'due_at' => $disinfectionStatus->dueAt?->format('d/m/Y'),
                 'state' => $disinfectionStatus->state,
                 'state_label' => $disinfectionStatus->label(),

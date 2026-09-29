@@ -426,6 +426,20 @@ function setConsent(v) {
             <button v-if="disinfection.can_record" class="mt-3 w-full rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="showDisinf = true">
                 Réaliser une désinfection
             </button>
+
+            <!-- Historique des désinfections enregistrées -->
+            <div v-if="disinfection.records && disinfection.records.length" class="mt-4">
+                <h3 class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Historique</h3>
+                <ul class="divide-y divide-gray-100">
+                    <li v-for="(d, i) in disinfection.records" :key="i" class="flex items-start gap-3 py-2.5">
+                        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600"><Icon name="check" :size="15" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium text-gray-900">{{ d.protocol || d.type_label }}</span>
+                            <span class="block text-xs text-gray-500">{{ d.performed_at }}<template v-if="d.user"> · {{ d.user }}</template></span>
+                        </span>
+                    </li>
+                </ul>
+            </div>
         </section>
 
         <!-- Entretien -->
