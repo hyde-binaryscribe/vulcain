@@ -20,6 +20,7 @@ class FuelRecord extends Model
         'filled_at',
         'mileage',
         'liters',
+        'price_per_liter',
         'cost',
         'full_tank',
         'notes',
@@ -31,6 +32,7 @@ class FuelRecord extends Model
             'filled_at' => 'datetime',
             'mileage' => 'integer',
             'liters' => 'decimal:2',
+            'price_per_liter' => 'decimal:3',
             'cost' => 'decimal:2',
             'full_tank' => 'boolean',
         ];

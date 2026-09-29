@@ -74,8 +74,9 @@ class VehicleController extends Controller
         $maintenances = $vehicle->maintenances()->with('user:id,name')->limit(50)->get();
         $maintenanceStatus = MaintenanceStatus::forVehicleRecords($maintenances, $vehicle->mileage !== null ? (int) $vehicle->mileage : null);
 
-        // Carburant : historique et consommation.
-        $fuel = FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(50)->get());
+        // Carburant : historique et consommation (si le suivi est activé).
+        $fuelEnabled = $this->tenant->organisation()->fuelTrackingEnabled();
+        $fuel = $fuelEnabled ? FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(50)->get()) : null;
 
         return Inertia::render('Vehicles/Show', [
             'vehicle' => [

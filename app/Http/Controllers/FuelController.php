@@ -19,6 +19,7 @@ class FuelController extends Controller
             'filled_at' => ['nullable', 'date', 'before_or_equal:now'],
             'mileage' => ['required', 'integer', 'min:0', 'max:9999999'],
             'liters' => ['required', 'numeric', 'min:0.1', 'max:9999'],
+            'price_per_liter' => ['nullable', 'numeric', 'min:0', 'max:99'],
             'cost' => ['nullable', 'numeric', 'min:0', 'max:99999'],
             'full_tank' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
@@ -26,12 +27,21 @@ class FuelController extends Controller
             'filled_at.before_or_equal' => 'La date du plein ne peut pas être dans le futur.',
         ]);
 
+        // Le coût total est calculé depuis le prix au litre s'il est fourni.
+        $liters = (float) $validated['liters'];
+        $ppl = $validated['price_per_liter'] ?? null;
+        $cost = $validated['cost'] ?? null;
+        if ($ppl !== null && $cost === null) {
+            $cost = round($liters * (float) $ppl, 2);
+        }
+
         $vehicle->fuelRecords()->create([
             'user_id' => $request->user()->id,
             'filled_at' => $validated['filled_at'] ?? now(),
             'mileage' => $validated['mileage'],
             'liters' => $validated['liters'],
-            'cost' => $validated['cost'] ?? null,
+            'price_per_liter' => $ppl,
+            'cost' => $cost,
             'full_tank' => $request->boolean('full_tank', true),
             'notes' => $validated['notes'] ?? null,
         ]);

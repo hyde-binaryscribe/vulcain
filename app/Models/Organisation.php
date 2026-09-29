@@ -98,6 +98,12 @@ class Organisation extends Model
         return (bool) ($this->settings['vehicle_access_qr_only'] ?? false);
     }
 
+    /** Suivi du carburant (pleins + consommation), activable par l'organisation. */
+    public function fuelTrackingEnabled(): bool
+    {
+        return (bool) ($this->settings['fuel_tracking_enabled'] ?? true);
+    }
+
     /** Procédure de prise de service par défaut (secteur secours). */
     public const DEFAULT_SERVICE_START_STEPS = [
         'Contrôle des niveaux (huile, liquide de refroidissement)',

@@ -193,10 +193,11 @@ class TerrainController extends Controller
                 'photo_url' => $e->photo_path ? route('terrain.anomaly.photo', $e) : null,
             ]);
 
-        $fuel = FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(30)->get());
+        $fuelEnabled = $this->tenant->organisation()->fuelTrackingEnabled();
+        $fuel = $fuelEnabled ? FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(30)->get()) : null;
 
         return Inertia::render('Terrain/Vehicle', [
-            'fuel' => [
+            'fuel' => $fuel === null ? null : [
                 'last' => $fuel['last'],
                 'average' => $fuel['average'],
                 'total_cost' => $fuel['total_cost'],

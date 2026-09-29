@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import TerrainLayout from '@/Layouts/TerrainLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -10,7 +10,7 @@ const props = defineProps({
     locations: { type: Array, default: () => [] },
     disinfection: { type: Object, default: () => ({}) },
     maintenance: { type: Object, default: () => ({}) },
-    fuel: { type: Object, default: () => ({}) },
+    fuel: { type: Object, default: null },
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
 });
@@ -63,11 +63,17 @@ const fuelForm = useForm({
     filled_at: nowLocal(),
     mileage: props.vehicle.mileage ?? '',
     liters: '',
-    cost: '',
+    price_per_liter: '',
     full_tank: true,
 });
+// Coût total calculé depuis le prix au litre.
+const fuelTotal = computed(() => {
+    const l = parseFloat(fuelForm.liters);
+    const p = parseFloat(fuelForm.price_per_liter);
+    return l > 0 && p > 0 ? (l * p).toFixed(2) : null;
+});
 function submitFuel() {
-    fuelForm.transform((d) => ({ ...d, cost: d.cost || null }))
+    fuelForm.transform((d) => ({ ...d, price_per_liter: d.price_per_liter || null }))
         .post(`/vehicles/${props.vehicle.id}/fuel`, {
             preserveScroll: true,
             onSuccess: () => { showFuel.value = false; fuelForm.reset(); fuelForm.filled_at = nowLocal(); fuelForm.mileage = props.vehicle.mileage ?? ''; },
@@ -158,8 +164,8 @@ function deleteFuel(id) {
             </form>
         </section>
 
-        <!-- Carburant -->
-        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <!-- Carburant (si le suivi est activé) -->
+        <section v-if="fuel" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="materials" :size="16" /> Carburant</h2>
                 <span v-if="fuel.last" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ fuel.last }} L/100</span>
@@ -182,7 +188,7 @@ function deleteFuel(id) {
                 </li>
             </ul>
 
-            <button class="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" @click="showFuel = true">
+            <button type="button" class="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" @click="showFuel = true">
                 Enregistrer un plein
             </button>
         </section>
@@ -282,14 +288,18 @@ function deleteFuel(id) {
                         <p v-if="fuelForm.errors.mileage" class="mt-1 text-xs text-red-600">{{ fuelForm.errors.mileage }}</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600">Coût (€, optionnel)</label>
-                        <input v-model="fuelForm.cost" type="number" step="0.01" min="0" inputmode="decimal" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                        <label class="block text-xs font-medium text-gray-600">Prix au litre (€, optionnel)</label>
+                        <input v-model="fuelForm.price_per_liter" type="number" step="0.001" min="0" inputmode="decimal" placeholder="ex. 1,859" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Date</label>
                         <input v-model="fuelForm.filled_at" type="datetime-local" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
                     </div>
                 </div>
+
+                <p v-if="fuelTotal" class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                    Coût total : <span class="font-semibold text-gray-900">{{ fuelTotal }} €</span>
+                </p>
 
                 <label class="mt-3 flex items-center gap-2 text-sm text-gray-700">
                     <input v-model="fuelForm.full_tank" type="checkbox" class="rounded border-gray-300" />

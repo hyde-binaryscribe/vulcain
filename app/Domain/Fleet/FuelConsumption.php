@@ -51,6 +51,7 @@ class FuelConsumption
                 'filled_at' => $r->filled_at?->format('d/m/Y'),
                 'mileage' => $r->mileage,
                 'liters' => (float) $r->liters,
+                'price_per_liter' => $r->price_per_liter !== null ? (float) $r->price_per_liter : null,
                 'cost' => $r->cost !== null ? (float) $r->cost : null,
                 'full_tank' => $r->full_tank,
                 'consumption' => $consById[$r->id] ?? null,

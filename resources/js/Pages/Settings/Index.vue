@@ -10,6 +10,7 @@ const form = useForm({
     track_expiry_in_mobile: props.settings.track_expiry_in_mobile,
     bags_enabled: props.settings.bags_enabled,
     vehicle_access_qr_only: props.settings.vehicle_access_qr_only,
+    fuel_tracking_enabled: props.settings.fuel_tracking_enabled,
     service_start_steps: [...(props.settings.service_start_steps ?? [])],
 });
 
@@ -90,6 +91,17 @@ function save() {
             <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 class="text-base font-semibold text-gray-900">Accès terrain aux véhicules</h2>
                 <p class="mt-1 text-sm text-gray-500">Contrôle la manière dont le personnel de terrain accède aux fiches véhicule dans l'application terrain.</p>
+
+                <label class="mt-5 flex items-start gap-3">
+                    <input v-model="form.fuel_tracking_enabled" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300" />
+                    <span>
+                        <span class="block text-sm font-medium text-gray-900">Activer le suivi du carburant</span>
+                        <span class="block text-xs text-gray-500">
+                            Enregistrement des pleins (litrage, prix, kilométrage) et calcul de la consommation.
+                            Désactivé, la section carburant est masquée sur les fiches véhicule.
+                        </span>
+                    </span>
+                </label>
 
                 <label class="mt-5 flex items-start gap-3">
                     <input v-model="form.vehicle_access_qr_only" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300" />

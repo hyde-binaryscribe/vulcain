@@ -16,14 +16,14 @@ const props = defineProps({
     alerts: { type: Object, default: () => ({ expired: 0, expiring_soon: 0, below_threshold: 0, anomalies: 0 }) },
     disinfection: { type: Object, default: () => ({ records: [], types: [], can_record: false, state: 'none' }) },
     maintenance: { type: Object, default: () => ({ records: [], types: [], state: 'none' }) },
-    fuel: { type: Object, default: () => ({ records: [], average: null, last: null, total_cost: null, total_liters: 0 }) },
+    fuel: { type: Object, default: null },
     history: { type: Array, default: () => [] },
 });
 
 // --- Carburant ---
-const fuelForm = useForm({ filled_at: '', mileage: '', liters: '', cost: '', full_tank: true });
+const fuelForm = useForm({ filled_at: '', mileage: '', liters: '', price_per_liter: '', full_tank: true });
 function submitFuel() {
-    fuelForm.transform((d) => ({ ...d, cost: d.cost || null, filled_at: d.filled_at || null }))
+    fuelForm.transform((d) => ({ ...d, price_per_liter: d.price_per_liter || null, filled_at: d.filled_at || null }))
         .post(`/vehicles/${props.vehicle.id}/fuel`, { preserveScroll: true, onSuccess: () => fuelForm.reset() });
 }
 function deleteFuel(id) {
@@ -401,8 +401,8 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             </div>
         </section>
 
-        <!-- Carburant -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <!-- Carburant (si le suivi est activé) -->
+        <section v-if="fuel" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <h3 class="text-base font-semibold text-gray-900">Carburant &amp; consommation</h3>
                 <div class="flex gap-2 text-sm">
@@ -424,8 +424,8 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                         <InputError :message="fuelForm.errors.mileage" />
                     </div>
                     <div>
-                        <InputLabel value="Coût (€)" />
-                        <TextInput v-model="fuelForm.cost" type="number" step="0.01" min="0" />
+                        <InputLabel value="Prix / litre (€)" />
+                        <TextInput v-model="fuelForm.price_per_liter" type="number" step="0.001" min="0" />
                     </div>
                     <div>
                         <InputLabel value="Date" />
@@ -445,7 +445,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                     <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                         <tr>
                             <th class="px-6 py-3">Date</th><th class="px-6 py-3">Km</th><th class="px-6 py-3">Litres</th>
-                            <th class="px-6 py-3">Conso</th><th class="px-6 py-3">Coût</th><th class="px-6 py-3">Par</th><th class="px-6 py-3"></th>
+                            <th class="px-6 py-3">€/L</th><th class="px-6 py-3">Conso</th><th class="px-6 py-3">Coût</th><th class="px-6 py-3">Par</th><th class="px-6 py-3"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -453,12 +453,13 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                             <td class="px-6 py-3">{{ r.filled_at }}</td>
                             <td class="px-6 py-3">{{ r.mileage != null ? Number(r.mileage).toLocaleString('fr-FR') : '—' }}</td>
                             <td class="px-6 py-3">{{ r.liters }} L<span v-if="!r.full_tank" class="ml-1 text-xs text-gray-400">(partiel)</span></td>
+                            <td class="px-6 py-3">{{ r.price_per_liter ? r.price_per_liter + ' €' : '—' }}</td>
                             <td class="px-6 py-3">{{ r.consumption ? r.consumption + ' L/100' : '—' }}</td>
                             <td class="px-6 py-3">{{ r.cost ? r.cost + ' €' : '—' }}</td>
                             <td class="px-6 py-3 text-gray-500">{{ r.user || '—' }}</td>
                             <td class="px-6 py-3 text-right"><button class="text-xs text-red-600 hover:underline" @click="deleteFuel(r.id)">Suppr.</button></td>
                         </tr>
-                        <tr v-if="fuel.records.length === 0"><td colspan="7" class="px-6 py-6 text-center text-gray-400">Aucun plein enregistré.</td></tr>
+                        <tr v-if="fuel.records.length === 0"><td colspan="8" class="px-6 py-6 text-center text-gray-400">Aucun plein enregistré.</td></tr>
                     </tbody>
                 </table>
             </div>

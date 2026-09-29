@@ -29,7 +29,20 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/sw.js').catch(function () { /* silencieux */ });
+                // Recharge une fois quand une nouvelle version prend le contrôle
+                // (évite un bundle périmé en cache sur les appareils installés).
+                var refreshing = false;
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.addEventListener('controllerchange', function () {
+                        if (refreshing) return;
+                        refreshing = true;
+                        window.location.reload();
+                    });
+                }
+                navigator.serviceWorker.register('/sw.js').then(function (reg) {
+                    // Vérifie une mise à jour à chaque chargement.
+                    reg.update().catch(function () {});
+                }).catch(function () { /* silencieux */ });
             });
         }
     </script>

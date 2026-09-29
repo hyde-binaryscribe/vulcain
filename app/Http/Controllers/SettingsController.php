@@ -21,6 +21,7 @@ class SettingsController extends Controller
                 'track_expiry_in_mobile' => $org->tracksExpiryInMobile(),
                 'bags_enabled' => $org->bagsEnabled(),
                 'vehicle_access_qr_only' => $org->vehicleAccessQrOnly(),
+                'fuel_tracking_enabled' => $org->fuelTrackingEnabled(),
                 'service_start_steps' => $org->serviceStartSteps(),
             ],
             'status' => session('status'),
@@ -33,6 +34,7 @@ class SettingsController extends Controller
             'track_expiry_in_mobile' => ['boolean'],
             'bags_enabled' => ['boolean'],
             'vehicle_access_qr_only' => ['boolean'],
+            'fuel_tracking_enabled' => ['boolean'],
             'service_start_steps' => ['nullable', 'array', 'max:50'],
             'service_start_steps.*' => ['nullable', 'string', 'max:500'],
         ]);
@@ -48,6 +50,7 @@ class SettingsController extends Controller
             'track_expiry_in_mobile' => (bool) ($validated['track_expiry_in_mobile'] ?? false),
             'bags_enabled' => (bool) ($validated['bags_enabled'] ?? false),
             'vehicle_access_qr_only' => (bool) ($validated['vehicle_access_qr_only'] ?? false),
+            'fuel_tracking_enabled' => (bool) ($validated['fuel_tracking_enabled'] ?? false),
             'service_start_steps' => $steps,
         ]);
         $org->save();

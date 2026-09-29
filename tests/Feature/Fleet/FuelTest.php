@@ -64,6 +64,32 @@ class FuelTest extends TestCase
         });
     }
 
+    public function test_cost_is_computed_from_price_per_liter(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$agent, $vehicle];
+        });
+
+        $this->actingAs($agent)->post("http://caserne.localhost/vehicles/{$vehicle->id}/fuel", [
+            'mileage' => 2000,
+            'liters' => 40,
+            'price_per_liter' => 1.80,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($vehicle) {
+            $rec = FuelRecord::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+            // 40 L × 1,80 € = 72,00 €.
+            $this->assertSame(72.0, (float) $rec->cost);
+            $this->assertSame(1.8, (float) $rec->price_per_liter);
+        });
+    }
+
     public function test_consumption_is_computed_between_full_fills(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
