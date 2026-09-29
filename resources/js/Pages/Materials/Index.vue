@@ -48,6 +48,18 @@ function saveQuick(m) {
     router.patch(`/materials/${m.id}/status`, quick[m.id], { preserveScroll: true });
 }
 
+// Emplacements groupés par véhicule (dépôt / hors véhicule en dernier).
+const groupedLocations = computed(() => {
+    const groups = [];
+    const byKey = {};
+    for (const l of props.locations) {
+        const key = l.vehicle || 'Dépôt / hors véhicule';
+        if (!byKey[key]) { byKey[key] = { label: key, items: [] }; groups.push(byKey[key]); }
+        byKey[key].items.push(l);
+    }
+    return groups;
+});
+
 // Ajout
 const addForm = useForm({
     name: '', brand: '', reference: '', category_id: '', material_type_id: '', location_id: '',
@@ -192,7 +204,9 @@ function remove(m) {
                             <InputLabel value="Emplacement" />
                             <select v-model="addForm.location_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
                                 <option value="">Non défini</option>
-                                <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                                <optgroup v-for="g in groupedLocations" :key="g.label" :label="g.label">
+                                    <option v-for="l in g.items" :key="l.id" :value="l.id">{{ l.path }}</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -260,7 +274,9 @@ function remove(m) {
                         <InputLabel value="Emplacement" />
                         <select v-model="editForm.location_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
                             <option value="">Non défini</option>
-                            <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                            <optgroup v-for="g in groupedLocations" :key="g.label" :label="g.label">
+                                <option v-for="l in g.items" :key="l.id" :value="l.id">{{ l.path }}</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div>

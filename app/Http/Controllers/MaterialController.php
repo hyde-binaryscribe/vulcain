@@ -22,6 +22,30 @@ class MaterialController extends Controller
 {
     public function __construct(private readonly TenantContext $tenant) {}
 
+    /**
+     * Emplacements pour les listes déroulantes, avec véhicule et chemin complet,
+     * triés par véhicule puis par emplacement (dépôt / hors véhicule en dernier).
+     *
+     * @return list<array{id:int,name:string,path:string,vehicle:?string}>
+     */
+    private function locationOptions(): array
+    {
+        return Location::query()
+            ->where('is_active', true)
+            ->with(['vehicle:id,name,callsign', 'parent:id,name,parent_id'])
+            ->get()
+            ->map(fn (Location $l) => [
+                'id' => $l->id,
+                'name' => $l->name,
+                'path' => $l->fullPath(),
+                'vehicle' => $l->vehicle ? ($l->vehicle->callsign ?: $l->vehicle->name) : null,
+            ])
+            // Véhicule d'abord (dépôt/hors véhicule en dernier via « ~ »), puis chemin.
+            ->sortBy(fn ($l) => ($l['vehicle'] ?? '~').'|'.$l['path'])
+            ->values()
+            ->all();
+    }
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('q', ''));
@@ -65,7 +89,7 @@ class MaterialController extends Controller
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->get(['id', 'name', 'tracking_mode']),
-            'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'locations' => $this->locationOptions(),
             'statuses' => MaterialStatus::options(),
             'trackingModes' => collect(Material::TRACKING_MODES)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
             'search' => $search,
@@ -129,7 +153,7 @@ class MaterialController extends Controller
             ],
             'items' => $items,
             'lots' => $lots,
-            'locations' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'locations' => $this->locationOptions(),
             'statuses' => MaterialStatus::options(),
             'history' => $this->historyFor($material),
             'status' => session('status'),
