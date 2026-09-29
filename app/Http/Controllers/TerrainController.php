@@ -10,6 +10,7 @@ use App\Domain\Fleet\FuelConsumption;
 use App\Domain\Fleet\MaintenanceStatus;
 use App\Domain\Fleet\ProtocolFieldType;
 use App\Domain\Fleet\ProtocolPhase;
+use App\Domain\Fleet\VehicleDisinfection;
 use App\Domain\Support\Severity;
 use App\Models\BodyDamage;
 use App\Models\DisinfectionProtocol;
@@ -23,7 +24,6 @@ use App\Models\ServiceProtocolField;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
-use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -77,7 +77,7 @@ class TerrainController extends Controller
             ->orderBy('name')
             ->get();
 
-        $intervals = VehicleType::query()->whereNotNull('disinfection_interval_days')->pluck('disinfection_interval_days', 'name');
+        $disinfectionStatuses = VehicleDisinfection::statusForMany($vehicles);
         $openAnomalies = Event::query()
             ->where('type', EventType::ANOMALIE->value)
             ->whereIn('status', [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value])
@@ -95,9 +95,8 @@ class TerrainController extends Controller
         $alertDays = $this->tenant->organisation()->maintenanceAlertDays();
         $alertKm = $this->tenant->organisation()->maintenanceAlertKm();
 
-        $cards = $vehicles->map(function (Vehicle $v) use ($intervals, $openAnomalies, $openSessions, $user, $alertDays, $alertKm) {
-            $lastDisinfection = $v->disinfections()->first()?->performed_at;
-            $disinfection = DisinfectionStatus::compute($lastDisinfection, $intervals[$v->type] ?? null);
+        $cards = $vehicles->map(function (Vehicle $v) use ($disinfectionStatuses, $openAnomalies, $openSessions, $user, $alertDays, $alertKm) {
+            $disinfection = $disinfectionStatuses[$v->id] ?? DisinfectionStatus::compute(null, null);
             $maintenance = MaintenanceStatus::forVehicleRecords(
                 $v->maintenances()->get(),
                 $v->mileage !== null ? (int) $v->mileage : null,
@@ -172,13 +171,14 @@ class TerrainController extends Controller
             ])->values(),
         ]);
 
-        $intervalDays = VehicleType::query()->where('name', $vehicle->type)->value('disinfection_interval_days');
         $disinfections = $vehicle->disinfections()->with('user:id,name')->limit(10)->get();
-        $disinfectionStatus = DisinfectionStatus::compute($disinfections->first()?->performed_at, $intervalDays);
-        $protocols = DisinfectionProtocol::query()
-            ->where('is_active', true)
-            ->orderBy('display_order')->orderBy('name')
-            ->get()
+        $disinfectionStatus = VehicleDisinfection::statusFor($vehicle);
+        // Protocoles proposés à la saisie : ceux affectés au véhicule (sinon toute
+        // la bibliothèque active, pour ne pas bloquer un enregistrement terrain).
+        $assignedProtocols = $vehicle->disinfectionProtocols()->orderBy('display_order')->orderBy('name')->get();
+        $protocols = ($assignedProtocols->isNotEmpty()
+            ? $assignedProtocols
+            : DisinfectionProtocol::query()->where('is_active', true)->orderBy('display_order')->orderBy('name')->get())
             ->map(fn (DisinfectionProtocol $p) => ['id' => $p->id, 'name' => $p->name, 'type' => $p->type->value, 'steps' => $p->steps()]);
 
         $maintenanceStatus = MaintenanceStatus::forVehicleRecords(
@@ -242,7 +242,6 @@ class TerrainController extends Controller
             ],
             'locations' => $grouped,
             'disinfection' => [
-                'interval_days' => $intervalDays,
                 'last_at' => $disinfectionStatus->lastAt?->fr('d/m/Y H:i'),
                 'due_at' => $disinfectionStatus->dueAt?->format('d/m/Y'),
                 'severity' => $disinfectionStatus->severity?->value,

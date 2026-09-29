@@ -69,6 +69,13 @@ class Vehicle extends Model
         return $this->hasMany(DisinfectionRecord::class)->latest('performed_at');
     }
 
+    /** Protocoles de désinfection affectés (portent la périodicité). */
+    public function disinfectionProtocols(): BelongsToMany
+    {
+        return $this->belongsToMany(DisinfectionProtocol::class, 'disinfection_protocol_vehicle')
+            ->withTimestamps();
+    }
+
     /** Journal du suivi mécanique (plus récent d'abord). */
     public function maintenances(): HasMany
     {

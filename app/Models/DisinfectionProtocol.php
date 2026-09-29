@@ -7,6 +7,7 @@ use App\Models\Concerns\BelongsToOrganisation;
 use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -34,6 +35,19 @@ class DisinfectionProtocol extends Model
             'frequency_days' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /** Véhicules auxquels ce protocole est affecté. */
+    public function vehicles(): BelongsToMany
+    {
+        return $this->belongsToMany(Vehicle::class, 'disinfection_protocol_vehicle')
+            ->withTimestamps();
+    }
+
+    /** Protocole daté (avec échéance) ou procédure à l'usage (sans périodicité). */
+    public function hasSchedule(): bool
+    {
+        return $this->frequency_days !== null && $this->frequency_days > 0;
     }
 
     /**

@@ -121,6 +121,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
         Route::delete('vehicles/{vehicle}', [VehicleController::class, 'destroy'])->name('vehicles.destroy');
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
+        Route::put('vehicles/{vehicle}/disinfection-protocols', [VehicleController::class, 'disinfectionProtocols'])->name('vehicles.disinfection-protocols');
         // Applique le modèle/motorisation affecté : génère emplacements + entretien.
         Route::post('vehicles/{vehicle}/apply-model', [VehicleController::class, 'applyModel'])->name('vehicles.apply-model');
 

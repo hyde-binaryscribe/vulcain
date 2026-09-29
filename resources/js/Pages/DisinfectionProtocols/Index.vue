@@ -104,11 +104,14 @@ function remove(p) {
                             <TextInput v-model="form.cadence" placeholder="Quotidien…" />
                         </div>
                         <div>
-                            <InputLabel value="Périodicité (j)" />
-                            <TextInput v-model="form.frequency_days" type="number" min="1" placeholder="7" />
+                            <InputLabel value="Périodicité (jours)" />
+                            <TextInput v-model="form.frequency_days" type="number" min="1" placeholder="7 — vide = à l’usage" />
                             <InputError :message="form.errors.frequency_days" />
                         </div>
                     </div>
+                    <p class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                        La périodicité détermine l’échéance de désinfection des véhicules auxquels ce protocole est affecté. Laissez vide pour une procédure à réaliser à l’usage (sans échéance datée).
+                    </p>
                     <div>
                         <InputLabel value="Procédure (une étape par ligne)" />
                         <textarea v-model="form.procedure" rows="7" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Aérer la cellule…&#10;Mettre des gants…"></textarea>

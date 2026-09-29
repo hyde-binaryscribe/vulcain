@@ -23,6 +23,44 @@ final class DisinfectionStatus
         public readonly string $state, // none | ok | soon | overdue | never
     ) {}
 
+    /**
+     * Statut agrégé d'un véhicule sur l'ensemble de ses protocoles affectés :
+     * on conserve le plus urgent (en retard > jamais fait > à prévoir > à jour).
+     *
+     * @param  iterable<array{interval:?int,last:?Carbon}>  $entries
+     */
+    public static function forProtocols(iterable $entries, ?Carbon $now = null): self
+    {
+        $now ??= Carbon::now();
+        $worst = new self(null, null, null, null, 'none');
+
+        foreach ($entries as $entry) {
+            $status = self::compute($entry['last'] ?? null, $entry['interval'] ?? null, $now);
+
+            if ($status->state === 'none') {
+                continue;
+            }
+
+            if (self::order($status) > self::order($worst)) {
+                $worst = $status;
+            }
+        }
+
+        return $worst;
+    }
+
+    /** Ordre d'urgence pour l'agrégation multi-protocoles. */
+    private static function order(self $status): int
+    {
+        return match ($status->state) {
+            'overdue' => 4,
+            'never' => 3,
+            'soon' => 2,
+            'ok' => 1,
+            default => 0, // none
+        };
+    }
+
     public static function compute(?Carbon $lastAt, ?int $intervalDays, ?Carbon $now = null): self
     {
         $now ??= Carbon::now();

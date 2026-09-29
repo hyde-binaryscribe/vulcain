@@ -6,10 +6,10 @@ use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
 use App\Domain\Support\Severity;
+use App\Models\DisinfectionProtocol;
 use App\Models\Organisation;
 use App\Models\User;
 use App\Models\Vehicle;
-use App\Models\VehicleType;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -119,11 +119,18 @@ class DisinfectionTest extends TestCase
     {
         [$org, $admin] = $this->orgWithAdmin();
 
+        // Périodicité portée par le protocole affecté au véhicule.
         $this->tenant()->runFor($org, function () use ($org) {
-            VehicleType::create(['name' => 'VSAV', 'disinfection_interval_days' => 7]);
+            $protocol = DisinfectionProtocol::create([
+                'name' => 'Désinfection hebdomadaire',
+                'type' => 'desinfection',
+                'frequency_days' => 7,
+            ]);
             $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'type' => 'VSAV']);
+            $vehicle->disinfectionProtocols()->attach($protocol->id, ['organisation_id' => $org->id]);
             $vehicle->disinfections()->create([
                 'type' => 'desinfection',
+                'disinfection_protocol_id' => $protocol->id,
                 'performed_at' => now()->subDays(10), // > 7 j => en retard
             ]);
         });
@@ -132,5 +139,38 @@ class DisinfectionTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Dashboard')
                 ->where('alerts.disinfection_overdue', 1));
+    }
+
+    public function test_admin_can_assign_protocols_and_status_uses_them(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+        [$vehicle, $weekly, $monthly] = $this->tenant()->runFor($org, function () use ($org) {
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $weekly = DisinfectionProtocol::create(['name' => 'Hebdo', 'type' => 'desinfection', 'frequency_days' => 7]);
+            $monthly = DisinfectionProtocol::create(['name' => 'Mensuel', 'type' => 'bio_nettoyage', 'frequency_days' => 30]);
+
+            return [$vehicle, $weekly, $monthly];
+        });
+
+        // Affectation des deux protocoles au véhicule.
+        $this->actingAs($admin)->put("http://caserne.localhost/vehicles/{$vehicle->id}/disinfection-protocols", [
+            'protocol_ids' => [$weekly->id, $monthly->id],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('disinfection_protocol_vehicle', [
+            'vehicle_id' => $vehicle->id,
+            'disinfection_protocol_id' => $weekly->id,
+            'organisation_id' => $org->id,
+        ]);
+
+        // Hebdo en retard (10 j), mensuel à jour (2 j) → statut agrégé = en retard.
+        $this->tenant()->runFor($org, function () use ($vehicle, $weekly, $monthly) {
+            $vehicle->disinfections()->create(['type' => 'desinfection', 'disinfection_protocol_id' => $weekly->id, 'performed_at' => now()->subDays(10)]);
+            $vehicle->disinfections()->create(['type' => 'bio_nettoyage', 'disinfection_protocol_id' => $monthly->id, 'performed_at' => now()->subDays(2)]);
+        });
+
+        $status = $this->tenant()->runFor($org, fn () => \App\Domain\Fleet\VehicleDisinfection::statusFor($vehicle->fresh()));
+        $this->assertSame('overdue', $status->state);
+        $this->assertSame(Severity::CRITICAL, $status->severity);
     }
 }

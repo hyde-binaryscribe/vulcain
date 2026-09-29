@@ -8,6 +8,7 @@ use App\Domain\Fleet\DisinfectionType;
 use App\Domain\Fleet\FuelConsumption;
 use App\Domain\Fleet\MaintenanceStatus;
 use App\Domain\Fleet\MaintenanceType;
+use App\Domain\Fleet\VehicleDisinfection;
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\ActivityLog;
 use App\Models\BodyDamage;
@@ -56,20 +57,33 @@ class VehicleController extends Controller
             'materials' => $materials->where('location_id', $l->id)->values(),
         ]);
 
-        // Traçabilité des désinfections : périodicité (via le type), historique et statut.
-        $intervalDays = VehicleType::query()->where('name', $vehicle->type)->value('disinfection_interval_days');
+        // Désinfection : la périodicité est portée par les protocoles affectés au
+        // véhicule (chacun sa propre échéance), plus l'historique et le statut agrégé.
         $disinfections = $vehicle->disinfections()->with(['user:id,name', 'protocol:id,name'])->limit(50)->get();
-        $disinfectionStatus = DisinfectionStatus::compute($disinfections->first()?->performed_at, $intervalDays);
-        $disinfectionProtocols = DisinfectionProtocol::query()
-            ->where('is_active', true)
-            ->orderBy('display_order')->orderBy('name')
-            ->get()
-            ->map(fn (DisinfectionProtocol $p) => [
-                'id' => $p->id,
-                'name' => $p->name,
-                'type' => $p->type->value,
-                'steps' => $p->steps(),
-            ]);
+        $disinfectionStatus = VehicleDisinfection::statusFor($vehicle);
+        $assignedProtocols = $vehicle->disinfectionProtocols()
+            ->orderBy('display_order')->orderBy('name')->get();
+        $lastByProtocol = DisinfectionRecord::query()
+            ->where('vehicle_id', $vehicle->id)
+            ->whereNotNull('disinfection_protocol_id')
+            ->selectRaw('disinfection_protocol_id, max(performed_at) as last_at')
+            ->groupBy('disinfection_protocol_id')
+            ->pluck('last_at', 'disinfection_protocol_id');
+        // Protocoles proposés à la saisie : ceux affectés (sinon toute la bibliothèque
+        // pour ne pas bloquer un enregistrement).
+        $recordSource = $assignedProtocols->isNotEmpty()
+            ? $assignedProtocols
+            : DisinfectionProtocol::query()->where('is_active', true)->orderBy('display_order')->orderBy('name')->get();
+        $disinfectionProtocols = $recordSource->map(fn (DisinfectionProtocol $p) => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'type' => $p->type->value,
+            'steps' => $p->steps(),
+        ]);
+        // Bibliothèque complète (pour l'affectation par le responsable).
+        $protocolLibrary = DisinfectionProtocol::query()
+            ->where('is_active', true)->orderBy('display_order')->orderBy('name')
+            ->get(['id', 'name', 'type', 'frequency_days', 'cadence']);
 
         // Suivi mécanique : historique, échéance et statut agrégé.
         $maintenances = $vehicle->maintenances()->with('user:id,name')->limit(50)->get();
@@ -106,7 +120,6 @@ class VehicleController extends Controller
                 'anomalies' => $materials->whereNotIn('status', ['conforme'])->count(),
             ],
             'disinfection' => [
-                'interval_days' => $intervalDays,
                 'last_at' => $disinfectionStatus->lastAt?->fr('d/m/Y H:i'),
                 'due_at' => $disinfectionStatus->dueAt?->format('d/m/Y'),
                 'state' => $disinfectionStatus->state,
@@ -114,6 +127,31 @@ class VehicleController extends Controller
                 'severity' => $disinfectionStatus->severity?->value,
                 'types' => DisinfectionType::options(),
                 'protocols' => $disinfectionProtocols,
+                // Échéance par protocole affecté (périodicité propre au protocole).
+                'schedules' => $assignedProtocols->map(function (DisinfectionProtocol $p) use ($lastByProtocol) {
+                    $last = isset($lastByProtocol[$p->id]) ? \Illuminate\Support\Carbon::parse($lastByProtocol[$p->id]) : null;
+                    $st = DisinfectionStatus::compute($last, $p->hasSchedule() ? (int) $p->frequency_days : null);
+
+                    return [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'frequency_days' => $p->frequency_days,
+                        'last_at' => $last?->fr('d/m/Y H:i'),
+                        'due_at' => $st->dueAt?->format('d/m/Y'),
+                        'state' => $st->state,
+                        'state_label' => $st->label(),
+                        'severity' => $st->severity?->value,
+                    ];
+                }),
+                // Affectation des protocoles (réservée au responsable).
+                'can_manage' => auth()->user()?->can('vehicles.manage') ?? false,
+                'assigned_ids' => $assignedProtocols->pluck('id'),
+                'library' => $protocolLibrary->map(fn (DisinfectionProtocol $p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'frequency_days' => $p->frequency_days,
+                    'cadence' => $p->cadence,
+                ]),
                 'can_record' => auth()->user()?->can('disinfections.record') ?? false,
                 'records' => $disinfections->map(fn (DisinfectionRecord $d) => [
                     'id' => $d->id,
@@ -437,6 +475,28 @@ class VehicleController extends Controller
         $vehicle->users()->sync($ids);
 
         return back()->with('status', 'Affectations mises à jour.');
+    }
+
+    /** Affecte les protocoles de désinfection au véhicule (porteurs de la périodicité). */
+    public function disinfectionProtocols(Request $request, Vehicle $vehicle): RedirectResponse
+    {
+        $request->validate([
+            'protocol_ids' => ['array'],
+            'protocol_ids.*' => ['integer'],
+        ]);
+
+        // Ne conserver que les protocoles actifs de l'organisation (scope appliqué).
+        $ids = DisinfectionProtocol::query()
+            ->where('is_active', true)
+            ->whereIn('id', $request->input('protocol_ids', []))
+            ->pluck('id');
+
+        $orgId = $this->tenant->id();
+        $vehicle->disinfectionProtocols()->sync(
+            $ids->mapWithKeys(fn ($id) => [$id => ['organisation_id' => $orgId]])->all()
+        );
+
+        return back()->with('status', 'Protocoles de désinfection mis à jour.');
     }
 
     /**

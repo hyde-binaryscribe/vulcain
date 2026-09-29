@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Events\EventStatus;
-use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\MaintenanceStatus;
+use App\Domain\Fleet\VehicleDisinfection;
 use App\Domain\Fleet\VehicleStatus;
 use App\Domain\Support\Severity;
-use App\Models\DisinfectionRecord;
 use App\Models\Event;
 use App\Models\MaintenanceRecord;
 use App\Models\Material;
@@ -15,7 +14,6 @@ use App\Models\Protocol;
 use App\Models\StockLot;
 use App\Models\User;
 use App\Models\Vehicle;
-use App\Models\VehicleType;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -110,40 +108,25 @@ class DashboardController extends Controller
 
     /**
      * Compte les véhicules dont la désinfection est en retard (rouge) ou à
-     * prévoir prochainement (orange), selon la périodicité imposée par le type.
+     * prévoir prochainement (orange), selon les protocoles affectés à chaque
+     * véhicule (chacun portant sa propre périodicité).
      *
      * @return array{overdue:int,soon:int}
      */
     private function disinfectionCounts(): array
     {
-        $intervals = VehicleType::query()
-            ->whereNotNull('disinfection_interval_days')
-            ->pluck('disinfection_interval_days', 'name'); // name => days
+        $vehicles = Vehicle::query()->get(['id']);
 
-        if ($intervals->isEmpty()) {
+        if ($vehicles->isEmpty()) {
             return ['overdue' => 0, 'soon' => 0];
         }
 
-        $vehicles = Vehicle::query()
-            ->whereIn('type', $intervals->keys())
-            ->get(['id', 'type']);
-
-        $lastByVehicle = DisinfectionRecord::query()
-            ->whereIn('vehicle_id', $vehicles->pluck('id'))
-            ->selectRaw('vehicle_id, max(performed_at) as last_at')
-            ->groupBy('vehicle_id')
-            ->pluck('last_at', 'vehicle_id');
+        $statuses = VehicleDisinfection::statusForMany($vehicles);
 
         $overdue = 0;
         $soon = 0;
 
-        foreach ($vehicles as $vehicle) {
-            $last = $lastByVehicle[$vehicle->id] ?? null;
-            $status = DisinfectionStatus::compute(
-                $last !== null ? Carbon::parse($last) : null,
-                (int) $intervals[$vehicle->type],
-            );
-
+        foreach ($statuses as $status) {
             if ($status->severity === Severity::CRITICAL) {
                 $overdue++;
             } elseif ($status->severity === Severity::WARNING) {

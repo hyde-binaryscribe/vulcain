@@ -108,6 +108,23 @@ function disinfectionBadgeClass() {
     if (props.disinfection.severity) return disinfectionBadge[props.disinfection.severity];
     return props.disinfection.state === 'ok' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600';
 }
+function scheduleBadge(s) {
+    if (s.severity) return disinfectionBadge[s.severity];
+    return s.state === 'ok' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600';
+}
+
+// Affectation des protocoles de désinfection au véhicule (responsable).
+const showProtocolAssign = ref(false);
+const protocolAssign = ref([...(props.disinfection.assigned_ids || [])]);
+const assignSaving = ref(false);
+function saveProtocolAssign() {
+    assignSaving.value = true;
+    router.put(`/vehicles/${props.vehicle.id}/disinfection-protocols`, { protocol_ids: protocolAssign.value }, {
+        preserveScroll: true,
+        onFinish: () => { assignSaving.value = false; },
+        onSuccess: () => { showProtocolAssign.value = false; },
+    });
+}
 
 function nowLocal() {
     const d = new Date();
@@ -394,11 +411,55 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 </button>
             </div>
 
-            <div class="flex flex-wrap gap-x-8 gap-y-2 px-6 py-4 text-sm">
-                <div><span class="text-gray-500">Dernière :</span> <span class="font-medium">{{ disinfection.last_at || 'jamais' }}</span></div>
-                <div v-if="disinfection.interval_days"><span class="text-gray-500">Périodicité :</span> <span class="font-medium">{{ disinfection.interval_days }} j</span></div>
-                <div v-if="disinfection.due_at"><span class="text-gray-500">Prochaine échéance :</span> <span class="font-medium">{{ disinfection.due_at }}</span></div>
-                <div v-if="!disinfection.interval_days" class="text-gray-400">Aucune périodicité définie pour ce type de véhicule.</div>
+            <div class="px-6 py-4">
+                <div class="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+                    <div><span class="text-gray-500">Dernière :</span> <span class="font-medium">{{ disinfection.last_at || 'jamais' }}</span></div>
+                    <div v-if="disinfection.due_at"><span class="text-gray-500">Prochaine échéance :</span> <span class="font-medium">{{ disinfection.due_at }}</span></div>
+                </div>
+
+                <!-- Protocoles affectés et leur échéance propre -->
+                <div v-if="disinfection.schedules && disinfection.schedules.length" class="mt-4 overflow-hidden rounded-xl border border-gray-100">
+                    <table class="min-w-full divide-y divide-gray-100 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                            <tr>
+                                <th class="px-4 py-2">Protocole</th>
+                                <th class="px-4 py-2">Périodicité</th>
+                                <th class="px-4 py-2">Dernière</th>
+                                <th class="px-4 py-2">Échéance</th>
+                                <th class="px-4 py-2">État</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="s in disinfection.schedules" :key="s.id">
+                                <td class="px-4 py-2 font-medium text-gray-900">{{ s.name }}</td>
+                                <td class="px-4 py-2 text-gray-600">{{ s.frequency_days ? s.frequency_days + ' j' : 'à l’usage' }}</td>
+                                <td class="px-4 py-2 text-gray-600">{{ s.last_at || 'jamais' }}</td>
+                                <td class="px-4 py-2 text-gray-600">{{ s.due_at || '—' }}</td>
+                                <td class="px-4 py-2"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="scheduleBadge(s)">{{ s.state_label }}</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p v-else class="mt-3 text-sm text-gray-400">Aucun protocole de désinfection affecté à ce véhicule.</p>
+
+                <!-- Affectation des protocoles (responsable) -->
+                <div v-if="disinfection.can_manage" class="mt-4">
+                    <button type="button" class="text-sm font-medium text-[var(--brand)] hover:underline" @click="showProtocolAssign = !showProtocolAssign">
+                        {{ showProtocolAssign ? 'Masquer' : 'Gérer les protocoles affectés' }}
+                    </button>
+                    <div v-if="showProtocolAssign" class="mt-3 rounded-xl border border-gray-200 p-4">
+                        <p class="mb-2 text-xs text-gray-500">Cochez les protocoles applicables à ce véhicule. La périodicité de chaque protocole détermine ses échéances.</p>
+                        <div class="grid gap-2 sm:grid-cols-2">
+                            <label v-for="p in (disinfection.library || [])" :key="p.id" class="flex items-center gap-2 text-sm text-gray-700">
+                                <input v-model="protocolAssign" type="checkbox" class="rounded border-gray-300" :value="p.id" />
+                                <span>{{ p.name }} <span class="text-gray-400">· {{ p.frequency_days ? p.frequency_days + ' j' : (p.cadence || 'à l’usage') }}</span></span>
+                            </label>
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <button type="button" :disabled="assignSaving" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="saveProtocolAssign">Enregistrer l’affectation</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Formulaire -->
