@@ -388,11 +388,17 @@ expose un endpoint protégé par un **jeton secret** ; Plesk l'appelle en HTTP.
    CRON_TOKEN=colle-ici-une-longue-chaine-aleatoire
    ```
    puis, via l'extension Laravel : `optimize:clear` (recharge la config).
-2. **Créer la tâche planifiée** de type **« Récupérer une URL »** (*Fetch a URL*) :
+2. **Créer la tâche planifiée** de type **« Récupérer une URL »** (*Fetch a URL*).
+   Utiliser de préférence la forme **jeton dans le chemin** (sans `?`), car
+   certains pare-feux applicatifs (ex. brocloud) renvoient un **400** sur la
+   query string `?token=` :
    ```
-   https://app.vulkain.eu/cron/echeances?token=LE_MEME_JETON
+   https://app.vulkain.eu/cron/echeances/LE_MEME_JETON
    ```
+   (La forme `…/cron/echeances?token=LE_MEME_JETON` reste acceptée là où elle
+   n'est pas bloquée.)
 3. **Fréquence :** une fois par jour, p. ex. `35 6 * * *` (06 h 35).
+   Astuce : régler la notification sur « Erreurs uniquement ».
 
 L'endpoint renvoie `OK — X créé(s), Y clôturé(s).` en cas de succès, `404` si le
 jeton est absent/incorrect (il est désactivé tant que `CRON_TOKEN` n'est pas défini).
