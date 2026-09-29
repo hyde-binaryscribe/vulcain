@@ -334,6 +334,53 @@ PHP Plesk :
 
 ---
 
+## 9bis. Planificateur des échéances (événements automatiques) — requis
+
+Les **événements d'échéance** (entretien, désinfection, péremptions de lots,
+expiration des documents) sont générés par une commande planifiée. Sans cette
+tâche, ils **ne se créent pas** automatiquement (le reste de l'application
+fonctionne, mais le fil « Événements » et les alertes d'échéance restent vides).
+
+**Où :** Plesk > *Sites & domaines* > **Tâches planifiées** > *Ajouter une tâche*.
+
+### Option A — Planificateur Laravel (recommandé)
+
+Une seule tâche qui tourne **chaque minute** ; Laravel décide quand exécuter
+(la génération est calée à 06:30). C'est le mécanisme standard et il servira
+aussi à d'éventuelles futures tâches planifiées, sans retoucher le Cron.
+
+- **Type :** *Lancer une commande*
+- **Commande :**
+  ```
+  /opt/plesk/php/8.3/bin/php ~/vulkain.eu/artisan schedule:run >/dev/null 2>&1
+  ```
+- **Fréquence :** chaque minute — expression cron `* * * * *`
+  (dans Plesk : cocher *Cron style*, ou choisir « Chaque minute »).
+
+> Adapter le chemin `~/vulkain.eu/artisan` à la racine réelle du site (le même
+> que celui utilisé pour `migrate` / `optimize:clear`), et la version PHP
+> (`8.3`) à celle du domaine.
+
+### Option B — Une seule tâche quotidienne (plus simple)
+
+Si tu préfères éviter une tâche « chaque minute », appelle directement la
+commande **une fois par jour** :
+
+- **Commande :**
+  ```
+  /opt/plesk/php/8.3/bin/php ~/vulkain.eu/artisan vulcain:generate-echeance-events >/dev/null 2>&1
+  ```
+- **Fréquence :** une fois par jour, p. ex. `35 6 * * *` (06 h 35).
+
+### Vérifier
+
+- Lancer la commande à la main depuis l'extension **Laravel** (ou en tâche
+  ponctuelle) : `vulcain:generate-echeance-events` doit afficher, par
+  organisation, « X créé(s), Y clôturé(s) ». Elle est **idempotente** (aucun
+  doublon si relancée).
+
+---
+
 ## 10. Vérifications post-déploiement
 
 - [ ] `https://vulkain.eu` affiche la vitrine (HTTPS vert).
@@ -348,6 +395,8 @@ PHP Plesk :
 - [ ] `APP_DEBUG=false` (aucune stacktrace publique).
 - [ ] `storage/logs/laravel.log` sans erreur ; droits d'écriture OK.
 - [ ] Un protocole se lance et se valide (base + sessions OK).
+- [ ] Tâche planifiée active (§9bis) : `vulcain:generate-echeance-events`
+      s'exécute et le fil « Événements » se remplit selon les échéances.
 
 ---
 
