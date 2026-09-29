@@ -104,6 +104,12 @@ class Organisation extends Model
         return (bool) ($this->settings['fuel_tracking_enabled'] ?? true);
     }
 
+    /** Contrôle carrosserie (schéma + pointage d'anomalies), désactivé par défaut. */
+    public function bodyInspectionEnabled(): bool
+    {
+        return (bool) ($this->settings['body_inspection_enabled'] ?? false);
+    }
+
     /** Colonne Kanban où atterrissent les nouvelles anomalies (ou null → 1re colonne). */
     public function anomalyEntryColumnId(): ?int
     {

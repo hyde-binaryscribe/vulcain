@@ -12,6 +12,7 @@ const form = useForm({
     bags_enabled: props.settings.bags_enabled,
     vehicle_access_qr_only: props.settings.vehicle_access_qr_only,
     fuel_tracking_enabled: props.settings.fuel_tracking_enabled,
+    body_inspection_enabled: props.settings.body_inspection_enabled,
     anomaly_entry_column_id: props.settings.anomaly_entry_column_id ?? '',
     service_start_steps: [...(props.settings.service_start_steps ?? [])],
 });
@@ -101,6 +102,17 @@ function save() {
                         <span class="block text-xs text-gray-500">
                             Enregistrement des pleins (litrage, prix, kilométrage) et calcul de la consommation.
                             Désactivé, la section carburant est masquée sur les fiches véhicule.
+                        </span>
+                    </span>
+                </label>
+
+                <label class="mt-5 flex items-start gap-3">
+                    <input v-model="form.body_inspection_enabled" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300" />
+                    <span>
+                        <span class="block text-sm font-medium text-gray-900">Activer le contrôle carrosserie</span>
+                        <span class="block text-xs text-gray-500">
+                            Schéma du véhicule et pointage des anomalies (choc, rayure, bris) avec photo.
+                            Désactivé, la section carrosserie est masquée sur les fiches véhicule et l'appli terrain.
                         </span>
                     </span>
                 </label>

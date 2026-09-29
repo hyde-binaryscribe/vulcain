@@ -25,6 +25,7 @@ class BodyDamageController extends Controller
 
     public function store(Request $request, Vehicle $vehicle): RedirectResponse
     {
+        abort_unless($this->tenant->organisation()->bodyInspectionEnabled(), 404);
         abort_unless($this->canAccess($vehicle, $request->user()), 403);
 
         $validated = $request->validate([
@@ -54,6 +55,7 @@ class BodyDamageController extends Controller
 
     public function resolve(Request $request, Vehicle $vehicle, BodyDamage $bodyDamage): RedirectResponse
     {
+        abort_unless($this->tenant->organisation()->bodyInspectionEnabled(), 404);
         abort_unless($bodyDamage->vehicle_id === $vehicle->id, 404);
         abort_unless($this->canAccess($vehicle, $request->user()), 403);
 
@@ -68,6 +70,7 @@ class BodyDamageController extends Controller
 
     public function photo(Request $request, Vehicle $vehicle, BodyDamage $bodyDamage)
     {
+        abort_unless($this->tenant->organisation()->bodyInspectionEnabled(), 404);
         abort_unless($bodyDamage->vehicle_id === $vehicle->id, 404);
         abort_unless($this->canAccess($vehicle, $request->user()), 403);
         abort_unless($bodyDamage->photo_path && Storage::disk('local')->exists($bodyDamage->photo_path), 404);
@@ -78,6 +81,7 @@ class BodyDamageController extends Controller
     /** Suppression (correction) : réservée aux gestionnaires. */
     public function destroy(Vehicle $vehicle, BodyDamage $bodyDamage): RedirectResponse
     {
+        abort_unless($this->tenant->organisation()->bodyInspectionEnabled(), 404);
         abort_unless($bodyDamage->vehicle_id === $vehicle->id, 404);
 
         if ($bodyDamage->photo_path && Storage::disk('local')->exists($bodyDamage->photo_path)) {

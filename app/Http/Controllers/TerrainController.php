@@ -256,7 +256,8 @@ class TerrainController extends Controller
             ],
             'anomalies' => $anomalies,
             'can_report_anomaly' => $request->user()->can('anomalies.manage'),
-            'body' => [
+            'body' => $this->tenant->organisation()->bodyInspectionEnabled() ? [
+                'enabled' => true,
                 'can_delete' => $request->user()->can('vehicles.manage'),
                 'schematics' => $vehicle->vehicleModel
                     ? $vehicle->vehicleModel->schematics()->get()
@@ -274,7 +275,7 @@ class TerrainController extends Controller
                         'reporter' => $d->reporter?->name,
                         'created_at' => $d->created_at?->format('d/m/Y'),
                     ])->values(),
-            ],
+            ] : ['enabled' => false, 'damages' => [], 'schematics' => [], 'can_delete' => false],
             'status' => session('status'),
         ]);
     }

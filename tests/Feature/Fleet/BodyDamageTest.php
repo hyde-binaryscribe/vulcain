@@ -39,7 +39,7 @@ class BodyDamageTest extends TestCase
     public function test_agent_in_service_reports_a_body_damage_with_photo(): void
     {
         Storage::fake('local');
-        $org = Organisation::factory()->slug('caserne')->create();
+        $org = Organisation::factory()->slug('caserne')->create(['settings' => ['body_inspection_enabled' => true]]);
         [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
             app(RoleProvisioner::class)->provision($org);
             $agent = User::factory()->create(['organisation_id' => $org->id]);
@@ -67,10 +67,30 @@ class BodyDamageTest extends TestCase
         });
     }
 
+    public function test_disabled_feature_blocks_reporting(): void
+    {
+        Storage::fake('local');
+        $org = Organisation::factory()->slug('caserne')->create(['settings' => ['body_inspection_enabled' => false]]);
+        [$manager, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $manager = User::factory()->create(['organisation_id' => $org->id]);
+            $manager->assignRole(Rbac::ADMIN);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$manager, $vehicle];
+        });
+
+        $this->actingAs($manager)->post("http://caserne.localhost/vehicles/{$vehicle->id}/body-damages", [
+            'view' => 'gauche', 'pos_x' => 10, 'pos_y' => 10, 'description' => 'Test',
+        ])->assertNotFound();
+
+        $this->assertSame(0, BodyDamage::withoutGlobalScopes()->count());
+    }
+
     public function test_agent_without_session_cannot_report(): void
     {
         Storage::fake('local');
-        $org = Organisation::factory()->slug('caserne')->create();
+        $org = Organisation::factory()->slug('caserne')->create(['settings' => ['body_inspection_enabled' => true]]);
         [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
             app(RoleProvisioner::class)->provision($org);
             $agent = User::factory()->create(['organisation_id' => $org->id]);
@@ -93,7 +113,7 @@ class BodyDamageTest extends TestCase
     public function test_manager_resolves_and_deletes_a_body_damage(): void
     {
         Storage::fake('local');
-        $org = Organisation::factory()->slug('caserne')->create();
+        $org = Organisation::factory()->slug('caserne')->create(['settings' => ['body_inspection_enabled' => true]]);
         [$manager, $vehicle, $damage] = $this->tenant()->runFor($org, function () use ($org) {
             app(RoleProvisioner::class)->provision($org);
             $manager = User::factory()->create(['organisation_id' => $org->id]);
@@ -119,7 +139,7 @@ class BodyDamageTest extends TestCase
 
     public function test_agent_cannot_delete_body_damage(): void
     {
-        $org = Organisation::factory()->slug('caserne')->create();
+        $org = Organisation::factory()->slug('caserne')->create(['settings' => ['body_inspection_enabled' => true]]);
         [$agent, $vehicle, $damage] = $this->tenant()->runFor($org, function () use ($org) {
             app(RoleProvisioner::class)->provision($org);
             $agent = User::factory()->create(['organisation_id' => $org->id]);

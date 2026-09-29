@@ -146,7 +146,8 @@ class VehicleController extends Controller
                 'title' => $d->title,
                 'expires_at' => $d->expires_at?->format('d/m/Y'),
             ]),
-            'body' => [
+            'body' => $this->tenant->organisation()->bodyInspectionEnabled() ? [
+                'enabled' => true,
                 'can_delete' => auth()->user()?->can('vehicles.manage') ?? false,
                 'schematics' => $vehicle->vehicleModel
                     ? $vehicle->vehicleModel->schematics()->get()
@@ -164,7 +165,7 @@ class VehicleController extends Controller
                         'reporter' => $d->reporter?->name,
                         'created_at' => $d->created_at?->format('d/m/Y'),
                     ])->values(),
-            ],
+            ] : ['enabled' => false, 'damages' => [], 'schematics' => [], 'can_delete' => false],
             'tasks' => $vehicle->tasks()->with(['creator:id,name', 'completer:id,name'])->get()
                 ->map(fn ($t) => [
                     'id' => $t->id,

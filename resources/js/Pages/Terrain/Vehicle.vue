@@ -16,7 +16,7 @@ const props = defineProps({
     fuel: { type: Object, default: null },
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
-    body: { type: Object, default: () => ({ damages: [], can_delete: false }) },
+    body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
 });
 
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
@@ -328,7 +328,7 @@ function setConsent(v) {
         </section>
 
         <!-- Carrosserie -->
-        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="body.enabled" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="vehicle" :size="16" /> Carrosserie</h2>
             <p class="mt-0.5 text-xs text-gray-500">Contrôle à la prise et à la fin de service. Touchez le schéma pour signaler un choc, une rayure, un bris.</p>
             <div class="mt-3">

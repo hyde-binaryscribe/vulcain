@@ -21,7 +21,7 @@ const props = defineProps({
     tasks: { type: Array, default: () => [] },
     documents: { type: Array, default: () => [] },
     can_manage_documents: { type: Boolean, default: false },
-    body: { type: Object, default: () => ({ damages: [], can_delete: false }) },
+    body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
     history: { type: Array, default: () => [] },
 });
 
@@ -299,7 +299,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </section>
 
         <!-- Carrosserie -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-if="body.enabled" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex items-center gap-2 border-b border-gray-100 px-6 py-4">
                 <Icon name="vehicle" :size="18" class="text-gray-500" />
                 <h3 class="text-base font-semibold text-gray-900">Carrosserie</h3>
