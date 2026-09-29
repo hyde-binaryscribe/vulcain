@@ -339,6 +339,46 @@ class TerrainController extends Controller
     }
 
     /**
+     * Données du contrôle carrosserie pour un véhicule (schémas du modèle +
+     * anomalies connues), ou désactivé.
+     *
+     * @return array{enabled:bool,damages:array,schematics:array}
+     */
+    private function bodyInspectionData(Vehicle $vehicle): array
+    {
+        if (! $this->tenant->organisation()->bodyInspectionEnabled()) {
+            return ['enabled' => false, 'damages' => [], 'schematics' => []];
+        }
+
+        return [
+            'enabled' => true,
+            'schematics' => $vehicle->vehicleModel
+                ? $vehicle->vehicleModel->schematics()->get()
+                    ->mapWithKeys(fn ($s) => [$s->view => route('vehicle-models.schematic', [$vehicle->vehicle_model_id, $s->view])])->all()
+                : [],
+            'damages' => $vehicle->bodyDamages()->get()->map(fn (BodyDamage $d) => [
+                'id' => $d->id,
+                'view' => $d->view,
+                'pos_x' => (float) $d->pos_x,
+                'pos_y' => (float) $d->pos_y,
+                'description' => $d->description,
+                'status' => $d->status,
+            ])->values(),
+        ];
+    }
+
+    /** Contrôle carrosserie obligatoire (si la fonction est activée). */
+    private function validateBodyInspection(Request $request): void
+    {
+        if ($this->tenant->organisation()->bodyInspectionEnabled()) {
+            $request->validate(
+                ['body_ack' => ['accepted']],
+                ['body_ack.accepted' => 'Le contrôle carrosserie est obligatoire.'],
+            );
+        }
+    }
+
+    /**
      * Prise de service : vérification obligatoire pour ouvrir une session.
      * Affiche le détenteur actuel s'il y en a un (l'ouverture le clôturera).
      */
@@ -362,6 +402,7 @@ class TerrainController extends Controller
                 'mileage' => $vehicle->mileage,
             ],
             'fields' => $this->protocolFields($vehicle, ProtocolPhase::OUVERTURE),
+            'body' => $this->bodyInspectionData($vehicle),
             // Détenteur actuel : sa session sera clôturée par la passation.
             'current_holder' => $openSession?->user?->name,
             'current_since' => $openSession?->opened_at?->format('d/m/Y H:i'),
@@ -377,6 +418,8 @@ class TerrainController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'photos.*' => ['nullable', 'image', 'max:5120'],
         ]);
+
+        $this->validateBodyInspection($request);
 
         $user = $request->user();
         $responses = $this->processResponses($request, $vehicle, ProtocolPhase::OUVERTURE);
@@ -427,6 +470,7 @@ class TerrainController extends Controller
                 'mileage' => $vehicle->mileage,
             ],
             'fields' => $this->protocolFields($vehicle, ProtocolPhase::FERMETURE),
+            'body' => $this->bodyInspectionData($vehicle),
             'opened_at' => $session->opened_at?->format('d/m/Y H:i'),
         ]);
     }
@@ -443,6 +487,8 @@ class TerrainController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'photos.*' => ['nullable', 'image', 'max:5120'],
         ]);
+
+        $this->validateBodyInspection($request);
 
         $responses = $this->processResponses($request, $vehicle, ProtocolPhase::FERMETURE);
 

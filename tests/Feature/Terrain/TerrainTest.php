@@ -170,6 +170,34 @@ class TerrainTest extends TestCase
         });
     }
 
+    public function test_body_inspection_is_mandatory_when_enabled(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create(['settings' => ['body_inspection_enabled' => true]]);
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$agent, $vehicle];
+        });
+
+        // Sans le contrôle carrosserie coché → refus, aucune session ouverte.
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'mileage' => 500,
+        ])->assertSessionHasErrors('body_ack');
+        $this->tenant()->runFor($org, fn () => $this->assertDatabaseMissing('vehicle_sessions', ['vehicle_id' => $vehicle->id]));
+
+        // Avec le contrôle coché → session ouverte.
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'mileage' => 500,
+            'body_ack' => true,
+        ])->assertSessionHasNoErrors();
+        $this->tenant()->runFor($org, fn () => $this->assertDatabaseHas('vehicle_sessions', [
+            'vehicle_id' => $vehicle->id, 'user_id' => $agent->id, 'closed_at' => null,
+        ]));
+    }
+
     public function test_opening_by_another_agent_hands_over_the_session(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
