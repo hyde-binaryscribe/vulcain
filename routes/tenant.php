@@ -48,7 +48,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('anomalie/{event}/photo', [TerrainController::class, 'anomalyPhoto'])->name('anomaly.photo');
         Route::get('scanner', [TerrainController::class, 'scan'])->name('scan');
         Route::get('vehicules/{vehicle}/prise-de-service', [TerrainController::class, 'serviceStart'])->name('service-start');
-        Route::post('vehicules/{vehicle}/prise-de-service', [TerrainController::class, 'storeServiceStart'])->name('service-start.store');
+        Route::post('vehicules/{vehicle}/prise-de-service', [TerrainController::class, 'openSession'])->name('service-start.store');
+        Route::get('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'serviceEnd'])->name('service-end');
+        Route::post('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'closeSession'])->name('service-end.store');
         Route::get('vehicules/{vehicle}', [TerrainController::class, 'vehicle'])->name('vehicle');
     });
 

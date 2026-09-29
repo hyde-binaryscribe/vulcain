@@ -12,13 +12,14 @@ use App\Models\DisinfectionRecord;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Material;
-use App\Models\ServiceCheck;
 use App\Models\Vehicle;
+use App\Models\VehicleSession;
 use App\Models\VehicleType;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -60,13 +61,21 @@ class TerrainController extends Controller
             ->groupBy('vehicle_id')
             ->pluck('total', 'vehicle_id');
 
-        $cards = $vehicles->map(function (Vehicle $v) use ($intervals, $openAnomalies) {
+        // Sessions ouvertes (une par véhicule) : qui a pris quel véhicule.
+        $openSessions = VehicleSession::query()->open()
+            ->with('user:id,name')
+            ->whereIn('vehicle_id', $vehicles->pluck('id'))
+            ->get()
+            ->keyBy('vehicle_id');
+
+        $cards = $vehicles->map(function (Vehicle $v) use ($intervals, $openAnomalies, $openSessions, $user) {
             $lastDisinfection = $v->disinfections()->first()?->performed_at;
             $disinfection = DisinfectionStatus::compute($lastDisinfection, $intervals[$v->type] ?? null);
             $maintenance = MaintenanceStatus::forVehicleRecords(
                 $v->maintenances()->get(),
                 $v->mileage !== null ? (int) $v->mileage : null,
             );
+            $session = $openSessions->get($v->id);
 
             return [
                 'id' => $v->id,
@@ -78,6 +87,8 @@ class TerrainController extends Controller
                 'disinfection_severity' => $disinfection->severity?->value,
                 'maintenance_severity' => $maintenance->severity?->value,
                 'open_anomalies' => (int) ($openAnomalies[$v->id] ?? 0),
+                'session_holder' => $session?->user?->name,
+                'session_is_mine' => $session !== null && $session->user_id === $user->id,
             ];
         });
 
@@ -94,8 +105,18 @@ class TerrainController extends Controller
         ]);
     }
 
-    public function vehicle(Request $request, Vehicle $vehicle): Response
+    public function vehicle(Request $request, Vehicle $vehicle): Response|RedirectResponse
     {
+        $user = $request->user();
+        $openSession = VehicleSession::query()->open()->with('user:id,name')->where('vehicle_id', $vehicle->id)->first();
+        $mine = $openSession !== null && $openSession->user_id === $user->id;
+
+        // Accès conditionné à une session ouverte par l'agent (vérification de
+        // prise de service obligatoire). Les gestionnaires peuvent consulter sans session.
+        if (! $mine && ! $user->can('vehicles.manage')) {
+            return redirect()->route('terrain.service-start', $vehicle);
+        }
+
         $locations = Location::query()
             ->where('vehicle_id', $vehicle->id)
             ->orderBy('display_order')
@@ -150,6 +171,11 @@ class TerrainController extends Controller
             ]);
 
         return Inertia::render('Terrain/Vehicle', [
+            'session' => $openSession === null ? null : [
+                'holder' => $openSession->user?->name,
+                'is_mine' => $mine,
+                'opened_at' => $openSession->opened_at?->format('d/m/Y H:i'),
+            ],
             'vehicle' => [
                 'id' => $vehicle->id,
                 'name' => $vehicle->name,
@@ -245,9 +271,20 @@ class TerrainController extends Controller
         ]);
     }
 
-    /** Écran de prise de service : relevé kilométrique + procédure (checklist). */
-    public function serviceStart(Vehicle $vehicle): Response
+    /**
+     * Prise de service : vérification obligatoire pour ouvrir une session.
+     * Affiche le détenteur actuel s'il y en a un (l'ouverture le clôturera).
+     */
+    public function serviceStart(Request $request, Vehicle $vehicle): Response|RedirectResponse
     {
+        $user = $request->user();
+        $openSession = VehicleSession::query()->open()->with('user:id,name')->where('vehicle_id', $vehicle->id)->first();
+
+        // Session déjà ouverte par l'agent : inutile de reprendre le service.
+        if ($openSession !== null && $openSession->user_id === $user->id) {
+            return redirect()->route('terrain.vehicle', $vehicle);
+        }
+
         return Inertia::render('Terrain/ServiceStart', [
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -258,11 +295,15 @@ class TerrainController extends Controller
                 'mileage' => $vehicle->mileage,
             ],
             'steps' => $this->tenant->organisation()->serviceStartSteps(),
+            // Détenteur actuel : sa session sera clôturée par la passation.
+            'current_holder' => $openSession?->user?->name,
+            'current_since' => $openSession?->opened_at?->format('d/m/Y H:i'),
             'status' => session('status'),
         ]);
     }
 
-    public function storeServiceStart(Request $request, Vehicle $vehicle): RedirectResponse
+    /** Ouvre une session (après vérification) ; clôture toute session en cours (passation). */
+    public function openSession(Request $request, Vehicle $vehicle): RedirectResponse
     {
         $validated = $request->validate([
             'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
@@ -277,20 +318,97 @@ class TerrainController extends Controller
             ->values()
             ->all();
 
-        ServiceCheck::create([
-            'vehicle_id' => $vehicle->id,
-            'user_id' => $request->user()->id,
-            'mileage' => $validated['mileage'] ?? null,
-            'steps' => $steps !== [] ? $steps : null,
-            'notes' => $validated['notes'] ?? null,
-            'started_at' => now(),
-        ]);
+        $user = $request->user();
+
+        DB::transaction(function () use ($vehicle, $user, $validated, $steps) {
+            // Passation : toute session ouverte du véhicule est clôturée par cette prise.
+            VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->get()
+                ->each(function (VehicleSession $s) use ($user) {
+                    $s->update([
+                        'closed_at' => now(),
+                        'closed_by' => $user->id,
+                        'close_reason' => VehicleSession::REASON_HANDOVER,
+                        'close_notes' => "Clôturée par la prise de service de {$user->name}.",
+                    ]);
+                });
+
+            VehicleSession::create([
+                'vehicle_id' => $vehicle->id,
+                'user_id' => $user->id,
+                'opened_at' => now(),
+                'open_mileage' => $validated['mileage'] ?? null,
+                'open_steps' => $steps !== [] ? $steps : null,
+                'open_notes' => $validated['notes'] ?? null,
+            ]);
+        });
 
         // Le relevé met à jour le compteur du véhicule (déclenche les alertes km).
         if (! empty($validated['mileage']) && $validated['mileage'] > (int) $vehicle->mileage) {
             $vehicle->update(['mileage' => $validated['mileage']]);
         }
 
-        return redirect()->route('terrain.vehicle', $vehicle)->with('status', 'Prise de service enregistrée.');
+        return redirect()->route('terrain.vehicle', $vehicle)->with('status', 'Service ouvert.');
+    }
+
+    /** Écran de fin de service (clôture de la session en cours). */
+    public function serviceEnd(Request $request, Vehicle $vehicle): Response|RedirectResponse
+    {
+        $session = $this->currentClosableSession($request, $vehicle);
+        if ($session === null) {
+            return redirect()->route('terrain.home')->with('status', 'Aucune session ouverte à clôturer.');
+        }
+
+        return Inertia::render('Terrain/ServiceEnd', [
+            'vehicle' => [
+                'id' => $vehicle->id,
+                'name' => $vehicle->name,
+                'callsign' => $vehicle->callsign,
+                'mileage' => $vehicle->mileage,
+            ],
+            'opened_at' => $session->opened_at?->format('d/m/Y H:i'),
+        ]);
+    }
+
+    public function closeSession(Request $request, Vehicle $vehicle): RedirectResponse
+    {
+        $session = $this->currentClosableSession($request, $vehicle);
+        if ($session === null) {
+            return redirect()->route('terrain.home')->with('error', 'Aucune session ouverte à clôturer.');
+        }
+
+        $validated = $request->validate([
+            'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $session->update([
+            'closed_at' => now(),
+            'closed_by' => $request->user()->id,
+            'close_mileage' => $validated['mileage'] ?? null,
+            'close_notes' => $validated['notes'] ?? null,
+            'close_reason' => VehicleSession::REASON_MANUAL,
+        ]);
+
+        if (! empty($validated['mileage']) && $validated['mileage'] > (int) $vehicle->mileage) {
+            $vehicle->update(['mileage' => $validated['mileage']]);
+        }
+
+        return redirect()->route('terrain.home')->with('status', 'Service clôturé.');
+    }
+
+    /**
+     * Session que l'agent peut clôturer : la sienne, ou (pour un gestionnaire)
+     * la session ouverte du véhicule.
+     */
+    private function currentClosableSession(Request $request, Vehicle $vehicle): ?VehicleSession
+    {
+        $user = $request->user();
+        $query = VehicleSession::query()->open()->where('vehicle_id', $vehicle->id);
+
+        if (! $user->can('vehicles.manage')) {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query->first();
     }
 }

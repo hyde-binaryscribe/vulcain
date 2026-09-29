@@ -6,6 +6,7 @@ import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
     vehicle: { type: Object, required: true },
+    session: { type: Object, default: null },
     locations: { type: Array, default: () => [] },
     disinfection: { type: Object, default: () => ({}) },
     maintenance: { type: Object, default: () => ({}) },
@@ -68,6 +69,21 @@ function submitMileage() {
                 <h1 class="truncate text-lg font-bold text-gray-900">{{ vehicle.callsign || vehicle.name }}</h1>
                 <p class="text-xs text-gray-500">{{ vehicle.type || '—' }} · {{ vehicle.status_label }}</p>
             </div>
+        </div>
+
+        <!-- Bannière de session -->
+        <div v-if="session?.is_mine" class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5">
+            <div class="flex items-center gap-2 text-sm text-green-800">
+                <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                <span>Service ouvert<template v-if="session.opened_at"> depuis {{ session.opened_at }}</template></span>
+            </div>
+            <Link :href="`/t/vehicules/${vehicle.id}/fin-de-service`" class="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50">
+                Clôturer le service
+            </Link>
+        </div>
+        <div v-else-if="session" class="mt-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-800">
+            <Icon name="user" :size="16" class="shrink-0" />
+            <span>En service : <strong>{{ session.holder }}</strong><template v-if="session.opened_at"> depuis {{ session.opened_at }}</template></span>
         </div>
 
         <!-- Désinfection -->

@@ -108,33 +108,95 @@ class TerrainTest extends TestCase
         $this->actingAs($admin)->get("http://caserne.localhost/t/anomalie/{$eventId}/photo")->assertOk();
     }
 
-    public function test_service_start_records_check_and_updates_mileage(): void
+    public function test_opening_a_session_grants_access_and_updates_mileage(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
-        [$admin, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
             app(RoleProvisioner::class)->provision($org);
-            $admin = User::factory()->create(['organisation_id' => $org->id]);
-            $admin->assignRole(Rbac::ADMIN);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER); // pas de droit vehicles.manage
             $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'mileage' => 100]);
 
-            return [$admin, $vehicle];
+            return [$agent, $vehicle];
         });
 
-        $this->actingAs($admin)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service")->assertOk();
+        // Sans session, l'accès à la fiche redirige vers la prise de service.
+        $this->actingAs($agent)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}")
+            ->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service");
 
-        $this->actingAs($admin)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+        // Ouverture de session (vérification) → accès accordé + km mis à jour.
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
             'mileage' => 12345,
             'steps' => [['label' => 'Niveaux', 'done' => true], ['label' => 'Pneus', 'done' => false]],
             'notes' => 'RAS',
         ])->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}");
 
-        $this->tenant()->runFor($org, function () use ($vehicle, $admin) {
-            $this->assertDatabaseHas('service_checks', [
+        $this->actingAs($agent)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}")->assertOk();
+
+        $this->tenant()->runFor($org, function () use ($vehicle, $agent) {
+            $this->assertDatabaseHas('vehicle_sessions', [
                 'vehicle_id' => $vehicle->id,
-                'user_id' => $admin->id,
-                'mileage' => 12345,
+                'user_id' => $agent->id,
+                'open_mileage' => 12345,
+                'closed_at' => null,
             ]);
             $this->assertSame(12345, (int) $vehicle->fresh()->mileage);
+        });
+    }
+
+    public function test_opening_by_another_agent_hands_over_the_session(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$a, $b, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $a = User::factory()->create(['organisation_id' => $org->id]);
+            $b = User::factory()->create(['organisation_id' => $org->id]);
+            $a->assignRole(Rbac::VERIFIER);
+            $b->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$a, $b, $vehicle];
+        });
+
+        $this->actingAs($a)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [])->assertRedirect();
+        // B prend le véhicule : la session de A est clôturée par passation.
+        $this->actingAs($b)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [])->assertRedirect();
+
+        $this->tenant()->runFor($org, function () use ($vehicle, $a, $b) {
+            $sessions = \App\Models\VehicleSession::query()->where('vehicle_id', $vehicle->id)->get();
+            // Une seule session ouverte, celle de B.
+            $open = $sessions->whereNull('closed_at');
+            $this->assertCount(1, $open);
+            $this->assertSame($b->id, $open->first()->user_id);
+            // Celle de A est clôturée par passation, par B.
+            $closed = $sessions->firstWhere('user_id', $a->id);
+            $this->assertNotNull($closed->closed_at);
+            $this->assertSame('handover', $closed->close_reason);
+            $this->assertSame($b->id, $closed->closed_by);
+        });
+    }
+
+    public function test_agent_can_close_their_session(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$agent, $vehicle];
+        });
+
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [])->assertRedirect();
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/fin-de-service", ['notes' => 'Fin'])
+            ->assertRedirect('http://caserne.localhost/t');
+
+        $this->tenant()->runFor($org, function () use ($vehicle, $agent) {
+            $session = \App\Models\VehicleSession::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+            $this->assertNotNull($session->closed_at);
+            $this->assertSame('manual', $session->close_reason);
+            $this->assertSame($agent->id, $session->closed_by);
         });
     }
 

@@ -84,7 +84,9 @@ const sevDot = { critical: 'bg-red-500', warning: 'bg-orange-500', watch: 'bg-ye
                         <span v-if="v.disinfection_severity" class="h-2 w-2 shrink-0 rounded-full" :class="sevDot[v.disinfection_severity]" title="Désinfection"></span>
                         <span v-if="v.maintenance_severity" class="h-2 w-2 shrink-0 rounded-full" :class="sevDot[v.maintenance_severity]" title="Entretien"></span>
                     </p>
-                    <p class="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                    <p class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                        <span v-if="v.session_is_mine" class="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700"><span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> En service</span>
+                        <span v-else-if="v.session_holder" class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">Pris · {{ v.session_holder }}</span>
                         <span class="rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="statusStyles[v.status] || 'bg-gray-100 text-gray-600'">{{ v.status_label }}</span>
                         <span v-if="v.type" class="truncate">{{ v.type }}</span>
                     </p>
