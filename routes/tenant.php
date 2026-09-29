@@ -24,6 +24,7 @@ use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FuelController;
 use App\Http\Controllers\ServiceProtocolController;
+use App\Http\Controllers\ServiceSessionController;
 use App\Http\Controllers\TerrainController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
@@ -98,6 +99,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::put('vehicles/{vehicle}/assignments', [VehicleController::class, 'assignments'])->name('vehicles.assignments');
         // Applique le modèle/motorisation affecté : génère emplacements + entretien.
         Route::post('vehicles/{vehicle}/apply-model', [VehicleController::class, 'applyModel'])->name('vehicles.apply-model');
+
+        // Suivi de service : services en cours + historique des prises/fins de service.
+        Route::get('suivi-service', [ServiceSessionController::class, 'index'])->name('service-sessions.index');
 
         // Suivi mécanique.
         Route::post('vehicles/{vehicle}/mileage', [MaintenanceController::class, 'updateMileage'])->name('vehicles.mileage');
