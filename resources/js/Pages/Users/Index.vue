@@ -239,14 +239,14 @@ function cancel(inv) {
                     </div>
                     <p class="mt-0.5 text-xs text-gray-500">Diplômes, autorisations ARS, permis… L'agent les consulte pendant son service s'il a donné son autorisation.</p>
 
-                    <form class="mt-3 flex flex-wrap items-end gap-2" @submit.prevent="submitDoc">
-                        <select v-model="docForm.category" class="rounded-lg border-gray-300 px-2 py-2 text-sm">
+                    <form class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2" @submit.prevent="submitDoc">
+                        <select v-model="docForm.category" class="w-full rounded-lg border-gray-300 px-2 py-2 text-sm">
                             <option v-for="c in docCategories" :key="c" :value="c">{{ c }}</option>
                         </select>
-                        <input v-model="docForm.title" type="text" placeholder="Intitulé" class="min-w-[8rem] flex-1 rounded-lg border-gray-300 px-3 py-2 text-sm" />
-                        <input v-model="docForm.expires_at" type="date" class="rounded-lg border-gray-300 px-2 py-2 text-sm" />
-                        <input type="file" accept=".pdf,image/*" class="text-xs" @change="docForm.file = $event.target.files[0]" />
-                        <button type="submit" :disabled="docForm.processing || !docForm.title || !docForm.file" class="rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Ajouter</button>
+                        <input v-model="docForm.title" type="text" placeholder="Intitulé" class="w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
+                        <input v-model="docForm.expires_at" type="date" class="w-full rounded-lg border-gray-300 px-2 py-2 text-sm" />
+                        <input type="file" accept=".pdf,image/*" class="block w-full min-w-0 text-xs text-gray-600 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-2 file:py-1.5 file:text-xs file:font-medium file:text-gray-700" @change="docForm.file = $event.target.files[0]" />
+                        <button type="submit" :disabled="docForm.processing || !docForm.title || !docForm.file" class="rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60 sm:col-span-2 sm:justify-self-start">Ajouter</button>
                     </form>
                     <InputError :message="docForm.errors.file" />
 

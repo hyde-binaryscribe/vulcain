@@ -329,28 +329,28 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 <p class="mt-0.5 text-sm text-gray-500">Agrément, contrôle technique, carte grise… Consultables par l'agent en service (avec motif).</p>
             </div>
             <div class="px-6 py-4">
-                <form v-if="can_manage_documents" class="flex flex-wrap items-end gap-2" @submit.prevent="submitDoc">
+                <form v-if="can_manage_documents" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="submitDoc">
                     <div>
                         <InputLabel value="Type" />
-                        <select v-model="docForm.category" class="block rounded-lg border-gray-300 px-3 py-2.5 text-sm">
+                        <select v-model="docForm.category" class="block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm">
                             <option v-for="c in docCategories" :key="c" :value="c">{{ c }}</option>
                         </select>
                     </div>
-                    <div class="min-w-[10rem] flex-1">
+                    <div>
                         <InputLabel value="Intitulé" />
-                        <TextInput v-model="docForm.title" placeholder="Ex. CT valable jusqu'au…" />
+                        <TextInput v-model="docForm.title" class="w-full" placeholder="Ex. CT valable jusqu'au…" />
                         <InputError :message="docForm.errors.title" />
                     </div>
                     <div>
                         <InputLabel value="Expiration" />
-                        <TextInput v-model="docForm.expires_at" type="date" />
+                        <TextInput v-model="docForm.expires_at" type="date" class="w-full" />
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <InputLabel value="Fichier (PDF/image)" />
-                        <input type="file" accept=".pdf,image/*" class="block text-sm" @change="docForm.file = $event.target.files[0]" />
+                        <input type="file" accept=".pdf,image/*" class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700" @change="docForm.file = $event.target.files[0]" />
                         <InputError :message="docForm.errors.file" />
                     </div>
-                    <button type="submit" :disabled="docForm.processing || !docForm.title || !docForm.file" class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Ajouter</button>
+                    <button type="submit" :disabled="docForm.processing || !docForm.title || !docForm.file" class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60 sm:col-span-2 lg:col-span-4 lg:w-auto lg:justify-self-start">Ajouter</button>
                 </form>
 
                 <ul class="mt-4 divide-y divide-gray-100">
