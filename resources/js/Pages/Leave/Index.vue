@@ -212,7 +212,7 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
             <!-- Règles par métier (pleine largeur) -->
             <section v-if="rules.length" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-3">
                 <h2 class="text-base font-semibold text-gray-900">Règles par métier</h2>
-                <p class="mt-1 text-sm text-gray-500">Effectif maximum en absence simultanée et droits annuels (jours) par métier.</p>
+                <p class="mt-1 text-sm text-gray-500">Effectif maximum en absence simultanée et droits annuels par métier. Sans valeur, les droits suivent la réalité : 2,5 jours ouvrables acquis par mois (30 j/an).</p>
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="text-left text-xs uppercase tracking-wide text-gray-500">
@@ -222,7 +222,7 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                             <tr v-for="(r, i) in rulesForm.rules" :key="r.job_role" class="border-t border-gray-100">
                                 <td class="py-2 pr-4 font-medium text-gray-900">{{ r.label }}</td>
                                 <td class="py-2 pr-4"><input v-model.number="rulesForm.rules[i].max_simultaneous" type="number" min="0" class="w-28 rounded-lg border border-gray-300 px-2 py-1.5" placeholder="illimité" /></td>
-                                <td class="py-2 pr-4"><input v-model.number="rulesForm.rules[i].annual_days" type="number" min="0" class="w-28 rounded-lg border border-gray-300 px-2 py-1.5" placeholder="—" /></td>
+                                <td class="py-2 pr-4"><input v-model.number="rulesForm.rules[i].annual_days" type="number" min="0" class="w-28 rounded-lg border border-gray-300 px-2 py-1.5" placeholder="30 (défaut)" /></td>
                             </tr>
                         </tbody>
                     </table>
@@ -294,12 +294,13 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                 </form>
 
                 <div v-if="myBalance.annual_days != null" class="mt-5 rounded-xl bg-gray-50 p-4 text-sm">
-                    <p class="text-xs uppercase tracking-wide text-gray-400">Mon solde {{ new Date().getFullYear() }}</p>
-                    <p class="mt-1 font-semibold text-gray-900">{{ myBalance.remaining }} j restants</p>
-                    <p class="text-xs text-gray-500">{{ myBalance.consumed }} consommés / {{ myBalance.annual_days }} droits</p>
+                    <p class="text-xs uppercase tracking-wide text-gray-400">Mon solde<template v-if="myBalance.period_label"> · {{ myBalance.period_label }}</template></p>
+                    <p class="mt-1 font-semibold text-gray-900">{{ myBalance.remaining }} j ouvrables restants</p>
+                    <p class="text-xs text-gray-500">{{ myBalance.consumed }} pris / {{ myBalance.annual_days }} acquis</p>
                     <p v-if="myBalance.hire_date && myBalance.annual_full != null && myBalance.annual_days !== myBalance.annual_full" class="mt-1 text-xs text-gray-400">
-                        Au prorata depuis le {{ myBalance.hire_date }} (droits pleins : {{ myBalance.annual_full }} j).
+                        Au prorata depuis le {{ myBalance.hire_date }} (année pleine : {{ myBalance.annual_full }} j).
                     </p>
+                    <p class="mt-1 text-xs text-gray-400">Acquisition : {{ (myBalance.monthly_rate ?? 2.5).toString().replace('.', ',') }} j ouvrables/mois.</p>
                 </div>
             </section>
 

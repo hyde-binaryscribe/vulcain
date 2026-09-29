@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Hr\FrenchHolidays;
 use App\Domain\Hr\LeaveStatus;
 use App\Domain\Hr\LeaveType;
 use App\Models\LeaveRequest;
@@ -40,7 +41,7 @@ class LeaveController extends Controller
             'end' => $l->end_date?->toDateString(),
             'start_date' => $l->start_date?->format('d/m/Y'),
             'end_date' => $l->end_date?->format('d/m/Y'),
-            'days' => $l->days(),
+            'days' => $l->decompteDays(),
             'reason' => $l->reason,
             'status' => $l->status->value,
             'status_label' => $l->status->label(),
@@ -134,7 +135,7 @@ class LeaveController extends Controller
                 'start_date' => $l->start_date?->format('d/m/Y'),
                 'end_date' => $l->end_date?->format('d/m/Y'),
                 'reason' => $l->reason,
-                'days' => $l->days(),
+                'days' => $l->decompteDays(),
                 'status' => $l->status->value,
                 'status_label' => $l->status->label(),
                 'reviewer' => $l->reviewer?->name,
@@ -330,63 +331,96 @@ class LeaveController extends Controller
     }
 
     /**
-     * Solde annuel d'un utilisateur : droits (selon la règle de son métier),
-     * jours consommés (congés payés approuvés de l'année) et restant.
+     * Solde de congés payés « à la réalité » : 2,5 jours ouvrables acquis par
+     * mois de présence sur la période de référence (mai → avril), utilisables
+     * l'année suivante. Une règle métier (annual_days) peut fixer un autre total
+     * annuel de référence ; à défaut, 30 jours (2,5 × 12).
      *
-     * @return array{job_role:?string,annual_days:?int,consumed:int,remaining:?int}
+     * @return array{job_role:?string,annual_full:int,annual_days:int,hire_date:?string,consumed:int,remaining:int,period_label:string,monthly_rate:float,acquired_months:int}
      */
     private function balanceFor(User $user): array
     {
-        $year = Carbon::now()->year;
-        $full = $user->job_role
+        [$usageStart, $usageEnd] = $this->currentLeavePeriod();
+        $acqStart = $usageStart->copy()->subYear();   // 1er mai (N-1)
+        $acqEnd = $usageStart->copy()->subDay();      // 30 avril (N)
+
+        $configured = $user->job_role
             ? LeaveRule::query()->where('job_role', $user->job_role)->value('annual_days')
             : null;
 
-        $annual = $this->effectiveAnnualDays($full, $user->hire_date, $year);
-        $consumed = $this->consumedDays($user->id, $year);
+        $entitlement = $this->entitlementFor($configured, $user->hire_date, $acqStart, $acqEnd);
+        $consumed = $this->consumedWorkingDays($user->id, $usageStart, $usageEnd);
 
         return [
             'job_role' => $user->job_role,
-            'annual_full' => $full,
-            'annual_days' => $annual,
+            'annual_full' => $entitlement['full'],
+            'annual_days' => $entitlement['effective'],
             'hire_date' => $user->hire_date?->format('d/m/Y'),
             'consumed' => $consumed,
-            'remaining' => $annual !== null ? max(0, $annual - $consumed) : null,
+            'remaining' => max(0, $entitlement['effective'] - $consumed),
+            'period_label' => 'mai '.$usageStart->year.' → avril '.$usageEnd->year,
+            'monthly_rate' => $entitlement['rate'],
+            'acquired_months' => $entitlement['months'],
         ];
     }
 
     /**
-     * Droits annuels effectifs, au prorata de la présence dans l'année depuis la
-     * date d'arrivée (année complète si arrivé avant le 1er janvier).
+     * Période de congés en cours (mai → avril), déterminée par la date du jour.
+     *
+     * @return array{0:Carbon,1:Carbon}
      */
-    private function effectiveAnnualDays(?int $annualFull, ?Carbon $hireDate, int $year): ?int
+    private function currentLeavePeriod(): array
     {
-        if ($annualFull === null) {
-            return null;
-        }
+        $now = Carbon::now();
+        $startYear = $now->month >= 5 ? $now->year : $now->year - 1;
+        $start = Carbon::create($startYear, 5, 1)->startOfDay();
+        $end = $start->copy()->addYear()->subDay()->endOfDay();
 
-        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
-        $yearEnd = Carbon::create($year, 12, 31)->startOfDay();
+        return [$start, $end];
+    }
 
-        if ($hireDate === null || $hireDate->lessThanOrEqualTo($yearStart)) {
-            return $annualFull;
+    /**
+     * Droits acquis sur la période de référence : 2,5 j/mois par défaut (ou
+     * règle métier ÷ 12), au prorata des mois de présence, arrondi au supérieur.
+     *
+     * @return array{full:int,effective:int,rate:float,months:int}
+     */
+    private function entitlementFor(?int $configuredFull, ?Carbon $hireDate, Carbon $acqStart, Carbon $acqEnd): array
+    {
+        $rate = $configuredFull !== null ? $configuredFull / 12 : 2.5;
+        $months = $this->monthsPresent($hireDate, $acqStart, $acqEnd);
+
+        return [
+            'full' => (int) ceil($rate * 12),
+            'effective' => (int) ceil($rate * $months),
+            'rate' => round($rate, 2),
+            'months' => $months,
+        ];
+    }
+
+    /** Nombre de mois de la période de référence (max 12) où l'agent était présent. */
+    private function monthsPresent(?Carbon $hireDate, Carbon $acqStart, Carbon $acqEnd): int
+    {
+        if ($hireDate === null || $hireDate->lessThanOrEqualTo($acqStart)) {
+            return 12;
         }
-        if ($hireDate->greaterThan($yearEnd)) {
+        if ($hireDate->greaterThan($acqEnd)) {
             return 0;
         }
 
-        $daysInYear = $yearStart->diffInDays($yearEnd) + 1;
-        $presentDays = $hireDate->copy()->startOfDay()->diffInDays($yearEnd) + 1;
+        $months = 0;
+        for ($m = $acqStart->copy()->startOfMonth(); $m->lte($acqEnd); $m->addMonth()) {
+            if ($hireDate->lessThanOrEqualTo($m)) {
+                $months++;
+            }
+        }
 
-        return (int) round($annualFull * $presentDays / $daysInYear);
+        return min(12, $months);
     }
 
-    /** Jours de congés payés approuvés consommés par un utilisateur sur une année. */
-    private function consumedDays(int $userId, int $year): int
+    /** Jours ouvrables de congés payés approuvés consommés sur la période donnée. */
+    private function consumedWorkingDays(int $userId, Carbon $periodStart, Carbon $periodEnd): int
     {
-        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
-        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
-
         $consuming = collect(LeaveType::cases())->filter(fn (LeaveType $t) => $t->consumesEntitlement())
             ->map(fn (LeaveType $t) => $t->value)->all();
 
@@ -394,14 +428,14 @@ class LeaveController extends Controller
             ->where('user_id', $userId)
             ->where('status', LeaveStatus::APPROVED->value)
             ->whereIn('type', $consuming)
-            ->whereDate('start_date', '<=', $yearEnd)
-            ->whereDate('end_date', '>=', $yearStart)
+            ->whereDate('start_date', '<=', $periodEnd)
+            ->whereDate('end_date', '>=', $periodStart)
             ->get()
-            ->sum(function (LeaveRequest $l) use ($yearStart, $yearEnd) {
-                $start = $l->start_date->greaterThan($yearStart) ? $l->start_date : $yearStart;
-                $end = $l->end_date->lessThan($yearEnd) ? $l->end_date : $yearEnd;
+            ->sum(function (LeaveRequest $l) use ($periodStart, $periodEnd) {
+                $start = $l->start_date->greaterThan($periodStart) ? $l->start_date : $periodStart;
+                $end = $l->end_date->lessThan($periodEnd) ? $l->end_date : $periodEnd;
 
-                return $start->diffInDays($end) + 1;
+                return FrenchHolidays::workingDaysBetween($start, $end);
             });
     }
 
@@ -413,23 +447,25 @@ class LeaveController extends Controller
      */
     private function teamBalances(Collection $roleLabels): array
     {
-        $year = Carbon::now()->year;
+        [$usageStart, $usageEnd] = $this->currentLeavePeriod();
+        $acqStart = $usageStart->copy()->subYear();
+        $acqEnd = $usageStart->copy()->subDay();
         $rules = $this->rulesByRole();
 
         return User::query()->where('is_active', true)->whereNotNull('job_role')
             ->orderBy('name')->get(['id', 'name', 'job_role', 'hire_date'])
-            ->map(function (User $u) use ($year, $rules, $roleLabels) {
-                $full = $rules[$u->job_role]->annual_days ?? null;
-                $annual = $this->effectiveAnnualDays($full, $u->hire_date, $year);
-                $consumed = $this->consumedDays($u->id, $year);
+            ->map(function (User $u) use ($acqStart, $acqEnd, $usageStart, $usageEnd, $rules, $roleLabels) {
+                $configured = $rules[$u->job_role]->annual_days ?? null;
+                $entitlement = $this->entitlementFor($configured, $u->hire_date, $acqStart, $acqEnd);
+                $consumed = $this->consumedWorkingDays($u->id, $usageStart, $usageEnd);
 
                 return [
                     'name' => $u->name,
                     'job_role_label' => $roleLabels[$u->job_role] ?? $u->job_role,
                     'hire_date' => $u->hire_date?->format('d/m/Y'),
-                    'annual_days' => $annual,
+                    'annual_days' => $entitlement['effective'],
                     'consumed' => $consumed,
-                    'remaining' => $annual !== null ? max(0, $annual - $consumed) : null,
+                    'remaining' => max(0, $entitlement['effective'] - $consumed),
                 ];
             })->values()->all();
     }

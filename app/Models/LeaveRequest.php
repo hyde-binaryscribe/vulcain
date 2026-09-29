@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Hr\FrenchHolidays;
 use App\Domain\Hr\LeaveStatus;
 use App\Domain\Hr\LeaveType;
 use App\Models\Concerns\BelongsToOrganisation;
@@ -56,5 +57,16 @@ class LeaveRequest extends Model
     public function days(): int
     {
         return $this->start_date->diffInDays($this->end_date) + 1;
+    }
+
+    /**
+     * Jours décomptés : jours ouvrables (lun–sam hors fériés) pour les congés
+     * payés (base légale FR), jours calendaires pour les autres natures.
+     */
+    public function decompteDays(): int
+    {
+        return $this->type->consumesEntitlement()
+            ? FrenchHolidays::workingDaysBetween($this->start_date, $this->end_date)
+            : $this->days();
     }
 }

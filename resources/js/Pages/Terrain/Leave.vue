@@ -80,11 +80,11 @@ function canEdit(l) {
 
         <!-- Solde -->
         <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 class="text-sm font-semibold text-gray-800">Mon solde {{ new Date().getFullYear() }}</h2>
-            <div v-if="myBalance.remaining !== null && myBalance.remaining !== undefined" class="mt-3 grid grid-cols-3 gap-2 text-center">
+            <h2 class="text-sm font-semibold text-gray-800">Mon solde<template v-if="myBalance.period_label"> · {{ myBalance.period_label }}</template></h2>
+            <div class="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div>
                     <p class="text-2xl font-bold text-gray-900">{{ myBalance.annual_days }}</p>
-                    <p class="text-[11px] text-gray-500">Droits</p>
+                    <p class="text-[11px] text-gray-500">Acquis</p>
                 </div>
                 <div>
                     <p class="text-2xl font-bold text-gray-500">{{ myBalance.consumed }}</p>
@@ -95,10 +95,7 @@ function canEdit(l) {
                     <p class="text-[11px] text-gray-500">Restant</p>
                 </div>
             </div>
-            <p v-else class="mt-2 text-xs text-gray-500">
-                <template v-if="!myBalance.job_role">Aucun métier n'est défini sur votre fiche — demandez à un responsable de le renseigner.</template>
-                <template v-else>Aucun droit annuel n'est défini pour votre métier — un responsable doit le configurer dans les règles de congés.</template>
-            </p>
+            <p class="mt-2 text-[11px] text-gray-400">Jours ouvrables · {{ (myBalance.monthly_rate ?? 2.5).toString().replace('.', ',') }} j/mois acquis (mai → avril, utilisables l'année suivante).</p>
         </div>
 
         <!-- Responsable : validation dans l'app complète -->

@@ -27,6 +27,7 @@ class LeaveRulesTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         app(TenantContext::class)->forget();
         parent::tearDown();
     }
@@ -83,20 +84,20 @@ class LeaveRulesTest extends TestCase
         ]);
     }
 
-    public function test_balance_reflects_approved_paid_leave(): void
+    public function test_balance_reflects_approved_paid_leave_in_working_days(): void
     {
+        Carbon::setTestNow('2026-09-15'); // période mai 2026 → avril 2027
         [$org, $manager] = $this->orgWithManager();
 
         $employee = $this->tenant()->runFor($org, function () use ($org) {
             LeaveRule::create(['job_role' => 'ade', 'annual_days' => 25]);
             $u = User::factory()->create(['organisation_id' => $org->id, 'job_role' => 'ade']);
 
-            $year = Carbon::now()->year;
             LeaveRequest::create([
                 'user_id' => $u->id,
                 'type' => 'conge_paye',
-                'start_date' => Carbon::create($year, 6, 1),
-                'end_date' => Carbon::create($year, 6, 5), // 5 jours
+                'start_date' => '2026-09-07', // lundi
+                'end_date' => '2026-09-11',   // vendredi → 5 jours ouvrables
                 'status' => 'approuve',
             ]);
 
@@ -110,24 +111,60 @@ class LeaveRulesTest extends TestCase
                 ->where('myBalance.remaining', 20));
     }
 
+    public function test_default_entitlement_is_thirty_working_days_without_rule(): void
+    {
+        Carbon::setTestNow('2026-09-15');
+        [$org] = $this->orgWithManager();
+
+        // Aucun métier, aucune règle : tout le monde a un solde (2,5 j/mois = 30 j).
+        $employee = $this->tenant()->runFor($org, fn () => User::factory()->create(['organisation_id' => $org->id]));
+
+        $this->actingAs($employee)->get('http://ambu.localhost/leave')
+            ->assertInertia(fn (AssertableInertia $p) => $p
+                ->where('myBalance.annual_days', 30)
+                ->where('myBalance.monthly_rate', 2.5)
+                ->where('myBalance.remaining', 30));
+    }
+
+    public function test_sundays_are_excluded_from_consumption(): void
+    {
+        Carbon::setTestNow('2026-09-15');
+        [$org] = $this->orgWithManager();
+
+        $employee = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            LeaveRequest::create([
+                'user_id' => $u->id,
+                'type' => 'conge_paye',
+                'start_date' => '2026-09-07', // lundi
+                'end_date' => '2026-09-13',   // dimanche → 6 ouvrables (dimanche exclu)
+                'status' => 'approuve',
+            ]);
+
+            return $u;
+        });
+
+        $this->actingAs($employee)->get('http://ambu.localhost/leave')
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('myBalance.consumed', 6));
+    }
+
     public function test_entitlement_is_prorated_from_hire_date(): void
     {
-        [$org, $manager] = $this->orgWithManager();
-        $year = Carbon::now()->year;
+        Carbon::setTestNow('2026-09-15'); // référence : mai 2025 → avril 2026
+        [$org] = $this->orgWithManager();
 
-        $employee = $this->tenant()->runFor($org, function () use ($org, $year) {
-            LeaveRule::create(['job_role' => 'ade', 'annual_days' => 24]);
-
+        $employee = $this->tenant()->runFor($org, function () use ($org) {
+            LeaveRule::create(['job_role' => 'ade', 'annual_days' => 24]); // 2 j/mois
             return User::factory()->create([
                 'organisation_id' => $org->id,
                 'job_role' => 'ade',
-                'hire_date' => Carbon::create($year, 7, 1), // arrivé à mi-année
+                'hire_date' => '2025-11-01', // présent nov→avr = 6 mois → 12 j
             ]);
         });
 
         $this->actingAs($employee)->get('http://ambu.localhost/leave')
             ->assertInertia(fn (AssertableInertia $p) => $p
                 ->where('myBalance.annual_full', 24)
-                ->where('myBalance.annual_days', fn ($v) => $v > 0 && $v < 24));
+                ->where('myBalance.annual_days', 12));
     }
 }
