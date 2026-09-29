@@ -17,8 +17,24 @@ const props = defineProps({
     disinfection: { type: Object, default: () => ({ records: [], types: [], can_record: false, state: 'none' }) },
     maintenance: { type: Object, default: () => ({ records: [], types: [], state: 'none' }) },
     fuel: { type: Object, default: null },
+    tasks: { type: Array, default: () => [] },
     history: { type: Array, default: () => [] },
 });
+
+// --- Tâches véhicule ---
+const taskForm = useForm({ title: '', notes: '' });
+function addTask() {
+    taskForm.post(`/vehicles/${props.vehicle.id}/tasks`, { preserveScroll: true, onSuccess: () => taskForm.reset() });
+}
+function completeTask(id) {
+    router.post(`/vehicles/${props.vehicle.id}/tasks/${id}/complete`, {}, { preserveScroll: true });
+}
+function reopenTask(id) {
+    router.post(`/vehicles/${props.vehicle.id}/tasks/${id}/reopen`, {}, { preserveScroll: true });
+}
+function deleteTask(id) {
+    if (confirm('Supprimer cette tâche ?')) router.delete(`/vehicles/${props.vehicle.id}/tasks/${id}`, { preserveScroll: true });
+}
 
 // --- Carburant ---
 const fuelForm = useForm({ filled_at: '', mileage: '', liters: '', price_per_liter: '', full_tank: true });
@@ -197,6 +213,46 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 <p class="text-xs text-gray-500">Non conformes</p>
             </div>
         </div>
+
+        <!-- Tâches véhicule -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-100 px-6 py-4">
+                <h3 class="text-base font-semibold text-gray-900">Tâches</h3>
+                <p class="mt-0.5 text-sm text-gray-500">Tâches persistantes assignées au véhicule ; l'agent les coche depuis le terrain.</p>
+            </div>
+            <div class="px-6 py-4">
+                <form class="flex flex-wrap items-end gap-2" @submit.prevent="addTask">
+                    <div class="min-w-[12rem] flex-1">
+                        <InputLabel value="Nouvelle tâche" />
+                        <TextInput v-model="taskForm.title" placeholder="Ex. Rapporter la bouteille O2 vide" />
+                        <InputError :message="taskForm.errors.title" />
+                    </div>
+                    <div class="min-w-[10rem] flex-1">
+                        <InputLabel value="Précisions (optionnel)" />
+                        <TextInput v-model="taskForm.notes" />
+                    </div>
+                    <button type="submit" :disabled="taskForm.processing || !taskForm.title" class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Ajouter</button>
+                </form>
+
+                <ul class="mt-4 divide-y divide-gray-100">
+                    <li v-for="t in tasks" :key="t.id" class="flex items-start gap-3 py-2.5">
+                        <button type="button" class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2" :class="t.done ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300 text-transparent hover:border-green-500'" :title="t.done ? 'Ré-ouvrir' : 'Marquer fait'" @click="t.done ? reopenTask(t.id) : completeTask(t.id)">
+                            <Icon name="check" :size="12" />
+                        </button>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium" :class="t.done ? 'text-gray-400 line-through' : 'text-gray-900'">{{ t.title }}</span>
+                            <span v-if="t.notes" class="block text-xs text-gray-500">{{ t.notes }}</span>
+                            <span class="block text-[11px] text-gray-400">
+                                <template v-if="t.done">Fait le {{ t.done_at }}<template v-if="t.done_by"> par {{ t.done_by }}</template></template>
+                                <template v-else-if="t.by">Demandé par {{ t.by }}</template>
+                            </span>
+                        </span>
+                        <button class="shrink-0 text-xs text-red-500 hover:underline" @click="deleteTask(t.id)">Suppr.</button>
+                    </li>
+                    <li v-if="tasks.length === 0" class="py-4 text-center text-sm text-gray-400">Aucune tâche.</li>
+                </ul>
+            </div>
+        </section>
 
         <!-- QR d'accès véhicule -->
         <div class="mt-6 sm:max-w-xs">

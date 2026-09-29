@@ -26,6 +26,7 @@ use App\Http\Controllers\FuelController;
 use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\ServiceSessionController;
 use App\Http\Controllers\TerrainController;
+use App\Http\Controllers\VehicleTaskController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
 use App\Http\Controllers\VehicleTypeController;
@@ -44,6 +45,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Enregistrement d'un plein de carburant : accessible à tout agent connecté
     // (le personnel de terrain fait le plein). Suppression réservée (voir ci-dessus).
     Route::post('vehicles/{vehicle}/fuel', [FuelController::class, 'store'])->name('vehicles.fuel.store');
+
+    // Réalisation d'une tâche véhicule : accessible à tout agent connecté (terrain).
+    Route::post('vehicles/{vehicle}/tasks/{task}/complete', [VehicleTaskController::class, 'complete'])->name('vehicles.tasks.complete');
 
     // Application terrain (PWA mobile salariés). Accessible à tout utilisateur
     // connecté ; les actions (désinfection, entretien, anomalie) restent soumises
@@ -109,6 +113,11 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
         // Suppression d'un plein (correction) : réservée aux gestionnaires.
         Route::delete('vehicles/{vehicle}/fuel/{fuel}', [FuelController::class, 'destroy'])->name('vehicles.fuel.destroy');
+
+        // Tâches véhicule : création / gestion par les responsables.
+        Route::post('vehicles/{vehicle}/tasks', [VehicleTaskController::class, 'store'])->name('vehicles.tasks.store');
+        Route::post('vehicles/{vehicle}/tasks/{task}/reopen', [VehicleTaskController::class, 'reopen'])->name('vehicles.tasks.reopen');
+        Route::delete('vehicles/{vehicle}/tasks/{task}', [VehicleTaskController::class, 'destroy'])->name('vehicles.tasks.destroy');
 
         // Catalogue des types de véhicule (VSAV, Ambulance type A…).
         Route::get('vehicle-types', [VehicleTypeController::class, 'index'])->name('vehicle-types.index');

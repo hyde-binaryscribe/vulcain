@@ -138,6 +138,16 @@ class VehicleController extends Controller
                 ]),
             ],
             'fuel' => $fuel,
+            'tasks' => $vehicle->tasks()->with(['creator:id,name', 'completer:id,name'])->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'title' => $t->title,
+                    'notes' => $t->notes,
+                    'done' => $t->done_at !== null,
+                    'done_at' => $t->done_at?->format('d/m/Y H:i'),
+                    'done_by' => $t->completer?->name,
+                    'by' => $t->creator?->name,
+                ]),
             'history' => ActivityLog::query()
                 ->forSubjects([
                     Vehicle::class => [$vehicle->id],

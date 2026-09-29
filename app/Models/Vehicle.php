@@ -75,4 +75,10 @@ class Vehicle extends Model
     {
         return $this->hasMany(FuelRecord::class)->latest('mileage');
     }
+
+    /** Tâches persistantes du véhicule (à faire d'abord, puis les plus récentes). */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(VehicleTask::class)->orderByRaw('done_at is null desc')->latest('id');
+    }
 }

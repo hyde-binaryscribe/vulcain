@@ -197,7 +197,11 @@ class TerrainController extends Controller
         $fuelEnabled = $this->tenant->organisation()->fuelTrackingEnabled();
         $fuel = $fuelEnabled ? FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(30)->get()) : null;
 
+        $tasks = $vehicle->tasks()->open()->with('creator:id,name')->get()
+            ->map(fn ($t) => ['id' => $t->id, 'title' => $t->title, 'notes' => $t->notes, 'by' => $t->creator?->name]);
+
         return Inertia::render('Terrain/Vehicle', [
+            'tasks' => $tasks,
             'fuel' => $fuel === null ? null : [
                 'last' => $fuel['last'],
                 'average' => $fuel['average'],

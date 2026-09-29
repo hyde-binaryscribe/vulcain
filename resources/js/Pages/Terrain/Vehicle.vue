@@ -10,6 +10,7 @@ const props = defineProps({
     locations: { type: Array, default: () => [] },
     disinfection: { type: Object, default: () => ({}) },
     maintenance: { type: Object, default: () => ({}) },
+    tasks: { type: Array, default: () => [] },
     fuel: { type: Object, default: null },
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
@@ -84,6 +85,11 @@ function deleteFuel(id) {
         router.delete(`/vehicles/${props.vehicle.id}/fuel/${id}`, { preserveScroll: true });
     }
 }
+
+// --- Tâches ---
+function completeTask(id) {
+    router.post(`/vehicles/${props.vehicle.id}/tasks/${id}/complete`, {}, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -125,6 +131,23 @@ function deleteFuel(id) {
                 {{ session ? 'Prendre (passation)' : 'Prendre le service' }}
             </Link>
         </div>
+
+        <!-- Tâches à faire -->
+        <section v-if="tasks.length" class="mt-3 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="check" :size="16" /> Tâches à faire ({{ tasks.length }})</h2>
+            <ul class="mt-2 space-y-2">
+                <li v-for="t in tasks" :key="t.id" class="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm">
+                    <button type="button" class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 text-transparent hover:border-green-500 hover:text-green-500" title="Marquer fait" @click="completeTask(t.id)">
+                        <Icon name="check" :size="14" />
+                    </button>
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-sm font-medium text-gray-900">{{ t.title }}</span>
+                        <span v-if="t.notes" class="block text-xs text-gray-500">{{ t.notes }}</span>
+                        <span v-if="t.by" class="block text-[11px] text-gray-400">Demandé par {{ t.by }}</span>
+                    </span>
+                </li>
+            </ul>
+        </section>
 
         <!-- Désinfection -->
         <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
