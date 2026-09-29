@@ -47,7 +47,7 @@ const cfg = props.field.config || {};
 
         <!-- Valeur chiffrée -->
         <div v-else-if="field.type === 'number'" class="mt-1.5 flex items-center gap-2">
-            <input type="number" inputmode="decimal" :min="cfg.min" :max="cfg.max" :step="cfg.step ?? 'any'" :value="modelValue ?? ''" class="block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" @input="set($event.target.value === '' ? null : Number($event.target.value))" />
+            <input type="number" inputmode="decimal" :min="cfg.min" :max="cfg.max" :step="cfg.step ?? 'any'" :value="modelValue ?? ''" class="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" @input="set($event.target.value === '' ? null : Number($event.target.value))" />
             <span v-if="cfg.unit" class="text-sm text-gray-400">{{ cfg.unit }}</span>
         </div>
 
@@ -63,7 +63,7 @@ const cfg = props.field.config || {};
         </div>
 
         <!-- Texte libre -->
-        <textarea v-else-if="field.type === 'text' && cfg.multiline" rows="2" :value="modelValue ?? ''" class="mt-1.5 block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" @input="set($event.target.value)"></textarea>
-        <input v-else type="text" :value="modelValue ?? ''" class="mt-1.5 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" @input="set($event.target.value)" />
+        <textarea v-else-if="field.type === 'text' && cfg.multiline" rows="2" :value="modelValue ?? ''" class="mt-1.5 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" @input="set($event.target.value)"></textarea>
+        <input v-else type="text" :value="modelValue ?? ''" class="mt-1.5 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" @input="set($event.target.value)" />
     </div>
 </template>

@@ -61,7 +61,10 @@ function cancel(id) {
                     <p class="text-[11px] text-gray-500">Restant</p>
                 </div>
             </div>
-            <p v-else class="mt-2 text-xs text-gray-500">Solde non configuré (aucun droit annuel défini pour votre métier).</p>
+            <p v-else class="mt-2 text-xs text-gray-500">
+                <template v-if="!myBalance.job_role">Aucun métier n'est défini sur votre fiche — demandez à un responsable de le renseigner.</template>
+                <template v-else>Aucun droit annuel n'est défini pour votre métier — un responsable doit le configurer dans les règles de congés.</template>
+            </p>
         </div>
 
         <!-- Responsable : validation dans l'app complète -->
@@ -78,25 +81,25 @@ function cancel(id) {
             <form v-else class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submit">
                 <div>
                     <label class="block text-xs font-medium text-gray-600">Type</label>
-                    <select v-model="form.type" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm">
+                    <select v-model="form.type" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white">
                         <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Du</label>
-                        <input v-model="form.start_date" type="date" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                        <input v-model="form.start_date" type="date" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
                         <p v-if="form.errors.start_date" class="mt-1 text-xs text-red-600">{{ form.errors.start_date }}</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Au</label>
-                        <input v-model="form.end_date" type="date" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                        <input v-model="form.end_date" type="date" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
                         <p v-if="form.errors.end_date" class="mt-1 text-xs text-red-600">{{ form.errors.end_date }}</p>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600">Motif (optionnel)</label>
-                    <textarea v-model="form.reason" rows="2" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2 text-sm"></textarea>
+                    <textarea v-model="form.reason" rows="2" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white"></textarea>
                 </div>
                 <div class="flex gap-2">
                     <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="showForm = false">Annuler</button>

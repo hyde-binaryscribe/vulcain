@@ -68,7 +68,7 @@ function submit() {
 
             <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <label class="block text-sm font-semibold text-gray-800">Observations (optionnel)</label>
-                <textarea v-model="form.notes" rows="3" placeholder="Anomalie, matériel à réapprovisionner…" class="mt-2 block w-full rounded-lg border-gray-300 px-3 py-2 text-sm"></textarea>
+                <textarea v-model="form.notes" rows="3" placeholder="Anomalie, matériel à réapprovisionner…" class="mt-2 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white"></textarea>
             </div>
 
             <div class="space-y-2">
