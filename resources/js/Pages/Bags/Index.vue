@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
 
@@ -12,6 +12,19 @@ const props = defineProps({
 
 const transferring = ref(null); // bag being transferred
 const target = ref('');
+
+// --- Création d'un sac ---
+const creating = ref(false);
+const createForm = useForm({ name: '', vehicle_id: '' });
+function openCreate() {
+    createForm.reset();
+    createForm.clearErrors();
+    creating.value = true;
+}
+function submitCreate() {
+    createForm.transform((d) => ({ ...d, vehicle_id: d.vehicle_id || null }))
+        .post('/sacs', { preserveScroll: true, onSuccess: () => { creating.value = false; createForm.reset(); } });
+}
 
 function openTransfer(bag) {
     transferring.value = bag;
@@ -35,10 +48,15 @@ function vehicleLabel(v) {
         <Head title="Sacs" />
         <template #title>Sacs</template>
 
-        <p class="mb-4 max-w-2xl text-sm text-gray-500">
-            Vue d'ensemble des sacs et de leur affectation. Un transfert déplace le sac
-            <span class="font-medium text-gray-700">et tout son contenu</span> vers une autre ambulance, avec traçabilité.
-        </p>
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <p class="max-w-2xl text-sm text-gray-500">
+                Vue d'ensemble des sacs et de leur affectation. Un transfert déplace le sac
+                <span class="font-medium text-gray-700">et tout son contenu</span> vers une autre ambulance, avec traçabilité.
+            </p>
+            <button class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white hover:brightness-110" @click="openCreate">
+                <Icon name="plus" :size="16" /> Nouveau sac
+            </button>
+        </div>
 
         <div class="grid gap-6 lg:grid-cols-3">
             <section class="lg:col-span-2">
@@ -63,7 +81,7 @@ function vehicleLabel(v) {
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="bags.length === 0"><td colspan="4" class="px-4 py-10 text-center text-gray-500">Aucun sac. Créez des emplacements de nature « Sac » sur vos véhicules.</td></tr>
+                            <tr v-if="bags.length === 0"><td colspan="4" class="px-4 py-10 text-center text-gray-500">Aucun sac. Cliquez sur « Nouveau sac » pour en créer un (sur un véhicule ou au dépôt).</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -84,6 +102,26 @@ function vehicleLabel(v) {
                     <li v-if="movements.length === 0" class="px-5 py-8 text-center text-sm text-gray-400">Aucun mouvement.</li>
                 </ul>
             </section>
+        </div>
+
+        <!-- Modale de création -->
+        <div v-if="creating" class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" @click.self="creating = false">
+            <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+                <h3 class="text-lg font-semibold text-gray-900">Nouveau sac</h3>
+                <p class="mt-1 text-sm text-gray-500">Créez un sac et affectez-le à un véhicule, ou laissez-le au dépôt.</p>
+                <label class="mt-4 block text-xs font-medium text-gray-600">Nom du sac</label>
+                <input v-model="createForm.name" type="text" placeholder="ex. Sac ACR, Sac pédiatrique…" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+                <p v-if="createForm.errors.name" class="mt-1 text-xs text-red-600">{{ createForm.errors.name }}</p>
+                <label class="mt-3 block text-xs font-medium text-gray-600">Affectation</label>
+                <select v-model="createForm.vehicle_id" class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">
+                    <option value="">Dépôt (hors véhicule)</option>
+                    <option v-for="v in vehicles" :key="v.id" :value="v.id">{{ vehicleLabel(v) }}</option>
+                </select>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="creating = false">Annuler</button>
+                    <button :disabled="createForm.processing || !createForm.name" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50" @click="submitCreate">Créer</button>
+                </div>
+            </div>
         </div>
 
         <!-- Modale de transfert -->

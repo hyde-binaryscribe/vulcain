@@ -7,6 +7,7 @@ use App\Models\BagMovement;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\Vehicle;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +16,12 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Espace dédié aux sacs : vue d'ensemble et transferts entre véhicules.
+ * Espace dédié aux sacs : création, vue d'ensemble et transferts entre véhicules.
  */
 class BagController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenant) {}
+
     public function index(): Response
     {
         $bags = Location::query()
@@ -61,6 +64,27 @@ class BagController extends Controller
             'movements' => $movements,
             'status' => session('status'),
         ]);
+    }
+
+    /** Crée un sac (emplacement de nature « Sac »), sur un véhicule ou au dépôt. */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'vehicle_id' => [
+                'nullable', 'integer',
+                Rule::exists('vehicles', 'id')->where('organisation_id', $this->tenant->id())->whereNull('deleted_at'),
+            ],
+        ]);
+
+        Location::create([
+            'kind' => LocationKind::SAC->value,
+            'name' => $validated['name'],
+            'vehicle_id' => $validated['vehicle_id'] ?? null, // null = dépôt
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', $validated['vehicle_id'] ?? null ? 'Sac créé.' : 'Sac créé (au dépôt).');
     }
 
     public function transfer(Request $request, Location $location): RedirectResponse

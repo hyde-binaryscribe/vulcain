@@ -33,6 +33,49 @@ class BagTransferTest extends TestCase
         return app(TenantContext::class);
     }
 
+    public function test_admin_can_create_a_bag_on_a_vehicle(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$admin, $vehicle];
+        });
+
+        $this->actingAs($admin)->post('http://caserne.localhost/sacs', [
+            'name' => 'Sac ACR',
+            'vehicle_id' => $vehicle->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, fn () => $this->assertDatabaseHas('locations', [
+            'name' => 'Sac ACR', 'kind' => 'sac', 'vehicle_id' => $vehicle->id,
+        ]));
+    }
+
+    public function test_admin_can_create_a_bag_at_depot(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $admin = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::ADMIN);
+
+            return $u;
+        });
+
+        $this->actingAs($admin)->post('http://caserne.localhost/sacs', [
+            'name' => 'Sac dépôt',
+            'vehicle_id' => null,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, fn () => $this->assertDatabaseHas('locations', [
+            'name' => 'Sac dépôt', 'kind' => 'sac', 'vehicle_id' => null,
+        ]));
+    }
+
     public function test_admin_can_transfer_a_bag_with_its_content(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

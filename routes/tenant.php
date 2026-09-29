@@ -256,8 +256,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('locations/{location}/toggle', [LocationController::class, 'toggle'])->name('locations.toggle');
         Route::delete('locations/{location}', [LocationController::class, 'destroy'])->name('locations.destroy');
 
-        // Espace dédié aux sacs (transferts entre véhicules).
+        // Espace dédié aux sacs (création, transferts entre véhicules).
         Route::get('sacs', [BagController::class, 'index'])->name('bags.index');
+        Route::post('sacs', [BagController::class, 'store'])->name('bags.store');
         Route::post('sacs/{location}/transfer', [BagController::class, 'transfer'])->name('bags.transfer');
     });
 

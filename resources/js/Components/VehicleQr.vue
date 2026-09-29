@@ -46,8 +46,8 @@ function printLabel() {
         <h2 class="flex items-center gap-2 self-start text-sm font-semibold uppercase tracking-wide text-gray-500">
             <Icon name="pin" :size="15" /> QR d'accès véhicule
         </h2>
-        <div v-if="svg" class="h-40 w-40" v-html="svg"></div>
-        <div v-else class="flex h-40 w-40 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">Génération…</div>
+        <div v-if="svg" class="w-44 max-w-full [&>svg]:block [&>svg]:h-auto [&>svg]:w-full" v-html="svg"></div>
+        <div v-else class="flex h-44 w-44 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">Génération…</div>
         <p class="break-all text-center text-[11px] text-gray-400">{{ url }}</p>
         <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="printLabel">
             <Icon name="printer" :size="15" /> Imprimer l'étiquette
