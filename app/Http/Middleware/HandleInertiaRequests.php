@@ -118,6 +118,9 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 // Identifiants générés depuis le Desk (affichage unique, copiable).
                 'credentials' => fn () => $request->session()->get('credentials'),
+                // Lien d'invitation généré (affichage unique, copiable) : dépannage
+                // si l'e-mail n'arrive pas (SMTP indisponible, spam…).
+                'inviteLink' => fn () => $request->session()->get('inviteLink'),
             ],
         ];
     }

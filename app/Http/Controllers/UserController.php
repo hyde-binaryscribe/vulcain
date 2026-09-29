@@ -104,7 +104,9 @@ class UserController extends Controller
 
         $invitations->invite($this->tenant->organisation(), $email, $validated['role']);
 
-        return back()->with('status', "Invitation envoyée à {$email}.");
+        return back()
+            ->with('status', "Invitation envoyée à {$email}.")
+            ->with('inviteLink', $invitations->lastAcceptUrl);
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -191,7 +193,9 @@ class UserController extends Controller
         $invitations->invite($this->tenant->organisation(), $invitation->email, $invitation->role);
         $invitation->delete();
 
-        return back()->with('status', 'Invitation renvoyée.');
+        return back()
+            ->with('status', 'Invitation renvoyée.')
+            ->with('inviteLink', $invitations->lastAcceptUrl);
     }
 
     /** @return list<array{value:string,label:string}> */

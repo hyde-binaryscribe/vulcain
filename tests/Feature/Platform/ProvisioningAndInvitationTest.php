@@ -4,6 +4,7 @@ namespace Tests\Feature\Platform;
 
 use App\Domain\Identity\InvitationService;
 use App\Domain\Identity\OrganisationProvisioner;
+use App\Domain\Identity\Rbac;
 use App\Domain\Sectors\Sector;
 use App\Models\Invitation;
 use App\Models\Organisation;
@@ -173,6 +174,53 @@ class ProvisioningAndInvitationTest extends TestCase
 
         $this->assertNotNull(Invitation::where('email', 'chef@cis.test')->first()->accepted_at);
         $this->assertAuthenticated();
+    }
+
+    public function test_accept_resolves_the_invitation_by_its_own_token(): void
+    {
+        $org = Organisation::factory()->slug('cis')->create();
+        $service = app(InvitationService::class);
+
+        $tokenOf = fn (string $url) => preg_match('#/accept-invitation/([^?]+)#', $url, $m) ? $m[1] : '';
+
+        // Deux invitations en attente pour le même e-mail, rôles différents.
+        $tokenFirst = $this->tenant()->runFor($org, function () use ($service, $org, $tokenOf) {
+            $service->invite($org, 'inola@cis.test', Rbac::VERIFIER);
+
+            return $tokenOf($service->lastAcceptUrl);
+        });
+        $this->tenant()->runFor($org, fn () => $service->invite($org, 'inola@cis.test', Rbac::PHARMACY));
+
+        // On accepte avec le jeton de la PREMIÈRE invitation : le rôle appliqué
+        // doit être le sien (VERIFIER), pas celui de la plus récente (PHARMACY).
+        $user = $service->accept('inola@cis.test', $tokenFirst, [
+            'first_name' => 'Inola',
+            'last_name' => 'Lacheray',
+            'password' => 'motdepasse12',
+        ]);
+
+        $this->assertNotNull($user);
+        $this->tenant()->runFor($org, function () use ($user) {
+            $this->assertTrue($user->hasRole(Rbac::VERIFIER));
+            $this->assertFalse($user->hasRole(Rbac::PHARMACY));
+        });
+    }
+
+    public function test_accept_rejects_a_token_email_mismatch(): void
+    {
+        $org = Organisation::factory()->slug('cis')->create();
+        $service = app(InvitationService::class);
+
+        $token = $this->tenant()->runFor($org, function () use ($service, $org) {
+            $service->invite($org, 'inola@cis.test', Rbac::VERIFIER);
+
+            return preg_match('#/accept-invitation/([^?]+)#', $service->lastAcceptUrl, $m) ? $m[1] : '';
+        });
+
+        // Bon jeton mais e-mail différent : refusé.
+        $this->assertNull($service->accept('intrus@cis.test', $token, [
+            'first_name' => 'X', 'last_name' => 'Y', 'password' => 'motdepasse12',
+        ]));
     }
 
     public function test_invitation_is_single_use(): void

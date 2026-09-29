@@ -55,7 +55,7 @@ class AcceptInvitationController extends Controller
             }
 
             throw ValidationException::withMessages([
-                'email' => 'Cette invitation est invalide ou a expiré.',
+                'email' => 'Ce lien d’invitation est invalide ou a expiré. Utilisez le lien du dernier e-mail reçu, ou demandez à votre administrateur de vous en renvoyer un.',
             ]);
         }
 

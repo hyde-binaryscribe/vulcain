@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -94,6 +94,32 @@ function resend(inv) {
 function cancel(inv) {
     router.delete(`/invitations/${inv.id}`, { preserveScroll: true });
 }
+
+// Lien d'invitation généré (dépannage si l'e-mail n'arrive pas) : latché depuis
+// le flash pour rester affiché et copiable jusqu'à ce qu'on le referme.
+const inviteLink = ref(null);
+const linkCopied = ref(false);
+watch(
+    () => usePage().props.flash?.inviteLink,
+    (link) => {
+        if (link) {
+            inviteLink.value = link;
+            linkCopied.value = false;
+        }
+    },
+    { immediate: true },
+);
+async function copyInviteLink() {
+    try {
+        await navigator.clipboard.writeText(inviteLink.value);
+        linkCopied.value = true;
+        setTimeout(() => (linkCopied.value = false), 2500);
+    } catch {
+        // Presse-papiers indisponible : on sélectionne le texte pour copie manuelle.
+        const el = document.getElementById('invite-link-field');
+        if (el) { el.focus(); el.select(); }
+    }
+}
 </script>
 
 <template>
@@ -164,6 +190,30 @@ function cancel(inv) {
                             Envoyer l’invitation
                         </button>
                     </form>
+
+                    <!-- Lien d'invitation généré : dépannage si l'e-mail n'arrive pas. -->
+                    <div v-if="inviteLink" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="text-xs font-semibold text-amber-900">Lien d’activation (à transmettre si l’e-mail n’arrive pas)</p>
+                            <button class="shrink-0 text-amber-700 hover:text-amber-900" title="Fermer" @click="inviteLink = null">✕</button>
+                        </div>
+                        <div class="mt-2 flex gap-2">
+                            <input
+                                id="invite-link-field"
+                                :value="inviteLink"
+                                readonly
+                                class="min-w-0 flex-1 rounded-md border border-amber-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+                                @focus="$event.target.select()"
+                            />
+                            <button
+                                class="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                                @click="copyInviteLink"
+                            >
+                                {{ linkCopied ? 'Copié !' : 'Copier' }}
+                            </button>
+                        </div>
+                        <p class="mt-2 text-[11px] text-amber-800">Ce lien n’est affiché qu’une fois. Il expire comme l’invitation.</p>
+                    </div>
                 </div>
 
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

@@ -17,6 +17,12 @@ use Illuminate\Support\Str;
  */
 class InvitationService
 {
+    /**
+     * Dernier lien d'acceptation généré (jeton en clair). Exposé pour permettre
+     * à l'administrateur de le transmettre lui-même si l'e-mail n'arrive pas.
+     */
+    public ?string $lastAcceptUrl = null;
+
     public function __construct(
         private readonly TenantContext $tenant,
         private readonly int $expiresMinutes,
@@ -35,10 +41,12 @@ class InvitationService
             'expires_at' => now()->addMinutes($this->expiresMinutes),
         ]);
 
+        $this->lastAcceptUrl = $this->acceptUrl($token, $email);
+
         Notification::route('mail', $email)->notify(
             new OrganisationInvitationNotification(
                 $organisation->name,
-                $this->acceptUrl($token, $email),
+                $this->lastAcceptUrl,
                 $this->expiresMinutes,
                 Rbac::ROLE_LABELS[$role] ?? $role,
             )
@@ -80,17 +88,20 @@ class InvitationService
     {
         $email = mb_strtolower(trim($email));
 
+        // Résolution par jeton (cohérente avec l'affichage GET) : le lien cliqué
+        // détermine l'invitation, pas « la dernière en attente pour cet e-mail »
+        // — sinon un ancien lien pouvait viser une invitation différente.
         $invitation = $this->tenant->runCrossTenant(fn () => Invitation::query()
-            ->where('email', $email)
+            ->where('token', hash('sha256', $token))
             ->whereNull('accepted_at')
-            ->latest('id')
             ->first());
 
         if ($invitation === null || $invitation->expires_at->isPast()) {
             return null;
         }
 
-        if (! hash_equals($invitation->token, hash('sha256', $token))) {
+        // L'e-mail saisi doit correspondre à celui de l'invitation.
+        if (! hash_equals($invitation->email, $email)) {
             return null;
         }
 
