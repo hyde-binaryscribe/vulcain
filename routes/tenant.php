@@ -281,6 +281,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('stock-lots/{lot}', [StockLotController::class, 'update'])->name('stock-lots.update');
         Route::delete('stock-lots/{lot}', [StockLotController::class, 'destroy'])->name('stock-lots.destroy');
 
+        Route::get('material-categories', [MaterialCategoryController::class, 'index'])->name('material-categories.index');
         Route::post('material-categories', [MaterialCategoryController::class, 'store'])->name('material-categories.store');
         Route::delete('material-categories/{category}', [MaterialCategoryController::class, 'destroy'])->name('material-categories.destroy');
 

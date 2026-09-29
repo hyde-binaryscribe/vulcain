@@ -65,6 +65,7 @@ const navGroups = computed(() =>
                     ? [{ label: 'Protocoles de désinfection', href: '/disinfection-protocols', icon: 'protocol', permission: 'vehicles.manage' }]
                     : []),
                 { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
+                { label: 'Catégories de matériel', href: '/material-categories', icon: 'bookmark', permission: 'catalog.manage' },
                 { label: 'Utilisateurs', href: '/users', icon: 'users', permission: 'users.manage' },
                 { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
             ],

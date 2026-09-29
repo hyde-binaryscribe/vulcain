@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -43,18 +43,6 @@ function remove(t) {
         ? `Supprimer « ${t.name} » ? ${t.models_count} modèle(s) y sont rattachés (ils perdront leur type).`
         : `Supprimer le type « ${t.name} » ?`;
     if (confirm(warn)) router.delete(`/material-types/${t.id}`, { preserveScroll: true });
-}
-
-// --- Catégories de matériel ---
-const categoryForm = useForm({ name: '' });
-function addCategory() {
-    categoryForm.post('/material-categories', { preserveScroll: true, onSuccess: () => categoryForm.reset() });
-}
-function removeCategory(c) {
-    const warn = c.types_count > 0
-        ? `Supprimer la catégorie « ${c.name} » ? ${c.types_count} type(s) y sont rattachés (ils perdront leur catégorie).`
-        : `Supprimer la catégorie « ${c.name} » ?`;
-    if (confirm(warn)) router.delete(`/material-categories/${c.id}`, { preserveScroll: true });
 }
 </script>
 
@@ -136,25 +124,9 @@ function removeCategory(c) {
                         <button v-if="editingId" type="button" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm" @click="resetForm">Annuler</button>
                     </div>
                 </form>
-
-                <!-- Catégories de matériel -->
-                <div class="mt-6 border-t border-gray-100 pt-5">
-                    <h2 class="text-base font-semibold text-gray-900">Catégories</h2>
-                    <p class="mt-1 text-sm text-gray-500">Regroupent les types (ex. Diagnostic, Consommables, Oxygène…).</p>
-                    <form class="mt-3 flex gap-2" @submit.prevent="addCategory">
-                        <TextInput v-model="categoryForm.name" class="min-w-0 flex-1" placeholder="Nouvelle catégorie" />
-                        <button type="submit" :disabled="categoryForm.processing || !categoryForm.name" class="rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Ajouter</button>
-                    </form>
-                    <InputError :message="categoryForm.errors.name" class="mt-1" />
-                    <ul class="mt-3 divide-y divide-gray-100">
-                        <li v-for="c in categories" :key="c.id" class="flex items-center gap-2 py-2 text-sm">
-                            <span class="min-w-0 flex-1 truncate text-gray-900">{{ c.name }}</span>
-                            <span class="shrink-0 text-xs text-gray-400">{{ c.types_count }} type(s)</span>
-                            <button class="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removeCategory(c)">Suppr.</button>
-                        </li>
-                        <li v-if="categories.length === 0" class="py-3 text-center text-xs text-gray-400">Aucune catégorie.</li>
-                    </ul>
-                </div>
+                <p class="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                    Gérez les catégories dans <Link href="/material-categories" class="font-medium text-[var(--brand)] hover:underline">Catégories de matériel</Link>.
+                </p>
             </section>
         </div>
     </AppLayout>
