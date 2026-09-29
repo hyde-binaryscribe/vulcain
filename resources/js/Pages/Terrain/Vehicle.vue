@@ -22,6 +22,13 @@ const props = defineProps({
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
 const viewLabel = (v) => viewLabels[v] ?? v;
 
+// Menu en tuiles : section ouverte (null = menu seul).
+const openSection = ref(null);
+function toggle(key) {
+    openSection.value = openSection.value === key ? null : key;
+}
+const openDamages = computed(() => props.body.damages.filter((d) => d.status === 'ouverte').length);
+
 const sevBadge = {
     critical: 'bg-red-100 text-red-800',
     warning: 'bg-orange-100 text-orange-800',
@@ -213,8 +220,53 @@ function setConsent(v) {
             </ul>
         </section>
 
+        <!-- Menu en tuiles (2 colonnes) -->
+        <div class="mt-3 grid grid-cols-2 gap-3">
+            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'material' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('material')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600"><Icon name="materials" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Matériel</span><span class="block truncate text-xs text-gray-500">{{ locations.length }} emplacement(s)</span></span>
+            </button>
+
+            <button v-if="body.enabled" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'body' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('body')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-[var(--brand,#C6362B)]"><Icon name="vehicle" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Carrosserie</span><span class="block truncate text-xs text-gray-500">{{ openDamages ? openDamages + ' anomalie(s)' : 'RAS' }}</span></span>
+                <span v-if="openDamages" class="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ openDamages }}</span>
+            </button>
+
+            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'disinfection' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('disinfection')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600"><Icon name="protocol" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Désinfection</span><span class="block truncate text-xs text-gray-500">{{ disinfection.state_label }}</span></span>
+            </button>
+
+            <button v-if="fuel" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'fuel' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('fuel')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Icon name="materials" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Carburant</span><span class="block truncate text-xs text-gray-500">{{ fuel.average ? fuel.average + ' L/100' : 'Plein' }}</span></span>
+            </button>
+
+            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'maintenance' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('maintenance')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600"><Icon name="settings" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Entretien</span><span class="block truncate text-xs text-gray-500">{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span></span>
+            </button>
+
+            <button v-if="documents.vehicle.length" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'docs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('docs')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon name="template" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Documents</span><span class="block truncate text-xs text-gray-500">{{ documents.vehicle.length }} document(s)</span></span>
+            </button>
+
+            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'mydocs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('mydocs')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><Icon name="user" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Mes documents</span><span class="block truncate text-xs text-gray-500">{{ documents.consent ? 'Autorisé' : 'À autoriser' }}</span></span>
+            </button>
+
+            <button v-if="anomalies.length" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'anomalies' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('anomalies')">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><Icon name="bell" :size="20" /></span>
+                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Anomalies</span><span class="block truncate text-xs text-gray-500">{{ anomalies.length }} en cours</span></span>
+                <span class="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ anomalies.length }}</span>
+            </button>
+        </div>
+
         <!-- Documents du véhicule -->
-        <section v-if="documents.vehicle.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'docs' && documents.vehicle.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name="template" :size="17" /></span>
                 Documents du véhicule
@@ -235,7 +287,7 @@ function setConsent(v) {
         </section>
 
         <!-- Mes documents -->
-        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'mydocs'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600"><Icon name="user" :size="17" /></span>
                 Mes documents
@@ -265,7 +317,7 @@ function setConsent(v) {
         </section>
 
         <!-- Désinfection -->
-        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'disinfection'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600"><Icon name="protocol" :size="17" /></span>
@@ -285,7 +337,7 @@ function setConsent(v) {
         </section>
 
         <!-- Entretien -->
-        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'maintenance'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon name="settings" :size="17" /></span>
@@ -307,7 +359,7 @@ function setConsent(v) {
         </section>
 
         <!-- Carburant (si le suivi est activé) -->
-        <section v-if="fuel" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'fuel' && fuel" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><Icon name="materials" :size="17" /></span>
@@ -339,7 +391,7 @@ function setConsent(v) {
         </section>
 
         <!-- Carrosserie -->
-        <section v-if="body.enabled" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'body' && body.enabled" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-[var(--brand,#C6362B)]"><Icon name="vehicle" :size="17" /></span>
                 Carrosserie
@@ -359,7 +411,7 @@ function setConsent(v) {
         </section>
 
         <!-- Anomalies ouvertes -->
-        <section v-if="anomalies.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="openSection === 'anomalies' && anomalies.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600"><Icon name="bell" :size="17" /></span>
                 Anomalies en cours ({{ anomalies.length }})
@@ -376,7 +428,8 @@ function setConsent(v) {
         </section>
 
         <!-- Checklist matériel -->
-        <h2 class="mb-2 mt-6 flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <template v-if="openSection === 'material'">
+        <h2 class="mb-2 mt-3 flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-gray-500">
             Vérification matériel
             <Link v-if="can_report_anomaly" :href="`/t/anomalie?vehicle_id=${vehicle.id}`" class="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-medium normal-case text-[var(--brand,#C6362B)] shadow-sm">
                 <Icon name="plus" :size="13" /> Anomalie
@@ -401,6 +454,7 @@ function setConsent(v) {
                 Aucun emplacement configuré.
             </p>
         </div>
+        </template>
 
         <!-- Modale désinfection -->
         <div v-if="showDisinf" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="showDisinf = false">
