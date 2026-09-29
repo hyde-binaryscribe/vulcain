@@ -34,6 +34,85 @@ class ServiceSessionTest extends TestCase
         return app(TenantContext::class);
     }
 
+    /** @return array{Organisation, User, User, User, Vehicle} */
+    private function crewFixture(): array
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+
+        return $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $opener = User::factory()->create(['organisation_id' => $org->id]);
+            $opener->assignRole(Rbac::ADMIN);
+            $partner = User::factory()->create(['organisation_id' => $org->id]);
+            $partner->assignRole(Rbac::VERIFIER);
+            $stranger = User::factory()->create(['organisation_id' => $org->id]);
+            $stranger->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$org, $opener, $partner, $stranger, $vehicle];
+        });
+    }
+
+    public function test_partner_shares_the_session_and_can_close_it(): void
+    {
+        [$org, $opener, $partner, $stranger, $vehicle] = $this->crewFixture();
+
+        // L'ouvreur prend le service avec un binôme.
+        $this->actingAs($opener)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'mileage' => 1000,
+            'partner_user_id' => $partner->id,
+        ])->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}");
+
+        $this->tenant()->runFor($org, function () use ($vehicle, $partner) {
+            $s = VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->first();
+            $this->assertSame($partner->id, $s->partner_user_id);
+        });
+
+        // Le binôme accède à la fiche (pas de redirection vers la prise de service).
+        $this->actingAs($partner)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}")->assertOk();
+
+        // Un agent hors équipage est renvoyé vers la prise de service.
+        $this->actingAs($stranger)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}")
+            ->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service");
+
+        // Le binôme peut clôturer le service.
+        $this->actingAs($partner)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/fin-de-service", [
+            'mileage' => 1010,
+        ])->assertRedirect('http://caserne.localhost/t');
+
+        $this->tenant()->runFor($org, fn () => $this->assertNull(
+            VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->first()
+        ));
+    }
+
+    public function test_a_crew_member_can_change_the_partner_mid_service(): void
+    {
+        [$org, $opener, $partner, $newPartner, $vehicle] = $this->crewFixture();
+
+        $this->actingAs($opener)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'partner_user_id' => $partner->id,
+        ]);
+
+        // Changement de binôme en cours de journée (par l'ouvreur).
+        $this->actingAs($opener)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/binome", [
+            'partner_user_id' => $newPartner->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, fn () => $this->assertSame(
+            $newPartner->id,
+            VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->value('partner_user_id')
+        ));
+
+        // Le nouveau binôme (désormais équipier) peut retirer le binôme.
+        $this->actingAs($newPartner)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/binome", [
+            'partner_user_id' => '',
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, fn () => $this->assertNull(
+            VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->value('partner_user_id')
+        ));
+    }
+
     public function test_manager_sees_open_sessions_and_history(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

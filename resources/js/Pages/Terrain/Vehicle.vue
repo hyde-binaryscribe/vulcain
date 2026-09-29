@@ -19,6 +19,16 @@ const props = defineProps({
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
 });
 
+// Binôme : changement en cours de service.
+const showPartner = ref(false);
+const partnerForm = useForm({ partner_user_id: props.session?.partner_id ?? '' });
+function savePartner() {
+    partnerForm.post(`/t/vehicules/${props.vehicle.id}/binome`, {
+        preserveScroll: true,
+        onSuccess: () => { showPartner.value = false; },
+    });
+}
+
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
 const viewLabel = (v) => viewLabels[v] ?? v;
 
@@ -175,14 +185,36 @@ function setConsent(v) {
         </div>
 
         <!-- Session de service -->
-        <div v-if="session?.is_mine" class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5">
-            <div class="flex items-center gap-2 text-sm text-green-800">
-                <span class="h-2 w-2 rounded-full bg-green-500"></span>
-                <span>Service ouvert<template v-if="session.opened_at"> depuis {{ session.opened_at }}</template></span>
+        <div v-if="session?.is_mine" class="mt-3 rounded-2xl border border-green-200 bg-green-50 p-3.5">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 text-sm text-green-800">
+                    <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                    <span>Service ouvert<template v-if="session.opened_at"> depuis {{ session.opened_at }}</template></span>
+                </div>
+                <Link :href="`/t/vehicules/${vehicle.id}/fin-de-service`" class="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50">
+                    Clôturer le service
+                </Link>
             </div>
-            <Link :href="`/t/vehicules/${vehicle.id}/fin-de-service`" class="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50">
-                Clôturer le service
-            </Link>
+
+            <!-- Binôme -->
+            <div class="mt-3 border-t border-green-200 pt-3">
+                <div class="flex items-center justify-between gap-2 text-sm">
+                    <span class="flex items-center gap-2 text-green-900">
+                        <Icon name="users" :size="16" class="text-green-700" />
+                        Binôme : <strong>{{ session.partner || 'aucun' }}</strong>
+                    </span>
+                    <button v-if="session.can_change_partner" type="button" class="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-green-700 shadow-sm ring-1 ring-green-200 hover:bg-green-100" @click="showPartner = !showPartner">
+                        Changer
+                    </button>
+                </div>
+                <div v-if="showPartner" class="mt-2 flex gap-2">
+                    <select v-model="partnerForm.partner_user_id" class="min-w-0 flex-1 rounded-lg border-gray-300 bg-white px-3 py-2 text-sm">
+                        <option value="">— Aucun —</option>
+                        <option v-for="c in (session.crew || [])" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                    <button type="button" :disabled="partnerForm.processing" class="shrink-0 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60" @click="savePartner">Valider</button>
+                </div>
+            </div>
         </div>
         <div v-else class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
             <div class="flex min-w-0 items-center gap-2 text-sm">

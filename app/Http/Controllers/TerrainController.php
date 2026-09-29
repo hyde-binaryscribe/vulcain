@@ -48,9 +48,9 @@ class TerrainController extends Controller
     {
         $user = $request->user();
 
-        // Service en cours de l'agent : on met la fiche en avant et on masque la liste.
+        // Service en cours de l'agent (ouvreur ou binôme) : fiche en avant, liste masquée.
         $myOpen = VehicleSession::query()->open()
-            ->where('user_id', $user->id)
+            ->forActor($user->id)
             ->with('vehicle:id,name,callsign,type')
             ->latest('opened_at')
             ->first();
@@ -117,7 +117,7 @@ class TerrainController extends Controller
                 'maintenance_severity' => $maintenance->severity?->value,
                 'open_anomalies' => (int) ($openAnomalies[$v->id] ?? 0),
                 'session_holder' => $session?->user?->name,
-                'session_is_mine' => $session !== null && $session->user_id === $user->id,
+                'session_is_mine' => $session !== null && $session->involves($user->id),
             ];
         });
 
@@ -168,8 +168,8 @@ class TerrainController extends Controller
     public function vehicle(Request $request, Vehicle $vehicle): Response|RedirectResponse
     {
         $user = $request->user();
-        $openSession = VehicleSession::query()->open()->with('user:id,name')->where('vehicle_id', $vehicle->id)->first();
-        $mine = $openSession !== null && $openSession->user_id === $user->id;
+        $openSession = VehicleSession::query()->open()->with(['user:id,name', 'partner:id,name'])->where('vehicle_id', $vehicle->id)->first();
+        $mine = $openSession !== null && $openSession->involves($user->id);
 
         // Accès conditionné à une session ouverte par l'agent (vérification de
         // prise de service obligatoire). Les gestionnaires peuvent consulter sans session.
@@ -260,6 +260,13 @@ class TerrainController extends Controller
                 'holder' => $openSession->user?->name,
                 'is_mine' => $mine,
                 'opened_at' => $openSession->opened_at?->fr('d/m/Y H:i'),
+                'partner_id' => $openSession->partner_user_id,
+                'partner' => $openSession->partner?->name,
+                // Un équipier (ouvreur/binôme) ou un gestionnaire peut changer le binôme.
+                'can_change_partner' => $mine || $user->can('vehicles.manage'),
+                'crew' => ($mine || $user->can('vehicles.manage'))
+                    ? $this->crewOptions($user, $openSession)
+                    : [],
             ],
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -425,8 +432,8 @@ class TerrainController extends Controller
         $user = $request->user();
         $openSession = VehicleSession::query()->open()->with('user:id,name')->where('vehicle_id', $vehicle->id)->first();
 
-        // Session déjà ouverte par l'agent : inutile de reprendre le service.
-        if ($openSession !== null && $openSession->user_id === $user->id) {
+        // Session déjà en cours pour l'agent (ouvreur ou binôme) : rien à reprendre.
+        if ($openSession !== null && $openSession->involves($user->id)) {
             return redirect()->route('terrain.vehicle', $vehicle);
         }
 
@@ -444,8 +451,29 @@ class TerrainController extends Controller
             // Détenteur actuel : sa session sera clôturée par la passation.
             'current_holder' => $openSession?->user?->name,
             'current_since' => $openSession?->opened_at?->fr('d/m/Y H:i'),
+            // Équipiers proposés pour le binôme (agents actifs de l'organisation, sauf soi).
+            'crew' => $this->crewOptions($user),
             'status' => session('status'),
         ]);
+    }
+
+    /**
+     * Agents actifs de l'organisation proposés comme binôme (hors utilisateur
+     * courant, et hors ouvreur d'une session le cas échéant).
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    private function crewOptions(User $user, ?VehicleSession $session = null): array
+    {
+        $exclude = array_filter([$user->id, $session?->user_id]);
+
+        return User::query()
+            ->where('is_active', true)
+            ->whereNotIn('id', $exclude)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+            ->all();
     }
 
     /** Ouvre une session (après vérification) ; clôture toute session en cours (passation). */
@@ -454,15 +482,17 @@ class TerrainController extends Controller
         $validated = $request->validate([
             'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'partner_user_id' => ['nullable', 'integer'],
             'photos.*' => ['nullable', 'image', 'max:5120'],
         ]);
 
         $this->validateBodyInspection($request);
 
         $user = $request->user();
+        $partnerId = $this->resolvePartnerId($request->input('partner_user_id'), $user->id);
         $responses = $this->processResponses($request, $vehicle, ProtocolPhase::OUVERTURE);
 
-        DB::transaction(function () use ($vehicle, $user, $validated, $responses) {
+        DB::transaction(function () use ($vehicle, $user, $validated, $responses, $partnerId) {
             // Passation : toute session ouverte du véhicule est clôturée par cette prise.
             VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->get()
                 ->each(function (VehicleSession $s) use ($user) {
@@ -477,6 +507,7 @@ class TerrainController extends Controller
             VehicleSession::create([
                 'vehicle_id' => $vehicle->id,
                 'user_id' => $user->id,
+                'partner_user_id' => $partnerId,
                 'opened_at' => now(),
                 'open_mileage' => $validated['mileage'] ?? null,
                 'open_responses' => $responses !== [] ? $responses : null,
@@ -555,11 +586,45 @@ class TerrainController extends Controller
         $user = $request->user();
         $query = VehicleSession::query()->open()->where('vehicle_id', $vehicle->id);
 
+        // Ouvreur comme binôme peuvent clôturer ; le gestionnaire aussi.
         if (! $user->can('vehicles.manage')) {
-            $query->where('user_id', $user->id);
+            $query->forActor($user->id);
         }
 
         return $query->first();
+    }
+
+    /**
+     * Valide un identifiant de binôme : agent actif de l'organisation, différent
+     * de l'ouvreur. Renvoie null si absent/invalide (le binôme est facultatif).
+     */
+    private function resolvePartnerId(mixed $partnerId, int $openerId): ?int
+    {
+        if (empty($partnerId) || (int) $partnerId === $openerId) {
+            return null;
+        }
+
+        return User::query()->where('is_active', true)->whereKey((int) $partnerId)->value('id');
+    }
+
+    /** Change (ou retire) le binôme de la session ouverte d'un véhicule. */
+    public function changePartner(Request $request, Vehicle $vehicle): RedirectResponse
+    {
+        $request->validate(['partner_user_id' => ['nullable', 'integer']]);
+
+        $session = VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->first();
+        if ($session === null) {
+            return back()->with('error', 'Aucun service ouvert sur ce véhicule.');
+        }
+
+        // Seul un équipier (ouvreur/binôme) ou un gestionnaire peut modifier le binôme.
+        abort_unless($session->involves($request->user()->id) || $request->user()->can('vehicles.manage'), 403);
+
+        $session->update([
+            'partner_user_id' => $this->resolvePartnerId($request->input('partner_user_id'), $session->user_id),
+        ]);
+
+        return back()->with('status', 'Binôme mis à jour.');
     }
 
     /**

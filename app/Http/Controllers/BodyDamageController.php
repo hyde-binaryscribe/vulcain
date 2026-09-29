@@ -127,7 +127,7 @@ class BodyDamageController extends Controller
         return back(303)->with('status', 'Anomalie carrosserie supprimée.');
     }
 
-    /** Gestionnaire, ou agent ayant une session ouverte sur ce véhicule. */
+    /** Gestionnaire, ou agent (ouvreur ou binôme) ayant une session ouverte sur ce véhicule. */
     private function canAccess(Vehicle $vehicle, User $user): bool
     {
         if ($user->can('vehicles.manage')) {
@@ -136,7 +136,7 @@ class BodyDamageController extends Controller
 
         return VehicleSession::query()->open()
             ->where('vehicle_id', $vehicle->id)
-            ->where('user_id', $user->id)
+            ->forActor($user->id)
             ->exists();
     }
 }

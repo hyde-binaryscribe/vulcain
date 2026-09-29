@@ -24,6 +24,7 @@ class VehicleSession extends Model
     protected $fillable = [
         'vehicle_id',
         'user_id',
+        'partner_user_id',
         'opened_at',
         'open_mileage',
         'open_steps',
@@ -56,6 +57,20 @@ class VehicleSession extends Model
         return $query->whereNull('closed_at');
     }
 
+    /** Sessions où l'utilisateur agit : ouvreur OU binôme (mêmes droits). */
+    public function scopeForActor(Builder $query, int $userId): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->where('user_id', $userId)
+            ->orWhere('partner_user_id', $userId));
+    }
+
+    /** L'utilisateur fait-il partie de l'équipage de cette session ? */
+    public function involves(int $userId): bool
+    {
+        return $this->user_id === $userId || $this->partner_user_id === $userId;
+    }
+
     public function isOpen(): bool
     {
         return $this->closed_at === null;
@@ -70,6 +85,12 @@ class VehicleSession extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** Binôme rattaché à la session (équipier, mêmes droits d'action). */
+    public function partner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'partner_user_id');
     }
 
     /** Agent ayant clôturé (manuellement ou par passation). */

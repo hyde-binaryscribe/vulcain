@@ -82,6 +82,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('vehicules/{vehicle}/prise-de-service', [TerrainController::class, 'openSession'])->name('service-start.store');
         Route::get('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'serviceEnd'])->name('service-end');
         Route::post('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'closeSession'])->name('service-end.store');
+        Route::post('vehicules/{vehicle}/binome', [TerrainController::class, 'changePartner'])->name('partner');
         Route::get('vehicules/{vehicle}', [TerrainController::class, 'vehicle'])->name('vehicle');
     });
 

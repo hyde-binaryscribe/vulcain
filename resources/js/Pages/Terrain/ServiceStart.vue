@@ -11,6 +11,7 @@ const props = defineProps({
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {} }) },
     current_holder: { type: String, default: null },
     current_since: { type: String, default: null },
+    crew: { type: Array, default: () => [] },
 });
 
 // Valeurs par défaut selon le type de champ.
@@ -25,6 +26,7 @@ props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f.type); })
 const form = useForm({
     mileage: props.vehicle.mileage ?? '',
     notes: '',
+    partner_user_id: '',
     responses: { ...initialResponses },
     photos: {},
     body_ack: false,
@@ -77,6 +79,16 @@ function submit() {
                     <span class="text-sm text-gray-400">km</span>
                 </div>
                 <p v-if="form.errors.mileage" class="mt-1 text-xs text-red-600">{{ form.errors.mileage }}</p>
+            </div>
+
+            <!-- Binôme -->
+            <div v-if="crew.length" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <label class="block text-sm font-semibold text-gray-800">Binôme (optionnel)</label>
+                <p class="mb-2 mt-0.5 text-xs text-gray-500">Il partagera ce service avec vous, avec les mêmes actions.</p>
+                <select v-model="form.partner_user_id" class="block w-full rounded-lg border-gray-300 px-3 py-2.5 text-base">
+                    <option value="">— Aucun —</option>
+                    <option v-for="c in crew" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
 
             <!-- Protocole (champs configurés) -->
