@@ -9,8 +9,8 @@
     {{-- Favicon Vulkain (SVG moderne + repli ICO/PNG + icône installable) --}}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon.ico" sizes="32x32">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3">
+    <link rel="manifest" href="/site.webmanifest?v=3">
     <meta name="theme-color" content="#12161C">
 
     {{-- PWA : installable sur iOS (Ajouter à l'écran d'accueil) --}}
