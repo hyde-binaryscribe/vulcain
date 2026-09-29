@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\Device;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->user()->forceFill(['last_login_at' => now()])->saveQuietly();
 
-        return redirect()->intended(route('dashboard'));
+        // Depuis un téléphone, on ouvre directement l'application terrain ;
+        // sur ordinateur, le tableau de bord complet (lien terrain dans le menu).
+        $default = Device::isMobile($request) ? route('terrain.home') : route('dashboard');
+
+        return redirect()->intended($default);
     }
 
     public function destroy(Request $request): RedirectResponse

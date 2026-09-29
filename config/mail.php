@@ -115,4 +115,23 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail Settings
+    |--------------------------------------------------------------------------
+    |
+    | Thème et emplacements des composants Markdown des e-mails. Le thème
+    | « vulkain » (resources/views/vendor/mail/html/themes/vulkain.css)
+    | applique l'identité Vulkain à toutes les notifications.
+    |
+    */
+
+    'markdown' => [
+        'theme' => 'vulkain',
+
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
+    ],
+
 ];

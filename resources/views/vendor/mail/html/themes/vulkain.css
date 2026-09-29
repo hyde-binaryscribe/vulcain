@@ -1,0 +1,259 @@
+/* Thème e-mail Vulkain — identité braise / forge.
+   Repli sur polices système (Archivo/IBM Plex ne se chargent pas en e-mail). */
+
+body,
+body *:not(html):not(style):not(br):not(tr):not(code) {
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    position: relative;
+}
+
+body {
+    -webkit-text-size-adjust: none;
+    background-color: #eef1f4;
+    color: #3d454d;
+    height: 100%;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+}
+
+p, ul, ol, blockquote {
+    line-height: 1.6;
+    text-align: left;
+}
+
+a {
+    color: #C6362B;
+    word-break: break-word;
+}
+
+a img { border: none; }
+
+/* Layout */
+.wrapper {
+    background-color: #eef1f4;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+}
+
+.content {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+}
+
+/* Header — bandeau forge + mot-symbole */
+.header {
+    padding: 24px 0;
+    text-align: center;
+    background-color: #12161C;
+}
+
+.header a {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-decoration: none;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.header .logo {
+    height: 40px;
+    max-height: 40px;
+    width: auto;
+    vertical-align: middle;
+}
+
+/* Bande d'accent braise sous le header */
+.accent-bar {
+    height: 4px;
+    line-height: 4px;
+    font-size: 0;
+    background-color: #C6362B;
+}
+
+/* Body */
+.body {
+    background-color: #eef1f4;
+    border-bottom: 1px solid #eef1f4;
+    border-top: 1px solid #eef1f4;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+}
+
+.inner-body {
+    background-color: #ffffff;
+    border-radius: 14px;
+    margin: 0 auto;
+    padding: 0;
+    width: 520px;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 520px;
+    box-shadow: 0 1px 3px rgba(16, 22, 30, 0.08);
+    overflow: hidden;
+}
+
+/* Content cells */
+.content-cell {
+    max-width: 100vw;
+    padding: 32px;
+}
+
+.content-cell h1 {
+    color: #14181d;
+    font-size: 21px;
+    font-weight: 700;
+    margin-top: 0;
+    text-align: left;
+}
+
+.content-cell h2 { color: #14181d; font-size: 17px; font-weight: 700; }
+
+/* Footer */
+.footer {
+    margin: 0 auto;
+    padding: 0;
+    text-align: center;
+    width: 520px;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 520px;
+}
+
+.footer p {
+    color: #97a0a8;
+    font-size: 12px;
+    text-align: center;
+}
+
+.footer .brandline {
+    color: #b9c0c7;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+}
+
+.footer a { color: #97a0a8; text-decoration: underline; }
+
+/* Tables / panels dans le corps */
+.table table {
+    margin: 24px auto;
+    width: 100%;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+}
+
+.table th {
+    border-bottom: 1px solid #edeff2;
+    padding-bottom: 8px;
+    margin: 0;
+}
+
+.table td {
+    color: #3d454d;
+    font-size: 14px;
+    line-height: 18px;
+    padding: 10px 0;
+    margin: 0;
+}
+
+.panel {
+    border-left: 4px solid #C6362B;
+    margin: 21px 0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.panel-content {
+    background-color: #f6f7f9;
+    color: #3d454d;
+    padding: 16px;
+}
+
+.panel-content p { color: #3d454d; }
+
+.panel-item { padding: 0; }
+.panel-item p:last-of-type { margin-bottom: 0; padding-bottom: 0; }
+
+/* Buttons */
+.action {
+    margin: 24px auto;
+    padding: 0;
+    text-align: center;
+    width: 100%;
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+}
+
+.button {
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    border-radius: 10px;
+    color: #fff;
+    display: inline-block;
+    overflow: hidden;
+    text-decoration: none;
+    font-weight: 700;
+    -webkit-text-size-adjust: none;
+}
+
+.button-blue,
+.button-primary {
+    background-color: #C6362B;
+    border-bottom: 8px solid #C6362B;
+    border-left: 18px solid #C6362B;
+    border-right: 18px solid #C6362B;
+    border-top: 8px solid #C6362B;
+}
+
+.button-green,
+.button-success {
+    background-color: #1c7a3f;
+    border-bottom: 8px solid #1c7a3f;
+    border-left: 18px solid #1c7a3f;
+    border-right: 18px solid #1c7a3f;
+    border-top: 8px solid #1c7a3f;
+}
+
+.button-red,
+.button-error {
+    background-color: #b0261c;
+    border-bottom: 8px solid #b0261c;
+    border-left: 18px solid #b0261c;
+    border-right: 18px solid #b0261c;
+    border-top: 8px solid #b0261c;
+}
+
+/* Subcopy — lien de repli */
+.subcopy {
+    border-top: 1px solid #edeff2;
+    margin-top: 25px;
+    padding-top: 25px;
+}
+
+.subcopy p {
+    font-size: 13px;
+    color: #8a929a;
+}
+
+@media only screen and (max-width: 600px) {
+    .inner-body { width: 100% !important; }
+    .footer { width: 100% !important; }
+}

@@ -50,6 +50,28 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_mobile_login_redirects_to_the_terrain_app(): void
+    {
+        $this->makeUser('caserne');
+
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148')
+            ->post('http://caserne.localhost/login', [
+                'email' => 'agent@cis.test',
+                'password' => 'motdepasse1',
+            ])->assertRedirect('http://caserne.localhost/t');
+    }
+
+    public function test_desktop_login_redirects_to_the_dashboard(): void
+    {
+        $this->makeUser('caserne');
+
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36')
+            ->post('http://caserne.localhost/login', [
+                'email' => 'agent@cis.test',
+                'password' => 'motdepasse1',
+            ])->assertRedirect('http://caserne.localhost/dashboard');
+    }
+
     public function test_authentication_fails_with_wrong_password(): void
     {
         $this->makeUser('caserne');

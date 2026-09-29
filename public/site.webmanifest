@@ -3,7 +3,7 @@
     "short_name": "Vulkain",
     "description": "Gestion du matériel et des véhicules pour les services de secours.",
     "id": "/",
-    "start_url": "/?source=pwa",
+    "start_url": "/t?source=pwa",
     "scope": "/",
     "lang": "fr",
     "dir": "ltr",
