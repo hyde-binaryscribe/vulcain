@@ -19,4 +19,9 @@ class MaterialCategory extends Model
     {
         return $this->hasMany(Material::class, 'category_id');
     }
+
+    public function types(): HasMany
+    {
+        return $this->hasMany(MaterialType::class, 'category_id');
+    }
 }

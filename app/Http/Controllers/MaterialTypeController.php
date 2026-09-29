@@ -38,7 +38,11 @@ class MaterialTypeController extends Controller
 
         return Inertia::render('MaterialTypes/Index', [
             'types' => $types,
-            'categories' => MaterialCategory::query()->orderBy('name')->get(['id', 'name']),
+            'categories' => MaterialCategory::query()
+                ->withCount('types')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (MaterialCategory $c) => ['id' => $c->id, 'name' => $c->name, 'types_count' => $c->types_count]),
             'trackingModes' => collect(Material::TRACKING_MODES)
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values(),

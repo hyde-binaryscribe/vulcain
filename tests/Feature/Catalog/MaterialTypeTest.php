@@ -61,6 +61,24 @@ class MaterialTypeTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_create_and_delete_a_material_category(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+
+        $this->actingAs($admin)->post('http://caserne.localhost/material-categories', [
+            'name' => 'Diagnostic',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('material_categories', [
+            'organisation_id' => $org->id, 'name' => 'Diagnostic',
+        ]);
+
+        $id = $this->tenant()->runFor($org, fn () => \App\Models\MaterialCategory::query()->where('name', 'Diagnostic')->value('id'));
+        $this->actingAs($admin)->delete("http://caserne.localhost/material-categories/{$id}")
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('material_categories', ['id' => $id]);
+    }
+
     public function test_type_imposes_its_tracking_mode_on_a_model(): void
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
