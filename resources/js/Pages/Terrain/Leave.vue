@@ -19,6 +19,7 @@ const statusStyles = {
 };
 
 const showForm = ref(false);
+const editingId = ref(null); // null = création ; sinon id de la demande éditée
 const form = useForm({
     type: props.types[0]?.value ?? 'conge_paye',
     start_date: '',
@@ -26,16 +27,44 @@ const form = useForm({
     reason: '',
 });
 
+function openCreate() {
+    editingId.value = null;
+    form.reset();
+    form.clearErrors();
+    showForm.value = true;
+}
+function openEdit(l) {
+    editingId.value = l.id;
+    form.type = l.type;
+    form.start_date = l.start ?? '';
+    form.end_date = l.end ?? '';
+    form.reason = l.reason ?? '';
+    form.clearErrors();
+    showForm.value = true;
+}
+function closeForm() {
+    showForm.value = false;
+    editingId.value = null;
+    form.reset();
+    form.clearErrors();
+}
+
 function submit() {
-    form.post('/leave', {
-        preserveScroll: true,
-        onSuccess: () => { form.reset(); showForm.value = false; },
-    });
+    const done = () => { form.reset(); showForm.value = false; editingId.value = null; };
+    if (editingId.value) {
+        form.patch(`/leave/${editingId.value}`, { preserveScroll: true, onSuccess: done });
+    } else {
+        form.post('/leave', { preserveScroll: true, onSuccess: done });
+    }
 }
 function cancel(id) {
-    if (confirm('Annuler cette demande ?')) {
+    if (confirm('Annuler cette demande ? Les responsables en seront informés.')) {
         router.post(`/leave/${id}/cancel`, {}, { preserveScroll: true });
     }
+}
+// Une demande annulée ou refusée n'est plus modifiable/annulable.
+function canEdit(l) {
+    return l.status === 'en_attente' || l.status === 'approuve';
 }
 </script>
 
@@ -73,12 +102,14 @@ function cancel(id) {
             <Icon name="external" :size="16" />
         </Link>
 
-        <!-- Nouvelle demande -->
+        <!-- Nouvelle demande / édition -->
         <div class="mt-3">
-            <button v-if="!showForm" class="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand,#C6362B)] py-3 text-sm font-semibold text-white hover:brightness-110" @click="showForm = true">
+            <button v-if="!showForm" class="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand,#C6362B)] py-3 text-sm font-semibold text-white hover:brightness-110" @click="openCreate">
                 <Icon name="plus" :size="18" /> Nouvelle demande
             </button>
             <form v-else class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submit">
+                <p class="text-sm font-semibold text-gray-800">{{ editingId ? 'Modifier la demande' : 'Nouvelle demande' }}</p>
+                <p v-if="editingId" class="-mt-1 text-xs text-amber-700">La demande repassera en attente de validation.</p>
                 <div>
                     <label class="block text-xs font-medium text-gray-600">Type</label>
                     <select v-model="form.type" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white">
@@ -102,8 +133,8 @@ function cancel(id) {
                     <textarea v-model="form.reason" rows="2" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white"></textarea>
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="showForm = false">Annuler</button>
-                    <button type="submit" :disabled="form.processing || !form.start_date || !form.end_date" class="flex-1 rounded-lg bg-[var(--brand,#C6362B)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Envoyer</button>
+                    <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="closeForm">Annuler</button>
+                    <button type="submit" :disabled="form.processing || !form.start_date || !form.end_date" class="flex-1 rounded-lg bg-[var(--brand,#C6362B)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">{{ editingId ? 'Enregistrer' : 'Envoyer' }}</button>
                 </div>
             </form>
         </div>
@@ -117,10 +148,16 @@ function cancel(id) {
                         <p class="font-semibold text-gray-900">{{ l.type_label }}</p>
                         <p class="mt-0.5 text-xs text-gray-500">Du {{ l.start_date }} au {{ l.end_date }} · {{ l.days }} j</p>
                     </div>
-                    <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusStyles[l.status] || 'bg-gray-100 text-gray-600'">{{ l.status_label }}</span>
+                    <div class="flex shrink-0 flex-col items-end gap-1">
+                        <span class="rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusStyles[l.status] || 'bg-gray-100 text-gray-600'">{{ l.status_label }}</span>
+                        <span v-if="l.modified" class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">Modifiée</span>
+                    </div>
                 </div>
                 <p v-if="l.decision_note" class="mt-1 text-xs text-gray-500">« {{ l.decision_note }} »<template v-if="l.reviewer"> — {{ l.reviewer }}</template></p>
-                <button v-if="l.status === 'en_attente'" class="mt-2 text-xs font-medium text-red-600 hover:underline" @click="cancel(l.id)">Annuler la demande</button>
+                <div v-if="canEdit(l)" class="mt-2 flex gap-4">
+                    <button class="text-xs font-medium text-gray-700 hover:underline" @click="openEdit(l)">Modifier</button>
+                    <button class="text-xs font-medium text-red-600 hover:underline" @click="cancel(l.id)">Annuler</button>
+                </div>
             </div>
             <p v-if="mine.length === 0" class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">Aucune demande.</p>
         </div>

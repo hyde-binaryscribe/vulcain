@@ -28,13 +28,32 @@ const statusStyles = {
 };
 
 // --- Demande (tout le monde) ---
+const editingId = ref(null); // null = création ; sinon id de la demande éditée
 const form = useForm({ type: props.types[0]?.value ?? 'conge_paye', start_date: '', end_date: '', reason: '' });
 function submit() {
-    form.post('/leave', { preserveScroll: true, onSuccess: () => form.reset('start_date', 'end_date', 'reason') });
+    const done = () => { form.reset('start_date', 'end_date', 'reason'); editingId.value = null; };
+    if (editingId.value) form.patch(`/leave/${editingId.value}`, { preserveScroll: true, onSuccess: done });
+    else form.post('/leave', { preserveScroll: true, onSuccess: done });
+}
+function edit(l) {
+    editingId.value = l.id;
+    form.type = l.type;
+    form.start_date = l.start ?? '';
+    form.end_date = l.end ?? '';
+    form.reason = l.reason ?? '';
+    form.clearErrors();
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function cancelEdit() {
+    editingId.value = null;
+    form.reset('start_date', 'end_date', 'reason');
+    form.clearErrors();
 }
 function cancel(l) {
-    if (confirm('Annuler cette demande ?')) router.post(`/leave/${l.id}/cancel`, {}, { preserveScroll: true });
+    if (confirm('Annuler cette demande ? Les responsables en seront informés.')) router.post(`/leave/${l.id}/cancel`, {}, { preserveScroll: true });
 }
+// Une demande annulée ou refusée n'est plus modifiable/annulable.
+const canEdit = (l) => l.status === 'en_attente' || l.status === 'approuve';
 function decide(l, action) {
     const note = action === 'refuse' ? (window.prompt('Motif (facultatif) :') ?? '') : '';
     router.post(`/leave/${l.id}/decision`, { action, decision_note: note }, { preserveScroll: true });
@@ -150,8 +169,12 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                     <h2 class="border-b border-gray-100 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-gray-500">À valider ({{ pending.length }})</h2>
                     <div class="divide-y divide-gray-100">
                         <div v-for="l in pending" :key="l.id" class="px-5 py-3">
-                            <p class="font-medium text-gray-900">{{ l.user }}</p>
+                            <div class="flex items-center gap-2">
+                                <p class="font-medium text-gray-900">{{ l.user }}</p>
+                                <span v-if="l.modified" class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">Modifiée</span>
+                            </div>
                             <p class="text-xs text-gray-500">{{ l.type_label }} · {{ l.start_date }} → {{ l.end_date }} ({{ l.days }} j)</p>
+                            <p v-if="l.modified" class="mt-1 text-xs font-medium text-orange-700">Dates modifiées par l'agent — à revérifier avant validation.</p>
                             <p v-if="l.conflict" class="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><Icon name="bell" :size="12" /> Effectif du métier dépassé</p>
                             <div class="mt-2 flex gap-1">
                                 <button class="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700" @click="decide(l, 'approve')">Approuver</button>
@@ -225,7 +248,8 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
         <!-- ===== Vue salarié ===== -->
         <div v-else class="grid gap-6 lg:grid-cols-3">
             <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:order-2">
-                <h2 class="text-base font-semibold text-gray-900">Nouvelle demande</h2>
+                <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Modifier ma demande' : 'Nouvelle demande' }}</h2>
+                <p v-if="editingId" class="mt-1 text-sm text-amber-700">La demande repassera en attente de validation.</p>
                 <form class="mt-4 space-y-4" @submit.prevent="submit">
                     <div>
                         <InputLabel value="Nature" />
@@ -249,7 +273,10 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                         <InputLabel value="Motif (facultatif)" />
                         <textarea v-model="form.reason" rows="3" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
                     </div>
-                    <button type="submit" :disabled="form.processing" class="w-full rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Envoyer la demande</button>
+                    <div class="flex gap-2">
+                        <button v-if="editingId" type="button" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50" @click="cancelEdit">Annuler</button>
+                        <button type="submit" :disabled="form.processing" class="flex-1 rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">{{ editingId ? 'Enregistrer' : 'Envoyer la demande' }}</button>
+                    </div>
                 </form>
 
                 <div v-if="myBalance.annual_days != null" class="mt-5 rounded-xl bg-gray-50 p-4 text-sm">
@@ -275,10 +302,14 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                             <td class="px-4 py-3 text-gray-600">{{ l.days }}</td>
                             <td class="px-4 py-3">
                                 <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusStyles[l.status]">{{ l.status_label }}</span>
+                                <span v-if="l.modified" class="ml-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">Modifiée</span>
                                 <span v-if="l.decision_note" class="mt-0.5 block text-xs text-gray-400">{{ l.decision_note }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <button v-if="l.status === 'en_attente'" class="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" @click="cancel(l)">Annuler</button>
+                                <div v-if="canEdit(l)" class="flex justify-end gap-2">
+                                    <button class="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50" @click="edit(l)">Modifier</button>
+                                    <button class="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="cancel(l)">Annuler</button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="mine.length === 0"><td colspan="5" class="px-5 py-8 text-center text-gray-400">Aucune demande.</td></tr>

@@ -8,6 +8,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveRule;
 use App\Models\User;
 use App\Notifications\LeaveDecided;
+use App\Notifications\LeaveRequestUpdated;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,7 @@ class LeaveController extends Controller
             'status_label' => $l->status->label(),
             'reviewer' => $l->reviewer?->name,
             'decision_note' => $l->decision_note,
+            'modified' => $l->modified_at !== null,
             'is_owner' => $l->user_id === $user->id,
         ];
 
@@ -120,14 +122,19 @@ class LeaveController extends Controller
             ->get()
             ->map(fn (LeaveRequest $l) => [
                 'id' => $l->id,
+                'type' => $l->type->value,
                 'type_label' => $l->type->label(),
+                'start' => $l->start_date?->toDateString(),
+                'end' => $l->end_date?->toDateString(),
                 'start_date' => $l->start_date?->format('d/m/Y'),
                 'end_date' => $l->end_date?->format('d/m/Y'),
+                'reason' => $l->reason,
                 'days' => $l->days(),
                 'status' => $l->status->value,
                 'status_label' => $l->status->label(),
                 'reviewer' => $l->reviewer?->name,
                 'decision_note' => $l->decision_note,
+                'modified' => $l->modified_at !== null,
             ]);
 
         // Nombre de demandes à valider (pour orienter le responsable vers l'app complète).
@@ -168,11 +175,71 @@ class LeaveController extends Controller
     public function cancel(Request $request, LeaveRequest $leaveRequest): RedirectResponse
     {
         abort_unless($leaveRequest->user_id === $request->user()->id, 403);
-        abort_unless($leaveRequest->status === LeaveStatus::PENDING, 422, 'Seule une demande en attente peut être annulée.');
+        abort_unless(
+            in_array($leaveRequest->status, [LeaveStatus::PENDING, LeaveStatus::APPROVED], true),
+            422,
+            'Cette demande ne peut plus être annulée.'
+        );
 
         $leaveRequest->update(['status' => LeaveStatus::CANCELLED->value]);
 
-        return back()->with('status', 'Demande annulée.');
+        // L'annulation prévient obligatoirement les responsables (surtout si la
+        // demande était déjà approuvée : le créneau se libère).
+        $this->notifyManagers($request->user(), $leaveRequest, LeaveRequestUpdated::CANCELLED);
+
+        return back()->with('status', 'Demande annulée. Les responsables ont été prévenus.');
+    }
+
+    /**
+     * L'agent modifie sa propre demande (en attente ou approuvée) : elle repasse
+     * en attente de validation, marquée « modifiée » pour éviter une validation
+     * par erreur, et les responsables sont prévenus.
+     */
+    public function update(Request $request, LeaveRequest $leaveRequest): RedirectResponse
+    {
+        abort_unless($leaveRequest->user_id === $request->user()->id, 403);
+        abort_unless(
+            in_array($leaveRequest->status, [LeaveStatus::PENDING, LeaveStatus::APPROVED], true),
+            422,
+            'Cette demande ne peut plus être modifiée.'
+        );
+
+        $validated = $request->validate([
+            'type' => ['required', Rule::enum(LeaveType::class)],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $leaveRequest->update([
+            'type' => $validated['type'],
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'reason' => $validated['reason'] ?? null,
+            // Retour au circuit de validation : on efface la décision précédente.
+            'status' => LeaveStatus::PENDING->value,
+            'reviewer_id' => null,
+            'decided_at' => null,
+            'decision_note' => null,
+            'modified_at' => now(),
+        ]);
+
+        $this->notifyManagers($request->user(), $leaveRequest, LeaveRequestUpdated::MODIFIED);
+
+        return back()->with('status', 'Demande modifiée : elle repasse en attente de validation.');
+    }
+
+    /** Notifie les responsables (permission leave.manage), sauf l'agent lui-même. */
+    private function notifyManagers(User $actor, LeaveRequest $leave, string $kind): void
+    {
+        $leave->loadMissing('user');
+
+        User::query()
+            ->permission('leave.manage')
+            ->where('is_active', true)
+            ->where('id', '!=', $actor->id)
+            ->get()
+            ->each(fn (User $manager) => $manager->notify(new LeaveRequestUpdated($leave, $kind)));
     }
 
     public function decide(Request $request, LeaveRequest $leaveRequest): RedirectResponse

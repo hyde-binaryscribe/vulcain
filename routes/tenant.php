@@ -170,6 +170,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // la validation est réservée aux responsables (permission leave.manage).
     Route::get('leave', [LeaveController::class, 'index'])->name('leave.index');
     Route::post('leave', [LeaveController::class, 'store'])->name('leave.store');
+    Route::patch('leave/{leaveRequest}', [LeaveController::class, 'update'])->name('leave.update');
     Route::post('leave/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->name('leave.cancel');
     Route::post('leave/{leaveRequest}/decision', [LeaveController::class, 'decide'])
         ->middleware('permission:leave.manage')->name('leave.decide');

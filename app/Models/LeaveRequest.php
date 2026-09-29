@@ -27,6 +27,7 @@ class LeaveRequest extends Model
         'reviewer_id',
         'decided_at',
         'decision_note',
+        'modified_at',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class LeaveRequest extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'decided_at' => 'datetime',
+            'modified_at' => 'datetime',
         ];
     }
 

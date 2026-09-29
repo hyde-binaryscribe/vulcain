@@ -135,4 +135,88 @@ class LeaveTest extends TestCase
 
         $this->assertDatabaseHas('leave_requests', ['id' => $leave->id, 'status' => 'annule']);
     }
+
+    public function test_owner_can_cancel_approved_request_and_managers_are_notified(): void
+    {
+        [$org, $manager, $employee] = $this->orgWithUsers();
+        $leave = $this->tenant()->runFor($org, fn () => LeaveRequest::create([
+            'user_id' => $employee->id,
+            'type' => 'conge_paye',
+            'start_date' => '2027-04-01',
+            'end_date' => '2027-04-05',
+            'status' => 'approuve',
+            'reviewer_id' => $manager->id,
+            'decided_at' => now(),
+        ]));
+
+        $this->actingAs($employee)->post("http://caserne.localhost/leave/{$leave->id}/cancel")
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('leave_requests', ['id' => $leave->id, 'status' => 'annule']);
+        $this->assertSame(1, $manager->fresh()->notifications()->count());
+    }
+
+    public function test_owner_can_modify_request_which_returns_to_pending_flagged_modified(): void
+    {
+        [$org, $manager, $employee] = $this->orgWithUsers();
+        $leave = $this->tenant()->runFor($org, fn () => LeaveRequest::create([
+            'user_id' => $employee->id,
+            'type' => 'conge_paye',
+            'start_date' => '2027-05-01',
+            'end_date' => '2027-05-03',
+            'status' => 'approuve',
+            'reviewer_id' => $manager->id,
+            'decided_at' => now(),
+        ]));
+
+        $this->actingAs($employee)->patch("http://caserne.localhost/leave/{$leave->id}", [
+            'type' => 'conge_paye',
+            'start_date' => '2027-05-02',
+            'end_date' => '2027-05-06',
+        ])->assertSessionHasNoErrors();
+
+        $fresh = $leave->fresh();
+        $this->assertSame('en_attente', $fresh->status->value);
+        $this->assertNull($fresh->reviewer_id);
+        $this->assertNull($fresh->decided_at);
+        $this->assertNotNull($fresh->modified_at);
+        $this->assertSame('2027-05-06', $fresh->end_date->toDateString());
+        $this->assertSame(1, $manager->fresh()->notifications()->count());
+    }
+
+    public function test_owner_cannot_modify_someone_elses_request(): void
+    {
+        [$org, , $employee] = $this->orgWithUsers();
+        $other = $this->tenant()->runFor($org, fn () => User::factory()->create(['organisation_id' => $org->id]));
+        $leave = $this->tenant()->runFor($org, fn () => LeaveRequest::create([
+            'user_id' => $other->id,
+            'type' => 'rtt',
+            'start_date' => '2027-06-01',
+            'end_date' => '2027-06-02',
+            'status' => 'en_attente',
+        ]));
+
+        $this->actingAs($employee)->patch("http://caserne.localhost/leave/{$leave->id}", [
+            'type' => 'rtt',
+            'start_date' => '2027-06-01',
+            'end_date' => '2027-06-03',
+        ])->assertForbidden();
+    }
+
+    public function test_refused_request_can_no_longer_be_cancelled(): void
+    {
+        [$org, , $employee] = $this->orgWithUsers();
+        $leave = $this->tenant()->runFor($org, fn () => LeaveRequest::create([
+            'user_id' => $employee->id,
+            'type' => 'rtt',
+            'start_date' => '2027-07-01',
+            'end_date' => '2027-07-02',
+            'status' => 'refuse',
+        ]));
+
+        $this->actingAs($employee)->post("http://caserne.localhost/leave/{$leave->id}/cancel")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('leave_requests', ['id' => $leave->id, 'status' => 'refuse']);
+    }
 }
