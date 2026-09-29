@@ -203,6 +203,66 @@ class LeaveTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_moderator_can_submit_a_request_for_another_agent(): void
+    {
+        [$org, , $employee] = $this->orgWithUsers();
+        $moderator = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::MODERATOR);
+
+            return $u;
+        });
+
+        $this->actingAs($moderator)->post('http://caserne.localhost/leave', [
+            'type' => 'conge_paye',
+            'start_date' => '2027-08-01',
+            'end_date' => '2027-08-03',
+            'user_id' => $employee->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('leave_requests', [
+            'user_id' => $employee->id,
+            'status' => 'en_attente',
+        ]);
+    }
+
+    public function test_regular_agent_cannot_submit_for_another_agent(): void
+    {
+        [$org, , $employee] = $this->orgWithUsers();
+        $other = $this->tenant()->runFor($org, fn () => User::factory()->create(['organisation_id' => $org->id]));
+
+        $this->actingAs($employee)->post('http://caserne.localhost/leave', [
+            'type' => 'conge_paye',
+            'start_date' => '2027-08-01',
+            'end_date' => '2027-08-03',
+            'user_id' => $other->id,
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('leave_requests', ['user_id' => $other->id]);
+    }
+
+    public function test_moderator_cannot_validate_requests(): void
+    {
+        [$org, , $employee] = $this->orgWithUsers();
+        $moderator = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::MODERATOR);
+
+            return $u;
+        });
+        $leave = $this->tenant()->runFor($org, fn () => LeaveRequest::create([
+            'user_id' => $employee->id,
+            'type' => 'rtt',
+            'start_date' => '2027-09-01',
+            'end_date' => '2027-09-01',
+            'status' => 'en_attente',
+        ]));
+
+        $this->actingAs($moderator)->post("http://caserne.localhost/leave/{$leave->id}/decision", [
+            'action' => 'approve',
+        ])->assertForbidden();
+    }
+
     public function test_refused_request_can_no_longer_be_cancelled(): void
     {
         [$org, , $employee] = $this->orgWithUsers();

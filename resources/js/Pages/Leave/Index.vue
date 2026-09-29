@@ -18,6 +18,9 @@ const props = defineProps({
     month: { type: String, default: '' },
     monthLabel: { type: String, default: '' },
     canManage: { type: Boolean, default: false },
+    canSubmitForOthers: { type: Boolean, default: false },
+    agents: { type: Array, default: () => [] },
+    me: { type: Object, default: () => ({}) },
 });
 
 const statusStyles = {
@@ -29,14 +32,15 @@ const statusStyles = {
 
 // --- Demande (tout le monde) ---
 const editingId = ref(null); // null = création ; sinon id de la demande éditée
-const form = useForm({ type: props.types[0]?.value ?? 'conge_paye', start_date: '', end_date: '', reason: '' });
+const form = useForm({ type: props.types[0]?.value ?? 'conge_paye', start_date: '', end_date: '', reason: '', user_id: props.me?.id ?? null });
 function submit() {
-    const done = () => { form.reset('start_date', 'end_date', 'reason'); editingId.value = null; };
+    const done = () => { form.reset('start_date', 'end_date', 'reason'); form.user_id = props.me?.id ?? null; editingId.value = null; };
     if (editingId.value) form.patch(`/leave/${editingId.value}`, { preserveScroll: true, onSuccess: done });
     else form.post('/leave', { preserveScroll: true, onSuccess: done });
 }
 function edit(l) {
     editingId.value = l.id;
+    form.user_id = props.me?.id ?? null;
     form.type = l.type;
     form.start_date = l.start ?? '';
     form.end_date = l.end ?? '';
@@ -189,6 +193,9 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                 <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Nouvelle demande</h2>
                     <form class="mt-3 space-y-3" @submit.prevent="submit">
+                        <select v-if="canSubmitForOthers" v-model="form.user_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            <option v-for="a in agents" :key="a.id" :value="a.id">{{ a.id === me.id ? `${a.name} (moi)` : a.name }}</option>
+                        </select>
                         <select v-model="form.type" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                             <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
                         </select>
@@ -251,6 +258,13 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
                 <h2 class="text-base font-semibold text-gray-900">{{ editingId ? 'Modifier ma demande' : 'Nouvelle demande' }}</h2>
                 <p v-if="editingId" class="mt-1 text-sm text-amber-700">La demande repassera en attente de validation.</p>
                 <form class="mt-4 space-y-4" @submit.prevent="submit">
+                    <div v-if="!editingId">
+                        <InputLabel value="Pour" />
+                        <select v-if="canSubmitForOthers" v-model="form.user_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">
+                            <option v-for="a in agents" :key="a.id" :value="a.id">{{ a.id === me.id ? `${a.name} (moi)` : a.name }}</option>
+                        </select>
+                        <input v-else type="text" :value="me.name" disabled class="block w-full cursor-not-allowed rounded-lg border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-500" />
+                    </div>
                     <div>
                         <InputLabel value="Nature" />
                         <select v-model="form.type" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm">

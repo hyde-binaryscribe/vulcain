@@ -17,10 +17,13 @@ final class Rbac
 
     public const VERIFIER = 'verificateur';
 
+    public const MODERATOR = 'moderateur';
+
     /** Libellés d'affichage. */
     public const ROLE_LABELS = [
         self::ADMIN => 'Administrateur',
         self::PHARMACY => 'Responsable pharmacie',
+        self::MODERATOR => 'Modérateur',
         self::VERIFIER => 'Vérificateur',
     ];
 
@@ -40,6 +43,7 @@ final class Rbac
         'repairs.manage',
         'disinfections.record',
         'leave.manage',
+        'leave.submit_for_others',
         'documents.manage',
         'history.view',
         'history.view_all',
@@ -75,6 +79,16 @@ final class Rbac
                 'history.view',
                 'stats.view',
                 'exports.create',
+            ],
+
+            // Vérificateur + dépôt de demandes de congés pour ses collègues
+            // (aide à la saisie), SANS pouvoir valider.
+            self::MODERATOR => [
+                'protocols.perform',
+                'anomalies.manage',
+                'disinfections.record',
+                'leave.submit_for_others',
+                'history.view',
             ],
 
             // Réalisation des protocoles + déclaration d'anomalies + désinfections.

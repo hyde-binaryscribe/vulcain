@@ -57,12 +57,17 @@ class LeaveController extends Controller
             ->get()
             ->map($format);
 
+        $canSubmit = $this->canSubmitForOthers($user);
+
         $data = [
             'mine' => $mine,
             'types' => LeaveType::options(),
             'jobRoles' => $jobRoles,
             'myBalance' => $this->balanceFor($user),
             'canManage' => $canManage,
+            'canSubmitForOthers' => $canSubmit,
+            'agents' => $canSubmit ? $this->submittableAgents() : [],
+            'me' => ['id' => $user->id, 'name' => $user->name],
             'status' => session('status'),
         ];
 
@@ -142,11 +147,16 @@ class LeaveController extends Controller
             ? LeaveRequest::query()->where('status', LeaveStatus::PENDING->value)->count()
             : 0;
 
+        $canSubmit = $this->canSubmitForOthers($user);
+
         return Inertia::render('Terrain/Leave', [
             'mine' => $mine,
             'types' => LeaveType::options(),
             'myBalance' => $this->balanceFor($user),
             'to_validate' => $toValidate,
+            'canSubmitForOthers' => $canSubmit,
+            'agents' => $canSubmit ? $this->submittableAgents() : [],
+            'me' => ['id' => $user->id, 'name' => $user->name],
             'status' => session('status'),
         ]);
     }
@@ -158,10 +168,21 @@ class LeaveController extends Controller
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string', 'max:2000'],
+            'user_id' => ['nullable', 'integer'],
         ]);
 
+        $actor = $request->user();
+        $targetId = $validated['user_id'] ?? $actor->id;
+
+        // Déposer une demande pour un autre agent : réservé aux modérateurs
+        // (et responsables). La cible doit être un agent actif de l'organisation.
+        if ($targetId !== $actor->id) {
+            abort_unless($this->canSubmitForOthers($actor), 403);
+            $targetId = User::query()->where('is_active', true)->findOrFail($targetId)->id;
+        }
+
         LeaveRequest::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $targetId,
             'type' => $validated['type'],
             'start_date' => $validated['start_date'],
             'end_date' => $validated['end_date'],
@@ -169,7 +190,26 @@ class LeaveController extends Controller
             'status' => LeaveStatus::PENDING->value,
         ]);
 
-        return back()->with('status', 'Demande envoyée.');
+        return back()->with('status', $targetId === $actor->id
+            ? 'Demande envoyée.'
+            : 'Demande envoyée pour l\'agent.');
+    }
+
+    /** Peut déposer une demande pour le compte d'un autre agent. */
+    private function canSubmitForOthers(User $user): bool
+    {
+        return $user->can('leave.submit_for_others') || $user->can('leave.manage');
+    }
+
+    /**
+     * Agents pour lesquels une demande peut être déposée (actifs de l'organisation).
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    private function submittableAgents(): array
+    {
+        return User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])->all();
     }
 
     public function cancel(Request $request, LeaveRequest $leaveRequest): RedirectResponse

@@ -9,6 +9,9 @@ const props = defineProps({
     types: { type: Array, default: () => [] },
     myBalance: { type: Object, default: () => ({}) },
     to_validate: { type: Number, default: 0 },
+    canSubmitForOthers: { type: Boolean, default: false },
+    agents: { type: Array, default: () => [] },
+    me: { type: Object, default: () => ({}) },
 });
 
 const statusStyles = {
@@ -25,11 +28,13 @@ const form = useForm({
     start_date: '',
     end_date: '',
     reason: '',
+    user_id: props.me?.id ?? null,
 });
 
 function openCreate() {
     editingId.value = null;
     form.reset();
+    form.user_id = props.me?.id ?? null;
     form.clearErrors();
     showForm.value = true;
 }
@@ -110,6 +115,13 @@ function canEdit(l) {
             <form v-else class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" @submit.prevent="submit">
                 <p class="text-sm font-semibold text-gray-800">{{ editingId ? 'Modifier la demande' : 'Nouvelle demande' }}</p>
                 <p v-if="editingId" class="-mt-1 text-xs text-amber-700">La demande repassera en attente de validation.</p>
+                <div v-if="!editingId">
+                    <label class="block text-xs font-medium text-gray-600">Pour</label>
+                    <select v-if="canSubmitForOthers" v-model="form.user_id" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white">
+                        <option v-for="a in agents" :key="a.id" :value="a.id">{{ a.id === me.id ? `${a.name} (moi)` : a.name }}</option>
+                    </select>
+                    <input v-else type="text" :value="me.name" disabled class="mt-1 block w-full cursor-not-allowed rounded-lg border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-500" />
+                </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600">Type</label>
                     <select v-model="form.type" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white">
