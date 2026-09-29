@@ -16,8 +16,12 @@ Route::get('/accueil', [VitrineController::class, 'home'])->name('vitrine.home')
 
 // Déclencheur de tâches planifiées par URL (jeton secret), tous hôtes — pour les
 // hébergements sans PHP CLI dans le cron (tâche Plesk « Récupérer une URL »).
+// Deux formes : jeton en query (?token=) ou dans le chemin (/{token}), cette
+// dernière évitant les blocages de certains outils de fetch / WAF sur « ? ».
 Route::get('/cron/echeances', [CronController::class, 'echeances'])
     ->middleware('throttle:12,1')->name('cron.echeances');
+Route::get('/cron/echeances/{token}', [CronController::class, 'echeances'])
+    ->middleware('throttle:12,1')->name('cron.echeances.token');
 
 // ————————————————————————————————————————————————————————————————
 // ESPACE CLIENT — hôte applicatif (app.vulkain.eu) UNIQUEMENT.

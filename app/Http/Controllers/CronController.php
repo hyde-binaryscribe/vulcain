@@ -42,7 +42,11 @@ class CronController extends Controller
     private function authorizeToken(Request $request): void
     {
         $expected = (string) config('security.cron.token', '');
-        $provided = (string) ($request->query('token') ?? $request->header('X-Cron-Token', ''));
+        // Jeton accepté depuis le chemin (/cron/echeances/{token}), la query
+        // (?token=) ou l'en-tête X-Cron-Token.
+        $provided = (string) ($request->route('token')
+            ?? $request->query('token')
+            ?? $request->header('X-Cron-Token', ''));
 
         abort_if($expected === '' || ! hash_equals($expected, $provided), 404);
     }

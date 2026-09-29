@@ -69,4 +69,12 @@ class CronTriggerTest extends TestCase
             'status' => 'a_traiter',
         ]);
     }
+
+    public function test_cron_endpoint_accepts_token_in_path(): void
+    {
+        config(['security.cron.token' => 'secret-token']);
+
+        $this->get('http://localhost/cron/echeances/secret-token')->assertOk()->assertSee('OK');
+        $this->get('http://localhost/cron/echeances/wrong')->assertNotFound();
+    }
 }
