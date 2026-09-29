@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Domain\Billing\PlanLimits;
 use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\DisinfectionType;
+use App\Domain\Fleet\FuelConsumption;
 use App\Domain\Fleet\MaintenanceStatus;
 use App\Domain\Fleet\MaintenanceType;
 use App\Domain\Fleet\VehicleStatus;
@@ -73,6 +74,9 @@ class VehicleController extends Controller
         $maintenances = $vehicle->maintenances()->with('user:id,name')->limit(50)->get();
         $maintenanceStatus = MaintenanceStatus::forVehicleRecords($maintenances, $vehicle->mileage !== null ? (int) $vehicle->mileage : null);
 
+        // Carburant : historique et consommation.
+        $fuel = FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(50)->get());
+
         return Inertia::render('Vehicles/Show', [
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -132,6 +136,7 @@ class VehicleController extends Controller
                     'user' => $m->user?->name,
                 ]),
             ],
+            'fuel' => $fuel,
             'history' => ActivityLog::query()
                 ->forSubjects([
                     Vehicle::class => [$vehicle->id],

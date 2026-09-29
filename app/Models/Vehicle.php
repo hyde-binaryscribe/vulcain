@@ -69,4 +69,10 @@ class Vehicle extends Model
     {
         return $this->hasMany(MaintenanceRecord::class)->latest('performed_at');
     }
+
+    /** Pleins de carburant (plus récent d'abord). */
+    public function fuelRecords(): HasMany
+    {
+        return $this->hasMany(FuelRecord::class)->latest('mileage');
+    }
 }

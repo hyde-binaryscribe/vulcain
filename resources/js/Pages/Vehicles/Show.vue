@@ -5,6 +5,9 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import HistoryList from '@/Components/HistoryList.vue';
 import Icon from '@/Components/Icon.vue';
 import VehicleQr from '@/Components/VehicleQr.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import TextInput from '@/Components/TextInput.vue';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     vehicle: { type: Object, required: true },
@@ -13,8 +16,19 @@ const props = defineProps({
     alerts: { type: Object, default: () => ({ expired: 0, expiring_soon: 0, below_threshold: 0, anomalies: 0 }) },
     disinfection: { type: Object, default: () => ({ records: [], types: [], can_record: false, state: 'none' }) },
     maintenance: { type: Object, default: () => ({ records: [], types: [], state: 'none' }) },
+    fuel: { type: Object, default: () => ({ records: [], average: null, last: null, total_cost: null, total_liters: 0 }) },
     history: { type: Array, default: () => [] },
 });
+
+// --- Carburant ---
+const fuelForm = useForm({ filled_at: '', mileage: '', liters: '', cost: '', full_tank: true });
+function submitFuel() {
+    fuelForm.transform((d) => ({ ...d, cost: d.cost || null, filled_at: d.filled_at || null }))
+        .post(`/vehicles/${props.vehicle.id}/fuel`, { preserveScroll: true, onSuccess: () => fuelForm.reset() });
+}
+function deleteFuel(id) {
+    if (confirm('Supprimer ce plein ?')) router.delete(`/vehicles/${props.vehicle.id}/fuel/${id}`, { preserveScroll: true });
+}
 
 const severityBadge = {
     critical: 'bg-red-100 text-red-800',
@@ -382,6 +396,69 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                             </td>
                         </tr>
                         <tr v-if="maintenance.records.length === 0"><td colspan="7" class="px-6 py-6 text-center text-gray-400">Aucune opération enregistrée.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Carburant -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
+                <h3 class="text-base font-semibold text-gray-900">Carburant &amp; consommation</h3>
+                <div class="flex gap-2 text-sm">
+                    <span v-if="fuel.average" class="rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700">Moy. {{ fuel.average }} L/100 km</span>
+                    <span v-if="fuel.total_cost" class="rounded-full bg-gray-100 px-2.5 py-0.5 font-medium text-gray-700">{{ fuel.total_cost }} € cumulés</span>
+                </div>
+            </div>
+
+            <div class="px-6 py-4">
+                <form class="grid grid-cols-2 gap-3 sm:grid-cols-5" @submit.prevent="submitFuel">
+                    <div>
+                        <InputLabel value="Litres" />
+                        <TextInput v-model="fuelForm.liters" type="number" step="0.01" min="0" />
+                        <InputError :message="fuelForm.errors.liters" />
+                    </div>
+                    <div>
+                        <InputLabel value="Kilométrage" />
+                        <TextInput v-model="fuelForm.mileage" type="number" min="0" />
+                        <InputError :message="fuelForm.errors.mileage" />
+                    </div>
+                    <div>
+                        <InputLabel value="Coût (€)" />
+                        <TextInput v-model="fuelForm.cost" type="number" step="0.01" min="0" />
+                    </div>
+                    <div>
+                        <InputLabel value="Date" />
+                        <TextInput v-model="fuelForm.filled_at" type="date" />
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" :disabled="fuelForm.processing || !fuelForm.liters || !fuelForm.mileage" class="w-full rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>
+                    </div>
+                    <label class="col-span-2 flex items-center gap-2 text-sm text-gray-700 sm:col-span-5">
+                        <input v-model="fuelForm.full_tank" type="checkbox" class="rounded border-gray-300" /> Plein complet (à ras) — requis pour le calcul de conso
+                    </label>
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                            <th class="px-6 py-3">Date</th><th class="px-6 py-3">Km</th><th class="px-6 py-3">Litres</th>
+                            <th class="px-6 py-3">Conso</th><th class="px-6 py-3">Coût</th><th class="px-6 py-3">Par</th><th class="px-6 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr v-for="r in fuel.records" :key="r.id">
+                            <td class="px-6 py-3">{{ r.filled_at }}</td>
+                            <td class="px-6 py-3">{{ r.mileage != null ? Number(r.mileage).toLocaleString('fr-FR') : '—' }}</td>
+                            <td class="px-6 py-3">{{ r.liters }} L<span v-if="!r.full_tank" class="ml-1 text-xs text-gray-400">(partiel)</span></td>
+                            <td class="px-6 py-3">{{ r.consumption ? r.consumption + ' L/100' : '—' }}</td>
+                            <td class="px-6 py-3">{{ r.cost ? r.cost + ' €' : '—' }}</td>
+                            <td class="px-6 py-3 text-gray-500">{{ r.user || '—' }}</td>
+                            <td class="px-6 py-3 text-right"><button class="text-xs text-red-600 hover:underline" @click="deleteFuel(r.id)">Suppr.</button></td>
+                        </tr>
+                        <tr v-if="fuel.records.length === 0"><td colspan="7" class="px-6 py-6 text-center text-gray-400">Aucun plein enregistré.</td></tr>
                     </tbody>
                 </table>
             </div>

@@ -6,6 +6,7 @@ use App\Domain\Events\EventStatus;
 use App\Domain\Events\EventType;
 use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\DisinfectionType;
+use App\Domain\Fleet\FuelConsumption;
 use App\Domain\Fleet\MaintenanceStatus;
 use App\Models\DisinfectionProtocol;
 use App\Models\DisinfectionRecord;
@@ -170,7 +171,16 @@ class TerrainController extends Controller
                 'photo_url' => $e->photo_path ? route('terrain.anomaly.photo', $e) : null,
             ]);
 
+        $fuel = FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(30)->get());
+
         return Inertia::render('Terrain/Vehicle', [
+            'fuel' => [
+                'last' => $fuel['last'],
+                'average' => $fuel['average'],
+                'total_cost' => $fuel['total_cost'],
+                'records' => array_slice($fuel['records'], 0, 5),
+                'can_delete' => $request->user()->can('vehicles.manage'),
+            ],
             'session' => $openSession === null ? null : [
                 'holder' => $openSession->user?->name,
                 'is_mine' => $mine,

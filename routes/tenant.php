@@ -22,6 +22,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\FuelController;
 use App\Http\Controllers\TerrainController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
@@ -37,6 +38,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Recherche globale (résultats filtrés par permissions dans le contrôleur).
     Route::get('search', [SearchController::class, 'index'])->name('search.index');
     Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+
+    // Enregistrement d'un plein de carburant : accessible à tout agent connecté
+    // (le personnel de terrain fait le plein). Suppression réservée (voir ci-dessus).
+    Route::post('vehicles/{vehicle}/fuel', [FuelController::class, 'store'])->name('vehicles.fuel.store');
 
     // Application terrain (PWA mobile salariés). Accessible à tout utilisateur
     // connecté ; les actions (désinfection, entretien, anomalie) restent soumises
@@ -97,6 +102,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('vehicles/{vehicle}/mileage', [MaintenanceController::class, 'updateMileage'])->name('vehicles.mileage');
         Route::post('vehicles/{vehicle}/maintenances', [MaintenanceController::class, 'store'])->name('vehicles.maintenances.store');
         Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
+        // Suppression d'un plein (correction) : réservée aux gestionnaires.
+        Route::delete('vehicles/{vehicle}/fuel/{fuel}', [FuelController::class, 'destroy'])->name('vehicles.fuel.destroy');
 
         // Catalogue des types de véhicule (VSAV, Ambulance type A…).
         Route::get('vehicle-types', [VehicleTypeController::class, 'index'])->name('vehicle-types.index');

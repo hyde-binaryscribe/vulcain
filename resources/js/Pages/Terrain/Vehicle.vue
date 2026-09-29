@@ -10,6 +10,7 @@ const props = defineProps({
     locations: { type: Array, default: () => [] },
     disinfection: { type: Object, default: () => ({}) },
     maintenance: { type: Object, default: () => ({}) },
+    fuel: { type: Object, default: () => ({}) },
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
 });
@@ -54,6 +55,28 @@ function submitDisinf() {
 const mileageForm = useForm({ mileage: props.vehicle.mileage ?? '' });
 function submitMileage() {
     mileageForm.post(`/vehicles/${props.vehicle.id}/mileage`, { preserveScroll: true });
+}
+
+// --- Carburant (plein) ---
+const showFuel = ref(false);
+const fuelForm = useForm({
+    filled_at: nowLocal(),
+    mileage: props.vehicle.mileage ?? '',
+    liters: '',
+    cost: '',
+    full_tank: true,
+});
+function submitFuel() {
+    fuelForm.transform((d) => ({ ...d, cost: d.cost || null }))
+        .post(`/vehicles/${props.vehicle.id}/fuel`, {
+            preserveScroll: true,
+            onSuccess: () => { showFuel.value = false; fuelForm.reset(); fuelForm.filled_at = nowLocal(); fuelForm.mileage = props.vehicle.mileage ?? ''; },
+        });
+}
+function deleteFuel(id) {
+    if (confirm('Supprimer ce plein ?')) {
+        router.delete(`/vehicles/${props.vehicle.id}/fuel/${id}`, { preserveScroll: true });
+    }
 }
 </script>
 
@@ -135,6 +158,35 @@ function submitMileage() {
             </form>
         </section>
 
+        <!-- Carburant -->
+        <section class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="materials" :size="16" /> Carburant</h2>
+                <span v-if="fuel.last" class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ fuel.last }} L/100</span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+                <template v-if="fuel.average">Conso moyenne : <strong>{{ fuel.average }} L/100 km</strong></template>
+                <template v-else>Enregistrez deux pleins « à ras » pour calculer la consommation.</template>
+                <template v-if="fuel.total_cost"> · Coût cumulé : {{ fuel.total_cost }} €</template>
+            </p>
+
+            <ul v-if="fuel.records && fuel.records.length" class="mt-2 divide-y divide-gray-100">
+                <li v-for="r in fuel.records" :key="r.id" class="flex items-center gap-2 py-2 text-sm">
+                    <span class="min-w-0 flex-1">
+                        <span class="text-gray-900">{{ r.liters }} L<template v-if="!r.full_tank"> (partiel)</template></span>
+                        <span class="ml-2 text-xs text-gray-400">{{ r.filled_at }} · {{ r.mileage != null ? r.mileage.toLocaleString('fr-FR') : '—' }} km</span>
+                    </span>
+                    <span v-if="r.consumption" class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">{{ r.consumption }} L/100</span>
+                    <span v-if="r.cost" class="shrink-0 text-xs text-gray-500">{{ r.cost }} €</span>
+                    <button v-if="fuel.can_delete" class="shrink-0 rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="deleteFuel(r.id)"><Icon name="x" :size="13" /></button>
+                </li>
+            </ul>
+
+            <button class="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" @click="showFuel = true">
+                Enregistrer un plein
+            </button>
+        </section>
+
         <!-- Anomalies ouvertes -->
         <section v-if="anomalies.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-800"><Icon name="bell" :size="16" /> Anomalies en cours ({{ anomalies.length }})</h2>
@@ -209,6 +261,44 @@ function submitMileage() {
                 <div class="mt-5 flex gap-2">
                     <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="showDisinf = false">Annuler</button>
                     <button type="button" :disabled="disinfForm.processing" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitDisinf">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+        <!-- Modale plein de carburant -->
+        <div v-if="showFuel" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="showFuel = false">
+            <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+                <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300"></div>
+                <h3 class="text-lg font-bold text-gray-900">Enregistrer un plein</h3>
+
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">Litres</label>
+                        <input v-model="fuelForm.liters" type="number" step="0.01" min="0" inputmode="decimal" placeholder="ex. 48,5" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                        <p v-if="fuelForm.errors.liters" class="mt-1 text-xs text-red-600">{{ fuelForm.errors.liters }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">Kilométrage</label>
+                        <input v-model="fuelForm.mileage" type="number" min="0" inputmode="numeric" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                        <p v-if="fuelForm.errors.mileage" class="mt-1 text-xs text-red-600">{{ fuelForm.errors.mileage }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">Coût (€, optionnel)</label>
+                        <input v-model="fuelForm.cost" type="number" step="0.01" min="0" inputmode="decimal" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">Date</label>
+                        <input v-model="fuelForm.filled_at" type="datetime-local" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                    </div>
+                </div>
+
+                <label class="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                    <input v-model="fuelForm.full_tank" type="checkbox" class="rounded border-gray-300" />
+                    Plein complet (à ras) — nécessaire au calcul de la conso
+                </label>
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="showFuel = false">Annuler</button>
+                    <button type="button" :disabled="fuelForm.processing || !fuelForm.liters || !fuelForm.mileage" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitFuel">Enregistrer</button>
                 </div>
             </div>
         </div>
