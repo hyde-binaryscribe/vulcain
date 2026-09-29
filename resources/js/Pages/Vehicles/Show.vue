@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import HistoryList from '@/Components/HistoryList.vue';
 import Icon from '@/Components/Icon.vue';
 import VehicleQr from '@/Components/VehicleQr.vue';
+import VehicleBodyMap from '@/Components/VehicleBodyMap.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
@@ -20,8 +21,12 @@ const props = defineProps({
     tasks: { type: Array, default: () => [] },
     documents: { type: Array, default: () => [] },
     can_manage_documents: { type: Boolean, default: false },
+    body: { type: Object, default: () => ({ damages: [], can_delete: false }) },
     history: { type: Array, default: () => [] },
 });
+
+const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
+const viewLabel = (v) => viewLabels[v] ?? v;
 
 // --- Documents véhicule ---
 const docCategories = ['Agrément', 'Contrôle technique', 'Carte grise', 'Assurance', 'Autre'];
@@ -32,6 +37,32 @@ function submitDoc() {
 }
 function deleteDoc(id) {
     if (confirm('Supprimer ce document ?')) router.delete(`/documents/${id}`, { preserveScroll: true });
+}
+
+// --- Carrosserie ---
+const bodyAdd = ref(null);
+const bodyDetail = ref(null);
+const bodyForm = useForm({ view: '', pos_x: 0, pos_y: 0, description: '', photo: null });
+function onBodyAdd({ view, x, y }) {
+    bodyForm.reset();
+    bodyForm.clearErrors();
+    bodyForm.view = view;
+    bodyForm.pos_x = x;
+    bodyForm.pos_y = y;
+    bodyAdd.value = { view };
+}
+function submitBody() {
+    bodyForm.post(`/vehicles/${props.vehicle.id}/body-damages`, {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => { bodyAdd.value = null; bodyForm.reset(); },
+    });
+}
+function resolveBody(d) {
+    router.post(`/vehicles/${props.vehicle.id}/body-damages/${d.id}/resolve`, {}, { preserveScroll: true, onSuccess: () => { bodyDetail.value = null; } });
+}
+function deleteBody(d) {
+    if (confirm('Supprimer cette anomalie carrosserie ?')) router.delete(`/vehicles/${props.vehicle.id}/body-damages/${d.id}`, { preserveScroll: true, onSuccess: () => { bodyDetail.value = null; } });
 }
 
 // --- Tâches véhicule ---
@@ -264,6 +295,30 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                     </li>
                     <li v-if="tasks.length === 0" class="py-4 text-center text-sm text-gray-400">Aucune tâche.</li>
                 </ul>
+            </div>
+        </section>
+
+        <!-- Carrosserie -->
+        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="flex items-center gap-2 border-b border-gray-100 px-6 py-4">
+                <Icon name="vehicle" :size="18" class="text-gray-500" />
+                <h3 class="text-base font-semibold text-gray-900">Carrosserie</h3>
+            </div>
+            <div class="grid gap-6 p-6 lg:grid-cols-2">
+                <div>
+                    <VehicleBodyMap :damages="body.damages" editable @add="onBodyAdd" @select="bodyDetail = $event" />
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Anomalies ({{ body.damages.filter((d) => d.status === 'ouverte').length }} ouvertes)</h4>
+                    <ul class="mt-3 space-y-2">
+                        <li v-for="(d, i) in body.damages" :key="d.id" class="flex items-center gap-2 text-sm">
+                            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" :class="d.status === 'ouverte' ? 'bg-red-600' : 'bg-green-600'">{{ i + 1 }}</span>
+                            <button class="min-w-0 flex-1 truncate text-left text-gray-700 hover:underline" @click="bodyDetail = d">{{ d.description }}</button>
+                            <span class="shrink-0 text-xs text-gray-400">{{ viewLabel(d.view) }}</span>
+                        </li>
+                        <li v-if="body.damages.length === 0" class="py-4 text-center text-sm text-gray-400">Aucune anomalie carrosserie.</li>
+                    </ul>
+                </div>
             </div>
         </section>
 
@@ -625,5 +680,46 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             <h3 class="text-base font-semibold text-gray-900">Historique</h3>
             <div class="mt-3"><HistoryList :logs="history" dense /></div>
         </section>
+
+        <!-- Modale : nouvelle anomalie carrosserie -->
+        <div v-if="bodyAdd" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="bodyAdd = null">
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-gray-900">Anomalie carrosserie</h3>
+                <p class="mt-0.5 text-xs text-gray-500">Vue : {{ viewLabel(bodyForm.view) }}</p>
+                <div class="mt-4">
+                    <InputLabel value="Description" />
+                    <textarea v-model="bodyForm.description" rows="3" placeholder="ex. Rayure profonde aile avant droite" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"></textarea>
+                    <InputError :message="bodyForm.errors.description" />
+                </div>
+                <div class="mt-3">
+                    <InputLabel value="Photo (optionnel)" />
+                    <input type="file" accept="image/*" class="block w-full text-sm" @change="bodyForm.photo = $event.target.files?.[0] ?? null" />
+                    <InputError :message="bodyForm.errors.photo" />
+                </div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium" @click="bodyAdd = null">Annuler</button>
+                    <button type="button" :disabled="bodyForm.processing || !bodyForm.description" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitBody">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+        <!-- Modale : détail anomalie carrosserie -->
+        <div v-if="bodyDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="bodyDetail = null">
+            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-gray-900">Anomalie carrosserie</h3>
+                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="bodyDetail.status === 'ouverte' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'">{{ bodyDetail.status === 'ouverte' ? 'Ouverte' : 'Résolue' }}</span>
+                </div>
+                <p class="mt-2 text-sm text-gray-800">{{ bodyDetail.description }}</p>
+                <p class="mt-1 text-xs text-gray-400">{{ viewLabel(bodyDetail.view) }}<template v-if="bodyDetail.reporter"> · signalée par {{ bodyDetail.reporter }}</template><template v-if="bodyDetail.created_at"> · {{ bodyDetail.created_at }}</template></p>
+                <a v-if="bodyDetail.photo_url" :href="bodyDetail.photo_url" target="_blank" class="mt-3 block">
+                    <img :src="bodyDetail.photo_url" alt="Photo de l'anomalie" class="max-h-72 w-full rounded-xl object-contain" />
+                </a>
+                <div class="mt-6 flex flex-wrap justify-end gap-2">
+                    <button v-if="bodyDetail.status === 'ouverte'" type="button" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700" @click="resolveBody(bodyDetail)">Marquer résolue</button>
+                    <button v-if="body.can_delete" type="button" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50" @click="deleteBody(bodyDetail)">Supprimer</button>
+                    <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium" @click="bodyDetail = null">Fermer</button>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>

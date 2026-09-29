@@ -87,4 +87,10 @@ class Vehicle extends Model
     {
         return $this->morphMany(Document::class, 'documentable')->orderBy('category')->orderBy('title');
     }
+
+    /** Points d'anomalie carrosserie (ouverts d'abord, plus récents ensuite). */
+    public function bodyDamages(): HasMany
+    {
+        return $this->hasMany(BodyDamage::class)->orderByRaw("status = 'ouverte' desc")->latest('id');
+    }
 }

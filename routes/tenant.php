@@ -23,6 +23,7 @@ use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\BodyDamageController;
 use App\Http\Controllers\FuelController;
 use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\ServiceSessionController;
@@ -49,6 +50,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     // Réalisation d'une tâche véhicule : accessible à tout agent connecté (terrain).
     Route::post('vehicles/{vehicle}/tasks/{task}/complete', [VehicleTaskController::class, 'complete'])->name('vehicles.tasks.complete');
+
+    // État carrosserie : pointage d'anomalies (accès contrôlé dans le contrôleur :
+    // service en cours sur le véhicule, ou gestionnaire).
+    Route::post('vehicles/{vehicle}/body-damages', [BodyDamageController::class, 'store'])->name('vehicles.body-damages.store');
+    Route::post('vehicles/{vehicle}/body-damages/{bodyDamage}/resolve', [BodyDamageController::class, 'resolve'])->name('vehicles.body-damages.resolve');
+    Route::get('vehicles/{vehicle}/body-damages/{bodyDamage}/photo', [BodyDamageController::class, 'photo'])->name('vehicles.body-damages.photo');
 
     // Documents : consultation (motif journalisé) + service du fichier + consentement.
     // Le contrôle d'accès est fait dans le contrôleur (service en cours / titulaire / admin).
@@ -120,6 +127,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
         // Suppression d'un plein (correction) : réservée aux gestionnaires.
         Route::delete('vehicles/{vehicle}/fuel/{fuel}', [FuelController::class, 'destroy'])->name('vehicles.fuel.destroy');
+        // Suppression d'une anomalie carrosserie (correction) : réservée aux gestionnaires.
+        Route::delete('vehicles/{vehicle}/body-damages/{bodyDamage}', [BodyDamageController::class, 'destroy'])->name('vehicles.body-damages.destroy');
 
         // Documents (agrément, CT, carte grise, diplômes, ARS, permis…) : admins seulement.
         Route::middleware('permission:documents.manage')->group(function () {

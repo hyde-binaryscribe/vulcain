@@ -11,6 +11,7 @@ use App\Domain\Fleet\MaintenanceStatus;
 use App\Domain\Fleet\ProtocolFieldType;
 use App\Domain\Fleet\ProtocolPhase;
 use App\Domain\Support\Severity;
+use App\Models\BodyDamage;
 use App\Models\DisinfectionProtocol;
 use App\Models\DisinfectionRecord;
 use App\Models\Event;
@@ -255,6 +256,21 @@ class TerrainController extends Controller
             ],
             'anomalies' => $anomalies,
             'can_report_anomaly' => $request->user()->can('anomalies.manage'),
+            'body' => [
+                'can_delete' => $request->user()->can('vehicles.manage'),
+                'damages' => $vehicle->bodyDamages()->with('reporter:id,name')->get()
+                    ->map(fn (BodyDamage $d) => [
+                        'id' => $d->id,
+                        'view' => $d->view,
+                        'pos_x' => (float) $d->pos_x,
+                        'pos_y' => (float) $d->pos_y,
+                        'description' => $d->description,
+                        'status' => $d->status,
+                        'photo_url' => $d->photo_path ? route('vehicles.body-damages.photo', [$vehicle, $d]) : null,
+                        'reporter' => $d->reporter?->name,
+                        'created_at' => $d->created_at?->format('d/m/Y'),
+                    ])->values(),
+            ],
             'status' => session('status'),
         ]);
     }
