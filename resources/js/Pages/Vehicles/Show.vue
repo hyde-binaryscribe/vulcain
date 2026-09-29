@@ -28,6 +28,8 @@ const props = defineProps({
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
 const viewLabel = (v) => viewLabels[v] ?? v;
 
+const showQr = ref(false);
+
 // --- Documents véhicule ---
 const docCategories = ['Agrément', 'Contrôle technique', 'Carte grise', 'Assurance', 'Autre'];
 const docForm = useForm({ subject_type: 'vehicle', subject_id: props.vehicle.id, category: 'Agrément', title: '', expires_at: '', file: null });
@@ -230,7 +232,13 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                         <span class="inline-flex items-center gap-1"><Icon name="tag" :size="14" /> {{ vehicle.registration || '—' }}</span>
                     </p>
                 </div>
-                <span class="shrink-0 rounded-full px-3 py-1 text-sm font-medium" :class="vehicleStatusStyles[vehicle.status] || 'bg-gray-100 text-gray-700'">{{ vehicle.status_label }}</span>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button type="button" title="QR d'accès véhicule" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="showQr = true">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm-2 8h8v8H3v-8zm2 2v4h4v-4H5zM13 3h8v8h-8V3zm2 2v4h4V5h-4zM13 13h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"/></svg>
+                        QR
+                    </button>
+                    <span class="rounded-full px-3 py-1 text-sm font-medium" :class="vehicleStatusStyles[vehicle.status] || 'bg-gray-100 text-gray-700'">{{ vehicle.status_label }}</span>
+                </div>
             </div>
             <div class="flex flex-wrap gap-6 px-6 py-4 text-sm">
                 <div><span class="text-gray-500">Kilométrage :</span> <span class="font-medium">{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span></div>
@@ -368,10 +376,6 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             </div>
         </section>
 
-        <!-- QR d'accès véhicule -->
-        <div class="mt-6 sm:max-w-xs">
-            <VehicleQr :vehicle-id="vehicle.id" :label="vehicle.callsign || vehicle.name" />
-        </div>
 
         <!-- Désinfection / nettoyage -->
         <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -719,6 +723,15 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                     <button v-if="body.can_delete" type="button" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50" @click="deleteBody(bodyDetail)">Supprimer</button>
                     <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium" @click="bodyDetail = null">Fermer</button>
                 </div>
+            </div>
+        </div>
+        <!-- Popup : QR d'accès véhicule -->
+        <div v-if="showQr" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="showQr = false">
+            <div class="relative w-full max-w-xs">
+                <button type="button" class="absolute -right-3 -top-3 z-10 rounded-full bg-white p-1.5 text-gray-500 shadow hover:text-gray-800" @click="showQr = false">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+                <VehicleQr :vehicle-id="vehicle.id" :label="vehicle.callsign || vehicle.name" />
             </div>
         </div>
     </AppLayout>
