@@ -95,29 +95,42 @@ function cancel(inv) {
     router.delete(`/invitations/${inv.id}`, { preserveScroll: true });
 }
 
-// Lien d'invitation généré (dépannage si l'e-mail n'arrive pas) : latché depuis
-// le flash pour rester affiché et copiable jusqu'à ce qu'on le referme.
-const inviteLink = ref(null);
+// Lien généré (invitation ou réinitialisation) : latché depuis le flash pour
+// rester affiché et copiable — dépannage si l'e-mail n'arrive pas.
+const sharedLink = ref(null); // { url, kind: 'invite' | 'reset' }
 const linkCopied = ref(false);
-watch(
-    () => usePage().props.flash?.inviteLink,
-    (link) => {
-        if (link) {
-            inviteLink.value = link;
-            linkCopied.value = false;
-        }
-    },
-    { immediate: true },
+const sharedLinkLabel = computed(() =>
+    sharedLink.value?.kind === 'reset'
+        ? 'Lien de réinitialisation (à transmettre si l’e-mail n’arrive pas)'
+        : 'Lien d’activation (à transmettre si l’e-mail n’arrive pas)',
 );
-async function copyInviteLink() {
+function latchLink(url, kind) {
+    if (url) {
+        sharedLink.value = { url, kind };
+        linkCopied.value = false;
+    }
+}
+watch(() => usePage().props.flash?.inviteLink, (url) => latchLink(url, 'invite'), { immediate: true });
+watch(() => usePage().props.flash?.resetLink, (url) => latchLink(url, 'reset'), { immediate: true });
+async function copySharedLink() {
     try {
-        await navigator.clipboard.writeText(inviteLink.value);
+        await navigator.clipboard.writeText(sharedLink.value.url);
         linkCopied.value = true;
         setTimeout(() => (linkCopied.value = false), 2500);
     } catch {
         // Presse-papiers indisponible : on sélectionne le texte pour copie manuelle.
-        const el = document.getElementById('invite-link-field');
+        const el = document.getElementById('shared-link-field');
         if (el) { el.focus(); el.select(); }
+    }
+}
+
+function resetPassword() {
+    if (!editing.value) return;
+    if (confirm(`Envoyer un lien de réinitialisation du mot de passe à « ${editing.value.name} » (${editing.value.email}) ?`)) {
+        router.post(`/users/${editing.value.id}/reset-password`, {}, {
+            preserveScroll: true,
+            onSuccess: () => (editing.value = null),
+        });
     }
 }
 </script>
@@ -191,28 +204,28 @@ async function copyInviteLink() {
                         </button>
                     </form>
 
-                    <!-- Lien d'invitation généré : dépannage si l'e-mail n'arrive pas. -->
-                    <div v-if="inviteLink" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                    <!-- Lien généré (activation / réinitialisation) : dépannage e-mail. -->
+                    <div v-if="sharedLink" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
                         <div class="flex items-start justify-between gap-2">
-                            <p class="text-xs font-semibold text-amber-900">Lien d’activation (à transmettre si l’e-mail n’arrive pas)</p>
-                            <button class="shrink-0 text-amber-700 hover:text-amber-900" title="Fermer" @click="inviteLink = null">✕</button>
+                            <p class="text-xs font-semibold text-amber-900">{{ sharedLinkLabel }}</p>
+                            <button class="shrink-0 text-amber-700 hover:text-amber-900" title="Fermer" @click="sharedLink = null">✕</button>
                         </div>
                         <div class="mt-2 flex gap-2">
                             <input
-                                id="invite-link-field"
-                                :value="inviteLink"
+                                id="shared-link-field"
+                                :value="sharedLink.url"
                                 readonly
                                 class="min-w-0 flex-1 rounded-md border border-amber-300 bg-white px-2 py-1.5 text-xs text-gray-700"
                                 @focus="$event.target.select()"
                             />
                             <button
                                 class="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-                                @click="copyInviteLink"
+                                @click="copySharedLink"
                             >
                                 {{ linkCopied ? 'Copié !' : 'Copier' }}
                             </button>
                         </div>
-                        <p class="mt-2 text-[11px] text-amber-800">Ce lien n’est affiché qu’une fois. Il expire comme l’invitation.</p>
+                        <p class="mt-2 text-[11px] text-amber-800">Ce lien n’est affiché qu’une fois et expire après un délai.</p>
                     </div>
                 </div>
 
@@ -283,9 +296,11 @@ async function copyInviteLink() {
                             </label>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between gap-2 pt-2">
-                        <button v-if="!editing.is_self" type="button" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50" @click="deleteUser">Supprimer l'agent</button>
-                        <span v-else></span>
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                        <div class="flex flex-wrap gap-2">
+                            <button v-if="!editing.is_self" type="button" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50" @click="deleteUser">Supprimer l'agent</button>
+                            <button v-if="editing.is_active" type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="resetPassword">Réinit. mot de passe</button>
+                        </div>
                         <div class="flex gap-2">
                             <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="editing = null">Annuler</button>
                             <button type="submit" :disabled="editForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>

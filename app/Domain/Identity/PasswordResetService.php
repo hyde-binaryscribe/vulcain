@@ -55,6 +55,30 @@ class PasswordResetService
         $user->notify(new ResetPasswordNotification($url));
     }
 
+    /**
+     * Génère un lien de réinitialisation à la demande d'un administrateur, pour
+     * un compte connu et actif de son organisation.
+     *
+     * Contrairement au flux public (anti-énumération, anti-spam), l'admin sait
+     * que le compte existe : on génère un jeton frais, on envoie l'e-mail, et on
+     * renvoie le lien pour qu'il puisse le transmettre lui-même si besoin.
+     */
+    public function adminResetLink(int $organisationId, User $user): string
+    {
+        $token = Str::random(64);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['organisation_id' => $organisationId, 'email' => $user->email],
+            ['token' => hash('sha256', $token), 'created_at' => now()],
+        );
+
+        $url = URL::to('/reset-password/'.$token.'?email='.urlencode($user->email));
+
+        $user->notify(new ResetPasswordNotification($url));
+
+        return $url;
+    }
+
     /** Réinitialise le mot de passe. Renvoie false si le jeton est invalide/expiré. */
     public function reset(int $organisationId, string $email, string $token, string $newPassword): bool
     {

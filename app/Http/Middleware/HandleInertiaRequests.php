@@ -121,6 +121,8 @@ class HandleInertiaRequests extends Middleware
                 // Lien d'invitation généré (affichage unique, copiable) : dépannage
                 // si l'e-mail n'arrive pas (SMTP indisponible, spam…).
                 'inviteLink' => fn () => $request->session()->get('inviteLink'),
+                // Lien de réinitialisation généré par l'admin (idem, copiable).
+                'resetLink' => fn () => $request->session()->get('resetLink'),
             ],
         ];
     }

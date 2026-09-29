@@ -105,6 +105,58 @@ class UserManagementTest extends TestCase
         $this->assertSoftDeleted('users', ['id' => $other->id]);
     }
 
+    public function test_admin_can_send_a_password_reset_link_to_an_active_user(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+        $member = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id, 'email' => 'membre@cis.test']);
+            $u->assignRole(Rbac::VERIFIER);
+
+            return $u;
+        });
+
+        Notification::fake();
+
+        $this->actingAs($admin)
+            ->post("http://caserne.localhost/users/{$member->id}/reset-password")
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('resetLink');
+
+        $this->assertDatabaseHas('password_reset_tokens', [
+            'organisation_id' => $org->id,
+            'email' => 'membre@cis.test',
+        ]);
+        Notification::assertSentTo($member, \App\Notifications\ResetPasswordNotification::class);
+    }
+
+    public function test_admin_cannot_reset_password_of_an_inactive_user(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+        $member = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->inactive()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::VERIFIER);
+
+            return $u;
+        });
+
+        $this->actingAs($admin)
+            ->post("http://caserne.localhost/users/{$member->id}/reset-password")
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('password_reset_tokens', ['organisation_id' => $org->id]);
+    }
+
+    public function test_admin_cannot_reset_password_of_a_user_in_another_organisation(): void
+    {
+        [, $admin] = $this->orgWithAdmin('caserne');
+        $otherOrg = Organisation::factory()->slug('autre')->create();
+        $foreign = User::factory()->create(['organisation_id' => $otherOrg->id]);
+
+        $this->actingAs($admin)
+            ->post("http://caserne.localhost/users/{$foreign->id}/reset-password")
+            ->assertNotFound();
+    }
+
     public function test_non_admin_cannot_access_users(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

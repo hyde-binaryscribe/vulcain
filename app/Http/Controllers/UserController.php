@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Billing\PlanLimits;
 use App\Domain\Identity\InvitationService;
+use App\Domain\Identity\PasswordResetService;
 use App\Domain\Identity\Rbac;
 use App\Models\Invitation;
 use App\Models\Site;
@@ -141,6 +142,21 @@ class UserController extends Controller
         $user->sites()->sync($siteIds);
 
         return back()->with('status', 'Utilisateur mis à jour.');
+    }
+
+    public function resetPassword(User $user, PasswordResetService $service): RedirectResponse
+    {
+        // Le binding applique le scope tenant : un compte d'une autre
+        // organisation renvoie déjà 404.
+        if (! $user->isActive()) {
+            return back()->with('error', "Le compte de {$user->name} est inactif : réactivez-le avant d’envoyer une réinitialisation.");
+        }
+
+        $url = $service->adminResetLink($this->tenant->id(), $user);
+
+        return back()
+            ->with('status', "Lien de réinitialisation envoyé à {$user->email}.")
+            ->with('resetLink', $url);
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
