@@ -33,6 +33,7 @@ class OrganisationInvitationNotification extends Notification
             ->action('Activer mon compte', $this->acceptUrl)
             ->line("Vous définirez votre mot de passe lors de l'activation.")
             ->line("Ce lien expire dans {$days} jour(s).")
-            ->line("Si vous n'attendiez pas cette invitation, ignorez cet e-mail.");
+            ->line("Si vous n'attendiez pas cette invitation, ignorez cet e-mail.")
+            ->salutation("L'équipe Vulkain");
     }
 }

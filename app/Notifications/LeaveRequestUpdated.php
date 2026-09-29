@@ -52,7 +52,8 @@ class LeaveRequestUpdated extends Notification
                 ->line('Vérifiez les nouvelles dates avant de valider.');
         }
 
-        return $mail->action('Voir les congés', url('/leave'));
+        return $mail->action('Voir les congés', url('/leave'))
+            ->salutation("L'équipe Vulkain");
     }
 
     /** @return array<string, mixed> */

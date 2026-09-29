@@ -28,6 +28,7 @@ class ResetPasswordNotification extends Notification
             ->line('Vous avez demandé la réinitialisation de votre mot de passe.')
             ->action('Réinitialiser le mot de passe', $this->resetUrl)
             ->line("Ce lien expirera dans {$minutes} minutes et ne peut être utilisé qu'une seule fois.")
-            ->line("Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.");
+            ->line("Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.")
+            ->salutation("L'équipe Vulkain");
     }
 }

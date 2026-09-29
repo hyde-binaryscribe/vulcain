@@ -35,7 +35,8 @@ class EventAssigned extends Notification
             $mail->line('Véhicule : '.($this->event->vehicle->callsign ?: $this->event->vehicle->name).'.');
         }
         $mail->line('Priorité : '.$this->event->priority.'.')
-            ->action('Ouvrir', url('/events'));
+            ->action('Ouvrir', url('/events'))
+            ->salutation("L'équipe Vulkain");
 
         return $high ? $mail->error() : $mail;
     }

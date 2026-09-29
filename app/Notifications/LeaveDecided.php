@@ -34,7 +34,8 @@ class LeaveDecided extends Notification
                 .($this->leave->reviewer ? ' par '.$this->leave->reviewer->name : '').'.')
             ->line('Période : du '.$this->leave->start_date->format('d/m/Y').' au '
                 .$this->leave->end_date->format('d/m/Y').' ('.$this->leave->days().' jour(s)).')
-            ->action('Voir mes congés', url('/leave'));
+            ->action('Voir mes congés', url('/leave'))
+            ->salutation("L'équipe Vulkain");
 
         return $approved ? $mail->success() : $mail->error();
     }
