@@ -84,6 +84,35 @@ class LeaveRulesTest extends TestCase
         ]);
     }
 
+    public function test_manager_can_save_a_global_simultaneous_limit(): void
+    {
+        [$org, $manager] = $this->orgWithManager();
+
+        $this->actingAs($manager)->post('http://ambu.localhost/leave/rules', [
+            'rules' => [],
+            'max_simultaneous_global' => 2,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(2, $org->fresh()->leaveMaxSimultaneous());
+    }
+
+    public function test_terrain_leave_exposes_calendar_and_global_limit(): void
+    {
+        Carbon::setTestNow('2026-09-15');
+        [$org, $manager] = $this->orgWithManager();
+        $this->tenant()->runFor($org, function () use ($org) {
+            $org->settings = ['leave_max_simultaneous' => 2];
+            $org->save();
+        });
+
+        $this->actingAs($manager)->get('http://ambu.localhost/t/conges')
+            ->assertInertia(fn (AssertableInertia $p) => $p
+                ->component('Terrain/Leave')
+                ->where('globalLimit', 2)
+                ->has('calendar')
+                ->where('month', '2026-09'));
+    }
+
     public function test_balance_reflects_approved_paid_leave_in_working_days(): void
     {
         Carbon::setTestNow('2026-09-15'); // période mai 2026 → avril 2027

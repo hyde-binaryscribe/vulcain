@@ -69,6 +69,7 @@ class LeaveController extends Controller
             'canSubmitForOthers' => $canSubmit,
             'agents' => $canSubmit ? $this->submittableAgents() : [],
             'me' => ['id' => $user->id, 'name' => $user->name],
+            'globalLimit' => $this->tenant->organisation()->leaveMaxSimultaneous(),
             'status' => session('status'),
         ];
 
@@ -150,6 +151,11 @@ class LeaveController extends Controller
 
         $canSubmit = $this->canSubmitForOthers($user);
 
+        // Calendrier de charge (mois affiché, navigable via ?month=YYYY-MM).
+        $month = Carbon::hasFormat((string) $request->query('month'), 'Y-m')
+            ? Carbon::createFromFormat('Y-m-d', $request->query('month').'-01')->startOfMonth()
+            : Carbon::now()->startOfMonth();
+
         return Inertia::render('Terrain/Leave', [
             'mine' => $mine,
             'types' => LeaveType::options(),
@@ -158,6 +164,10 @@ class LeaveController extends Controller
             'canSubmitForOthers' => $canSubmit,
             'agents' => $canSubmit ? $this->submittableAgents() : [],
             'me' => ['id' => $user->id, 'name' => $user->name],
+            'month' => $month->format('Y-m'),
+            'monthLabel' => ucfirst($month->translatedFormat('F Y')),
+            'calendar' => $this->leaveCalendarLevels($month),
+            'globalLimit' => $this->tenant->organisation()->leaveMaxSimultaneous(),
             'status' => session('status'),
         ]);
     }
@@ -308,10 +318,11 @@ class LeaveController extends Controller
     public function saveRules(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'rules' => ['required', 'array'],
+            'rules' => ['present', 'array'],
             'rules.*.job_role' => ['required', 'string', 'max:50'],
             'rules.*.max_simultaneous' => ['nullable', 'integer', 'min:0', 'max:999'],
             'rules.*.annual_days' => ['nullable', 'integer', 'min:0', 'max:366'],
+            'max_simultaneous_global' => ['nullable', 'integer', 'min:1', 'max:999'],
         ]);
 
         foreach ($validated['rules'] as $rule) {
@@ -321,6 +332,13 @@ class LeaveController extends Controller
             );
         }
 
+        // Limite globale d'absents simultanés (toutes fonctions confondues).
+        $org = $this->tenant->organisation();
+        $org->settings = array_merge($org->settings ?? [], [
+            'leave_max_simultaneous' => $validated['max_simultaneous_global'] ?? null,
+        ]);
+        $org->save();
+
         return back()->with('status', 'Règles enregistrées.');
     }
 
@@ -328,6 +346,62 @@ class LeaveController extends Controller
     private function rulesByRole(): Collection
     {
         return LeaveRule::query()->get()->keyBy('job_role');
+    }
+
+    /**
+     * Charge de congés jour par jour d'un mois, avec un niveau de saturation par
+     * rapport aux limites (globale et par métier) : full / tight / some / none.
+     *
+     * @return array<string, array{count:int, level:string}>
+     */
+    private function leaveCalendarLevels(Carbon $month): array
+    {
+        $monthStart = $month->copy()->startOfMonth();
+        $monthEnd = $month->copy()->endOfMonth();
+        $rules = $this->rulesByRole();
+        $globalLimit = $this->tenant->organisation()->leaveMaxSimultaneous();
+
+        $leaves = LeaveRequest::query()
+            ->whereIn('status', [LeaveStatus::APPROVED->value, LeaveStatus::PENDING->value])
+            ->whereDate('start_date', '<=', $monthEnd)
+            ->whereDate('end_date', '>=', $monthStart)
+            ->with('user:id,job_role')
+            ->get();
+
+        $days = [];
+        for ($day = $monthStart->copy(); $day->lte($monthEnd); $day->addDay()) {
+            $onDay = $leaves->filter(fn (LeaveRequest $l) => $day->between($l->start_date, $l->end_date));
+            $total = $onDay->count();
+            $byRole = $onDay->groupBy(fn (LeaveRequest $l) => $l->user?->job_role)->map->count();
+
+            $over = false;
+            $tight = false;
+            if ($globalLimit !== null) {
+                if ($total >= $globalLimit) {
+                    $over = true;
+                } elseif ($total === $globalLimit - 1) {
+                    $tight = true;
+                }
+            }
+            foreach ($byRole as $role => $count) {
+                $max = $role ? ($rules[$role]->max_simultaneous ?? null) : null;
+                if ($max === null) {
+                    continue;
+                }
+                if ($count >= $max) {
+                    $over = true;
+                } elseif ($count === $max - 1) {
+                    $tight = true;
+                }
+            }
+
+            $days[$day->toDateString()] = [
+                'count' => $total,
+                'level' => $over ? 'full' : ($tight ? 'tight' : ($total > 0 ? 'some' : 'none')),
+            ];
+        }
+
+        return $days;
     }
 
     /**

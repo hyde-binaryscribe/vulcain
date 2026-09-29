@@ -110,6 +110,14 @@ class Organisation extends Model
         return (bool) ($this->settings['body_inspection_enabled'] ?? false);
     }
 
+    /** Nombre maximum d'absents simultanés, toutes fonctions confondues (null = illimité). */
+    public function leaveMaxSimultaneous(): ?int
+    {
+        $value = $this->settings['leave_max_simultaneous'] ?? null;
+
+        return $value !== null ? (int) $value : null;
+    }
+
     /** Colonne Kanban où atterrissent les nouvelles anomalies (ou null → 1re colonne). */
     public function anomalyEntryColumnId(): ?int
     {

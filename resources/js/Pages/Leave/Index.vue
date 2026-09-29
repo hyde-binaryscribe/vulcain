@@ -21,6 +21,7 @@ const props = defineProps({
     canSubmitForOthers: { type: Boolean, default: false },
     agents: { type: Array, default: () => [] },
     me: { type: Object, default: () => ({}) },
+    globalLimit: { type: Number, default: null },
 });
 
 const statusStyles = {
@@ -64,7 +65,7 @@ function decide(l, action) {
 }
 
 // --- Règles par métier ---
-const rulesForm = useForm({ rules: props.rules.map((r) => ({ ...r })) });
+const rulesForm = useForm({ rules: props.rules.map((r) => ({ ...r })), max_simultaneous_global: props.globalLimit ?? '' });
 function saveRules() {
     rulesForm.post('/leave/rules', { preserveScroll: true });
 }
@@ -104,6 +105,9 @@ const weeks = computed(() => {
             const max = ruleByRole.value[role]?.max_simultaneous;
             if (max != null && count > max) conflict = true;
         });
+        // Limite globale : total d'absents approuvés ce jour.
+        const totalApproved = entries.filter((e) => e.status === 'approuve').length;
+        if (props.globalLimit != null && totalApproved > props.globalLimit) conflict = true;
 
         cells.push({ day: d, dateStr, entries, conflict });
     }
@@ -211,8 +215,15 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
             <!-- Règles par métier (pleine largeur) -->
             <section v-if="rules.length" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-3">
-                <h2 class="text-base font-semibold text-gray-900">Règles par métier</h2>
+                <h2 class="text-base font-semibold text-gray-900">Règles de congés</h2>
                 <p class="mt-1 text-sm text-gray-500">Effectif maximum en absence simultanée et droits annuels par métier. Sans valeur, les droits suivent la réalité : 2,5 jours ouvrables acquis par mois (30 j/an).</p>
+
+                <div class="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 p-3">
+                    <label class="text-sm font-medium text-gray-700">Limite globale d'absents simultanés</label>
+                    <input v-model.number="rulesForm.max_simultaneous_global" type="number" min="1" class="w-28 rounded-lg border border-gray-300 px-2 py-1.5 text-sm" placeholder="illimité" />
+                    <span class="text-xs text-gray-500">toutes fonctions confondues (ex. 2 personnes max en même temps)</span>
+                </div>
+
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="text-left text-xs uppercase tracking-wide text-gray-500">

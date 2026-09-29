@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import TerrainLayout from '@/Layouts/TerrainLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -12,7 +12,53 @@ const props = defineProps({
     canSubmitForOthers: { type: Boolean, default: false },
     agents: { type: Array, default: () => [] },
     me: { type: Object, default: () => ({}) },
+    month: { type: String, default: '' },
+    monthLabel: { type: String, default: '' },
+    calendar: { type: Object, default: () => ({}) },
+    globalLimit: { type: Number, default: null },
 });
+
+// --- Calendrier de charge ---
+const dayStyles = {
+    full: 'bg-red-100 text-red-700',
+    tight: 'bg-orange-100 text-orange-700',
+    some: 'bg-green-50 text-green-700',
+    none: 'text-gray-700',
+};
+const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const weeks = computed(() => {
+    if (!props.month) return [];
+    const [y, m] = props.month.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const startOffset = (new Date(y, m - 1, 1).getDay() + 6) % 7; // lundi = 0
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const info = props.calendar[dateStr] || { count: 0, level: 'none' };
+        cells.push({ day: d, dateStr, count: info.count, level: info.level });
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    const out = [];
+    for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
+    return out;
+});
+function shiftMonth(delta) {
+    const [y, m] = props.month.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    router.get('/t/conges', { month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }, { preserveScroll: true, preserveState: false });
+}
+// Cliquer un jour pré-remplit la date de début de la demande.
+function pickDay(cell) {
+    if (!cell) return;
+    editingId.value = null;
+    form.reset();
+    form.user_id = props.me?.id ?? null;
+    form.start_date = cell.dateStr;
+    if (!form.end_date) form.end_date = cell.dateStr;
+    showForm.value = true;
+    if (typeof window !== 'undefined') window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
 
 const statusStyles = {
     en_attente: 'bg-amber-100 text-amber-800',
@@ -96,6 +142,44 @@ function canEdit(l) {
                 </div>
             </div>
             <p class="mt-2 text-[11px] text-gray-400">Jours ouvrables · {{ (myBalance.monthly_rate ?? 2.5).toString().replace('.', ',') }} j/mois acquis (mai → avril, utilisables l'année suivante).</p>
+        </div>
+
+        <!-- Calendrier de charge -->
+        <div class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name="calendar" :size="17" /></span>
+                    Disponibilités
+                </h2>
+                <div class="flex items-center gap-1">
+                    <button type="button" class="rounded-lg border border-gray-300 p-1.5 text-gray-500 hover:bg-gray-50" @click="shiftMonth(-1)"><Icon name="arrow-left" :size="15" /></button>
+                    <button type="button" class="rounded-lg border border-gray-300 p-1.5 text-gray-500 hover:bg-gray-50" @click="shiftMonth(1)"><Icon name="arrow-right" :size="15" /></button>
+                </div>
+            </div>
+            <p class="mt-1 text-center text-sm font-medium capitalize text-gray-700">{{ monthLabel }}</p>
+            <div class="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-gray-400">
+                <div v-for="(d, i) in weekDays" :key="i" class="py-0.5">{{ d }}</div>
+            </div>
+            <div v-for="(week, wi) in weeks" :key="wi" class="grid grid-cols-7 gap-1">
+                <button
+                    v-for="(cell, ci) in week"
+                    :key="ci"
+                    type="button"
+                    :disabled="!cell"
+                    class="flex aspect-square flex-col items-center justify-center rounded-lg text-sm"
+                    :class="cell ? (dayStyles[cell.level] || 'text-gray-700') + ' active:brightness-95' : 'opacity-0'"
+                    @click="pickDay(cell)"
+                >
+                    <span class="font-medium">{{ cell ? cell.day : '' }}</span>
+                    <span v-if="cell && cell.count > 0" class="text-[9px] leading-none">{{ cell.count }}</span>
+                </button>
+            </div>
+            <div class="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-gray-500">
+                <span class="flex items-center gap-1"><span class="h-2.5 w-2.5 rounded bg-green-200"></span> Places dispo</span>
+                <span class="flex items-center gap-1"><span class="h-2.5 w-2.5 rounded bg-orange-200"></span> Bientôt complet</span>
+                <span class="flex items-center gap-1"><span class="h-2.5 w-2.5 rounded bg-red-200"></span> Complet</span>
+            </div>
+            <p v-if="globalLimit" class="mt-1.5 text-center text-[11px] text-gray-400">Limite : {{ globalLimit }} absent(s) simultané(s) max.</p>
         </div>
 
         <!-- Responsable : validation dans l'app complète -->
