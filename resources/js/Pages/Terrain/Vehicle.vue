@@ -17,7 +17,19 @@ const props = defineProps({
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
+    // Section ouverte (page dédiée) ; null = menu du véhicule.
+    section: { type: String, default: null },
 });
+
+// Navigation par page : chaque tuile ouvre une route dédiée.
+const secUrl = (key) => `/t/vehicules/${props.vehicle.id}/s/${key}`;
+const vehicleUrl = computed(() => `/t/vehicules/${props.vehicle.id}`);
+const sectionLabels = {
+    material: 'Matériel', body: 'Carrosserie', disinfection: 'Désinfection',
+    fuel: 'Carburant', maintenance: 'Entretien', docs: 'Documents',
+    mydocs: 'Mes documents', anomalies: 'Anomalies',
+};
+const sectionTitle = computed(() => sectionLabels[props.section] ?? '');
 
 // Binôme : changement en cours de service.
 const showPartner = ref(false);
@@ -32,11 +44,6 @@ function savePartner() {
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
 const viewLabel = (v) => viewLabels[v] ?? v;
 
-// Menu en tuiles : section ouverte (null = menu seul).
-const openSection = ref(null);
-function toggle(key) {
-    openSection.value = openSection.value === key ? null : key;
-}
 const openDamages = computed(() => props.body.damages.filter((d) => d.status === 'ouverte').length);
 
 // Pastille de statut (point + couleur de texte) selon la gravité d'une dimension.
@@ -188,6 +195,17 @@ function setConsent(v) {
     <TerrainLayout>
         <Head :title="`Terrain — ${vehicle.callsign || vehicle.name}`" />
 
+        <!-- Barre de retour (pages de section) -->
+        <div v-if="section" class="mb-3 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+            <Link :href="vehicleUrl" class="rounded-lg p-1 text-gray-500 hover:bg-gray-100"><Icon name="arrow-left" :size="22" /></Link>
+            <div class="min-w-0">
+                <p class="truncate text-lg font-bold text-gray-900">{{ sectionTitle }}</p>
+                <p class="truncate text-xs text-gray-500">{{ vehicle.callsign || vehicle.name }}</p>
+            </div>
+        </div>
+
+        <!-- Menu du véhicule -->
+        <template v-if="!section">
         <!-- En-tête véhicule -->
         <div class="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <Link href="/t" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100"><Icon name="arrow-left" :size="22" /></Link>
@@ -273,7 +291,7 @@ function setConsent(v) {
         </section>
 
         <!-- Carrosserie : information consultable (lecture + signalement). -->
-        <button v-if="body.enabled" type="button" class="mt-3 flex w-full items-center gap-4 rounded-2xl border-l-4 border-amber-400 bg-white p-4 text-left shadow-sm" :class="openSection === 'body' ? 'ring-1 ring-amber-300' : ''" @click="toggle('body')">
+        <button v-if="body.enabled" type="button" class="mt-3 flex w-full items-center gap-4 rounded-2xl border-l-4 border-amber-400 bg-white p-4 text-left shadow-sm" :class="section === 'body' ? 'ring-1 ring-amber-300' : ''" @click="router.visit(secUrl('body'))">
             <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><Icon name="vehicle" :size="26" /></span>
             <span class="min-w-0 flex-1">
                 <span class="block text-lg font-bold text-gray-900">Carrosserie</span>
@@ -287,21 +305,21 @@ function setConsent(v) {
         <!-- Menu en tuiles (2 colonnes) -->
         <div class="mt-3 grid grid-cols-2 gap-3">
             <!-- Matériel -->
-            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'material' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('material')">
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'material' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('material'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-600"><Icon name="materials" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Matériel</span>
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="neutralClasses.dot"></span>{{ locations.length }} emplacement(s)</span>
             </button>
 
             <!-- Désinfection -->
-            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'disinfection' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('disinfection')">
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'disinfection' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('disinfection'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-600"><Icon name="protocol" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Désinfection</span>
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="(sevClasses(disinfection.severity) || okClasses).text"><span class="h-2 w-2 rounded-full" :class="(sevClasses(disinfection.severity) || okClasses).dot"></span>{{ disinfection.state_label || 'À jour' }}</span>
             </button>
 
             <!-- Entretien -->
-            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'maintenance' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('maintenance')">
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'maintenance' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('maintenance'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600"><Icon name="settings" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Entretien</span>
                 <span v-if="maintenance.severity" class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="sevClasses(maintenance.severity).text"><span class="h-2 w-2 rounded-full" :class="sevClasses(maintenance.severity).dot"></span>{{ maintenance.state_label }}</span>
@@ -309,37 +327,38 @@ function setConsent(v) {
             </button>
 
             <!-- Carburant -->
-            <button v-if="fuel" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'fuel' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('fuel')">
+            <button v-if="fuel" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'fuel' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('fuel'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><Icon name="materials" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Carburant</span>
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="fuel.average ? neutralClasses.text : okClasses.text"><span class="h-2 w-2 rounded-full" :class="fuel.average ? neutralClasses.dot : okClasses.dot"></span>{{ fuel.average ? fuel.average + ' L/100' : 'Plein' }}</span>
             </button>
 
             <!-- Documents -->
-            <button v-if="documents.vehicle.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'docs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('docs')">
+            <button v-if="documents.vehicle.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'docs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('docs'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Icon name="template" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Documents</span>
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="neutralClasses.dot"></span>{{ documents.vehicle.length }} document(s)</span>
             </button>
 
             <!-- Mes documents -->
-            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'mydocs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('mydocs')">
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'mydocs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('mydocs'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600"><Icon name="user" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Mes documents</span>
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="documents.consent ? okClasses.text : neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="documents.consent ? okClasses.dot : neutralClasses.dot"></span>{{ documents.consent ? 'Autorisé' : 'À autoriser' }}</span>
             </button>
 
             <!-- Anomalies (si présentes) -->
-            <button v-if="anomalies.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'anomalies' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('anomalies')">
+            <button v-if="anomalies.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'anomalies' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('anomalies'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600"><Icon name="bell" :size="24" /></span>
                 <span class="text-base font-bold leading-tight text-gray-900">Anomalies</span>
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-red-700"><span class="h-2 w-2 rounded-full bg-red-500"></span>{{ anomalies.length }} en cours</span>
                 <span class="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">{{ anomalies.length }}</span>
             </button>
         </div>
+        </template>
 
         <!-- Documents du véhicule -->
-        <section v-if="openSection === 'docs' && documents.vehicle.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'docs' && documents.vehicle.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon name="template" :size="17" /></span>
                 Documents du véhicule
@@ -360,7 +379,7 @@ function setConsent(v) {
         </section>
 
         <!-- Mes documents -->
-        <section v-if="openSection === 'mydocs'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'mydocs'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600"><Icon name="user" :size="17" /></span>
                 Mes documents
@@ -390,7 +409,7 @@ function setConsent(v) {
         </section>
 
         <!-- Désinfection -->
-        <section v-if="openSection === 'disinfection'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'disinfection'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600"><Icon name="protocol" :size="17" /></span>
@@ -410,7 +429,7 @@ function setConsent(v) {
         </section>
 
         <!-- Entretien -->
-        <section v-if="openSection === 'maintenance'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'maintenance'" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon name="settings" :size="17" /></span>
@@ -432,7 +451,7 @@ function setConsent(v) {
         </section>
 
         <!-- Carburant (si le suivi est activé) -->
-        <section v-if="openSection === 'fuel' && fuel" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'fuel' && fuel" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><Icon name="materials" :size="17" /></span>
@@ -464,7 +483,7 @@ function setConsent(v) {
         </section>
 
         <!-- Carrosserie -->
-        <section v-if="openSection === 'body' && body.enabled" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'body' && body.enabled" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-[var(--brand,#C6362B)]"><Icon name="vehicle" :size="17" /></span>
                 Carrosserie
@@ -484,7 +503,7 @@ function setConsent(v) {
         </section>
 
         <!-- Anomalies ouvertes -->
-        <section v-if="openSection === 'anomalies' && anomalies.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section v-if="section === 'anomalies' && anomalies.length" class="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <h2 class="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600"><Icon name="bell" :size="17" /></span>
                 Anomalies en cours ({{ anomalies.length }})
@@ -501,7 +520,7 @@ function setConsent(v) {
         </section>
 
         <!-- Checklist matériel -->
-        <template v-if="openSection === 'material'">
+        <template v-if="section === 'material'">
         <h2 class="mb-2 mt-3 flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-gray-500">
             Vérification matériel
             <Link v-if="can_report_anomaly" :href="`/t/anomalie?vehicle_id=${vehicle.id}`" class="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-medium normal-case text-[var(--brand,#C6362B)] shadow-sm">

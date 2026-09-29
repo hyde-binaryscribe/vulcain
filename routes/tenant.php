@@ -84,6 +84,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'closeSession'])->name('service-end.store');
         Route::post('vehicules/{vehicle}/binome', [TerrainController::class, 'changePartner'])->name('partner');
         Route::get('vehicules/{vehicle}', [TerrainController::class, 'vehicle'])->name('vehicle');
+        Route::get('vehicules/{vehicle}/s/{section}', [TerrainController::class, 'vehicle'])->name('vehicle.section');
     });
 
     // Notifications in-app.

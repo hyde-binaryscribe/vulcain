@@ -165,9 +165,11 @@ class TerrainController extends Controller
         ]);
     }
 
-    public function vehicle(Request $request, Vehicle $vehicle): Response|RedirectResponse
+    public function vehicle(Request $request, Vehicle $vehicle, ?string $section = null): Response|RedirectResponse
     {
         $user = $request->user();
+        $allowedSections = ['material', 'body', 'disinfection', 'fuel', 'maintenance', 'docs', 'mydocs', 'anomalies'];
+        $section = in_array($section, $allowedSections, true) ? $section : null;
         $openSession = VehicleSession::query()->open()->with(['user:id,name', 'partner:id,name'])->where('vehicle_id', $vehicle->id)->first();
         $mine = $openSession !== null && $openSession->involves($user->id);
 
@@ -243,6 +245,7 @@ class TerrainController extends Controller
         $docMap = fn ($d) => ['id' => $d->id, 'category' => $d->category, 'title' => $d->title, 'expires_at' => $d->expires_at?->format('d/m/Y')];
 
         return Inertia::render('Terrain/Vehicle', [
+            'section' => $section,
             'tasks' => $tasks,
             'documents' => [
                 'vehicle' => $vehicle->documents()->get()->map($docMap)->values(),

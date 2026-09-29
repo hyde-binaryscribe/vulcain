@@ -113,6 +113,21 @@ class ServiceSessionTest extends TestCase
         ));
     }
 
+    public function test_vehicle_section_opens_as_a_dedicated_page(): void
+    {
+        [, $opener, , , $vehicle] = $this->crewFixture();
+
+        // Une section valide est transmise comme page dédiée.
+        $this->actingAs($opener)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}/s/disinfection")
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('Terrain/Vehicle')->where('section', 'disinfection'));
+
+        // Une section inconnue retombe sur le menu (section nulle).
+        $this->actingAs($opener)->get("http://caserne.localhost/t/vehicules/{$vehicle->id}/s/inconnu")
+            ->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->where('section', null));
+    }
+
     public function test_manager_sees_open_sessions_and_history(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
