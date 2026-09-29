@@ -56,6 +56,55 @@ class UserManagementTest extends TestCase
         $this->actingAs($admin)->get('http://caserne.localhost/users')->assertOk();
     }
 
+    public function test_admin_can_delete_an_agent_and_reinvite_the_email(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+        $agent = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id, 'email' => 'inola@example.com']);
+            $u->assignRole(Rbac::VERIFIER);
+
+            return $u;
+        });
+
+        $this->actingAs($admin)->delete("http://caserne.localhost/users/{$agent->id}")
+            ->assertSessionHasNoErrors();
+
+        // Archivé (soft delete) et e-mail libéré.
+        $this->assertSoftDeleted('users', ['id' => $agent->id]);
+        $this->assertDatabaseMissing('users', ['email' => 'inola@example.com', 'deleted_at' => null]);
+
+        // La même adresse peut être ré-invitée.
+        Notification::fake();
+        $this->actingAs($admin)->post('http://caserne.localhost/users/invite', [
+            'email' => 'inola@example.com',
+            'role' => Rbac::VERIFIER,
+        ])->assertSessionHasNoErrors();
+    }
+
+    public function test_admin_cannot_delete_themselves(): void
+    {
+        [, $admin] = $this->orgWithAdmin();
+
+        $this->actingAs($admin)->delete("http://caserne.localhost/users/{$admin->id}")
+            ->assertSessionHasErrors('user');
+    }
+
+    public function test_an_admin_can_delete_another_admin_when_others_remain(): void
+    {
+        [$org, $admin] = $this->orgWithAdmin();
+        $other = $this->tenant()->runFor($org, function () use ($org) {
+            $u = User::factory()->create(['organisation_id' => $org->id]);
+            $u->assignRole(Rbac::ADMIN);
+
+            return $u;
+        });
+
+        // $admin supprime le second admin ($other) : autorisé car $admin reste.
+        $this->actingAs($admin)->delete("http://caserne.localhost/users/{$other->id}")
+            ->assertSessionHasNoErrors();
+        $this->assertSoftDeleted('users', ['id' => $other->id]);
+    }
+
     public function test_non_admin_cannot_access_users(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

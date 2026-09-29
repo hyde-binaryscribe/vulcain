@@ -74,6 +74,16 @@ function saveEdit() {
     });
 }
 
+function deleteUser() {
+    if (!editing.value || editing.value.is_self) return;
+    if (confirm(`Supprimer l'agent « ${editing.value.name} » ? Son compte sera archivé et son e-mail libéré (nouvelle invitation possible).`)) {
+        router.delete(`/users/${editing.value.id}`, {
+            preserveScroll: true,
+            onSuccess: () => (editing.value = null),
+        });
+    }
+}
+
 function roleLabel(value) {
     return props.roles.find((r) => r.value === value)?.label ?? value;
 }
@@ -223,9 +233,13 @@ function cancel(inv) {
                             </label>
                         </div>
                     </div>
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="editing = null">Annuler</button>
-                        <button type="submit" :disabled="editForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>
+                    <div class="flex items-center justify-between gap-2 pt-2">
+                        <button v-if="!editing.is_self" type="button" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50" @click="deleteUser">Supprimer l'agent</button>
+                        <span v-else></span>
+                        <div class="flex gap-2">
+                            <button type="button" class="rounded-lg border border-gray-300 px-4 py-2 text-sm" @click="editing = null">Annuler</button>
+                            <button type="submit" :disabled="editForm.processing" class="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">Enregistrer</button>
+                        </div>
                     </div>
                 </form>
 

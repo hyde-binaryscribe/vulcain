@@ -141,6 +141,37 @@ class UserController extends Controller
         return back()->with('status', 'Utilisateur mis à jour.');
     }
 
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        // Anti auto-suppression.
+        if ($user->id === $request->user()->id) {
+            throw ValidationException::withMessages([
+                'user' => 'Vous ne pouvez pas supprimer votre propre compte.',
+            ]);
+        }
+
+        // On ne supprime pas le dernier administrateur actif.
+        if ($user->hasRole(Rbac::ADMIN)) {
+            $otherAdmins = User::query()->role(Rbac::ADMIN)->where('is_active', true)
+                ->whereKeyNot($user->id)->count();
+            if ($otherAdmins === 0) {
+                throw ValidationException::withMessages([
+                    'user' => 'Impossible de supprimer le dernier administrateur.',
+                ]);
+            }
+        }
+
+        // Libère l'e-mail (index unique global) pour permettre une nouvelle
+        // invitation de la même adresse, puis archive le compte (soft delete).
+        $user->forceFill([
+            'is_active' => false,
+            'email' => mb_substr('supprime_'.$user->id.'_'.$user->email, 0, 255),
+        ])->save();
+        $user->delete();
+
+        return back()->with('status', 'Agent supprimé.');
+    }
+
     public function cancelInvitation(Invitation $invitation): RedirectResponse
     {
         abort_unless($invitation->organisation_id === $this->tenant->id(), 404);
