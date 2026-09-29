@@ -146,6 +146,35 @@ class VehicleModelTest extends TestCase
         });
     }
 
+    public function test_apply_model_can_generate_maintenance_only(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $model = VehicleModel::create(['name' => 'Trafic', 'is_active' => true]);
+            $model->templateLocations()->create(['name' => 'Coffre', 'kind' => 'mobile', 'display_order' => 0]);
+            $motor = $model->motorizations()->create(['name' => '2.0 dCi', 'display_order' => 0]);
+            $motor->maintenancePlans()->create(['type' => 'vidange', 'interval_km' => 15000, 'display_order' => 0]);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'vehicle_model_id' => $model->id, 'vehicle_motorization_id' => $motor->id, 'mileage' => 5000]);
+
+            return [$admin, $vehicle];
+        });
+
+        // Plan d'entretien seul → pas d'emplacements générés.
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/apply-model", [
+            'equipment' => false,
+            'maintenance' => true,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($vehicle) {
+            $this->assertSame(0, \App\Models\Location::query()->where('vehicle_id', $vehicle->id)->count());
+            $this->assertSame(1, MaintenanceRecord::query()->where('vehicle_id', $vehicle->id)->count());
+        });
+    }
+
     public function test_vehicle_without_model_gets_no_generated_locations(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

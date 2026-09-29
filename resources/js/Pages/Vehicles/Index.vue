@@ -80,13 +80,19 @@ function remove(v) {
         router.delete(`/vehicles/${v.id}`, { preserveScroll: true });
     }
 }
-// Applique le modèle/motorisation affecté : génère emplacements + entretien manquants.
+// Génération rétroactive depuis le modèle : équipements et/ou plan d'entretien.
+const genEquipment = ref(true);
+const genMaintenance = ref(true);
 function applyModel() {
     if (!editingId.value) return;
+    if (!genEquipment.value && !genMaintenance.value) return;
+    // On enregistre d'abord le modèle/motorisation choisi, puis on génère.
     form.transform((d) => ({ ...d, site_id: d.site_id || null, vehicle_model_id: d.vehicle_model_id || null, vehicle_motorization_id: d.vehicle_motorization_id || null }));
-    form.patch(`/vehicles/${editingId.value}`, {
+    const id = editingId.value;
+    const payload = { equipment: genEquipment.value, maintenance: genMaintenance.value };
+    form.patch(`/vehicles/${id}`, {
         preserveScroll: true,
-        onSuccess: () => router.post(`/vehicles/${editingId.value}/apply-model`, {}, { preserveScroll: true }),
+        onSuccess: () => router.post(`/vehicles/${id}/apply-model`, payload, { preserveScroll: true }),
     });
 }
 
@@ -206,10 +212,20 @@ function saveAssign() {
                             <template v-else>Affectez un modèle puis cliquez « Appliquer » pour générer emplacements et entretien manquants.</template>
                             Géré dans <Link href="/vehicle-models" class="text-[var(--brand)] hover:underline">Modèles de véhicule</Link>.
                         </p>
-                        <div v-if="editingId && form.vehicle_model_id" class="mt-2">
-                            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="applyModel">
-                                <Icon name="settings" :size="14" /> Appliquer le modèle (générer la structure)
+                        <div v-if="editingId && form.vehicle_model_id" class="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                            <p class="text-xs font-semibold text-gray-700">Générer depuis le modèle (rétroactif)</p>
+                            <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input v-model="genEquipment" type="checkbox" class="h-4 w-4 rounded border-gray-300" /> Équipements (emplacements)
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input v-model="genMaintenance" type="checkbox" class="h-4 w-4 rounded border-gray-300" /> Plan d'entretien
+                                </label>
+                            </div>
+                            <button type="button" :disabled="(!genEquipment && !genMaintenance) || form.processing" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="applyModel">
+                                <Icon name="settings" :size="14" /> Générer
                             </button>
+                            <p class="mt-1.5 text-[11px] text-gray-400">Les emplacements ne sont générés que si le véhicule n'en a aucun. Les échéances d'entretien sont ajoutées sans doublon.</p>
                         </div>
                     </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>

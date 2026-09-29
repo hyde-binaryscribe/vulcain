@@ -332,13 +332,32 @@ class VehicleController extends Controller
      * emplacements manquants et les échéances d'entretien. Sert à équiper un
      * véhicule existant auquel on vient d'affecter un modèle.
      */
-    public function applyModel(Vehicle $vehicle): RedirectResponse
+    /**
+     * Génère rétroactivement la structure d'un véhicule depuis son modèle :
+     * équipements (emplacements) et/ou plan d'entretien, au choix.
+     */
+    public function applyModel(Request $request, Vehicle $vehicle): RedirectResponse
     {
-        if ($vehicle->vehicle_model_id === null) {
-            return back()->with('error', 'Affectez d’abord un modèle à ce véhicule.');
+        $request->validate([
+            'equipment' => ['boolean'],
+            'maintenance' => ['boolean'],
+        ]);
+
+        // Par défaut (aucun champ fourni) : on génère les deux.
+        $doEquip = $request->boolean('equipment', true);
+        $doMaint = $request->boolean('maintenance', true);
+
+        if (! $doEquip && ! $doMaint) {
+            return back()->with('error', 'Choisissez au moins un élément à générer.');
+        }
+        if ($doEquip && $vehicle->vehicle_model_id === null) {
+            return back()->with('error', 'Affectez d’abord un modèle pour générer les équipements.');
+        }
+        if ($doMaint && $vehicle->vehicle_motorization_id === null) {
+            return back()->with('error', 'Affectez d’abord une motorisation pour générer le plan d’entretien.');
         }
 
-        [$locations, $maintenances] = $this->generateStructure($vehicle);
+        [$locations, $maintenances, $equipSkipped] = $this->generateStructure($vehicle, $doEquip, $doMaint);
 
         $parts = [];
         if ($locations > 0) {
@@ -349,8 +368,11 @@ class VehicleController extends Controller
         }
 
         $message = $parts === []
-            ? 'Structure déjà en place : rien à générer.'
-            : 'Structure générée : '.implode(' et ', $parts).'.';
+            ? 'Rien à générer (déjà en place).'
+            : 'Généré : '.implode(' et ', $parts).'.';
+        if ($doEquip && $equipSkipped) {
+            $message .= ' Emplacements déjà présents : non régénérés.';
+        }
 
         return back()->with('status', $message);
     }
@@ -360,27 +382,32 @@ class VehicleController extends Controller
      * véhicule n'en a aucun) et sa motorisation (échéances d'entretien,
      * idempotent par type).
      *
-     * @return array{0:int,1:int} [emplacements créés, échéances créées]
+     * @return array{0:int,1:int,2:bool} [emplacements créés, échéances créées, emplacements ignorés car déjà présents]
      */
-    private function generateStructure(Vehicle $vehicle): array
+    private function generateStructure(Vehicle $vehicle, bool $doEquip = true, bool $doMaint = true): array
     {
         $locations = 0;
         $maintenances = 0;
+        $equipSkipped = false;
 
-        if ($vehicle->vehicle_model_id !== null) {
+        if ($doEquip && $vehicle->vehicle_model_id !== null) {
             $model = VehicleModel::query()->find($vehicle->vehicle_model_id);
-            // On ne génère les emplacements que si le véhicule n'en a pas déjà.
-            if ($model !== null && $vehicle->locations()->count() === 0) {
-                $locations = $model->generateLocationsFor($vehicle);
+            if ($model !== null) {
+                // On ne génère les emplacements que si le véhicule n'en a pas déjà.
+                if ($vehicle->locations()->count() === 0) {
+                    $locations = $model->generateLocationsFor($vehicle);
+                } else {
+                    $equipSkipped = true;
+                }
             }
         }
 
-        if ($vehicle->vehicle_motorization_id !== null) {
+        if ($doMaint && $vehicle->vehicle_motorization_id !== null) {
             $motorization = VehicleMotorization::query()->find($vehicle->vehicle_motorization_id);
             $maintenances = $motorization?->generateMaintenanceFor($vehicle) ?? 0;
         }
 
-        return [$locations, $maintenances];
+        return [$locations, $maintenances, $equipSkipped];
     }
 
     public function destroy(Vehicle $vehicle): RedirectResponse
