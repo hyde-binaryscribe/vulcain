@@ -71,7 +71,7 @@ function submitMileage() {
             </div>
         </div>
 
-        <!-- Bannière de session -->
+        <!-- Session de service -->
         <div v-if="session?.is_mine" class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 p-3.5">
             <div class="flex items-center gap-2 text-sm text-green-800">
                 <span class="h-2 w-2 rounded-full bg-green-500"></span>
@@ -81,9 +81,20 @@ function submitMileage() {
                 Clôturer le service
             </Link>
         </div>
-        <div v-else-if="session" class="mt-3 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-800">
-            <Icon name="user" :size="16" class="shrink-0" />
-            <span>En service : <strong>{{ session.holder }}</strong><template v-if="session.opened_at"> depuis {{ session.opened_at }}</template></span>
+        <div v-else class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
+            <div class="flex min-w-0 items-center gap-2 text-sm">
+                <template v-if="session">
+                    <Icon name="user" :size="16" class="shrink-0 text-amber-600" />
+                    <span class="truncate text-amber-800">En service : <strong>{{ session.holder }}</strong><template v-if="session.opened_at"> depuis {{ session.opened_at }}</template></span>
+                </template>
+                <template v-else>
+                    <span class="h-2 w-2 shrink-0 rounded-full bg-gray-300"></span>
+                    <span class="text-gray-600">Aucun service en cours</span>
+                </template>
+            </div>
+            <Link :href="`/t/vehicules/${vehicle.id}/prise-de-service`" class="shrink-0 rounded-lg bg-[var(--brand,#C6362B)] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110">
+                {{ session ? 'Prendre (passation)' : 'Prendre le service' }}
+            </Link>
         </div>
 
         <!-- Désinfection -->
