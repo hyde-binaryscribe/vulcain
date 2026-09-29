@@ -411,6 +411,7 @@ function setConsent(v) {
 
                 <label class="mt-4 block text-xs font-medium text-gray-600">Date</label>
                 <input v-model="disinfForm.performed_at" type="datetime-local" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+                <p v-if="disinfForm.errors.performed_at" class="mt-1 text-xs text-red-600">{{ disinfForm.errors.performed_at }}</p>
 
                 <label class="mt-3 block text-xs font-medium text-gray-600">Notes (optionnel)</label>
                 <textarea v-model="disinfForm.notes" rows="2" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white"></textarea>
@@ -445,8 +446,11 @@ function setConsent(v) {
                     <div>
                         <label class="block text-xs font-medium text-gray-600">Date</label>
                         <input v-model="fuelForm.filled_at" type="datetime-local" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                        <p v-if="fuelForm.errors.filled_at" class="mt-1 text-xs text-red-600">{{ fuelForm.errors.filled_at }}</p>
                     </div>
                 </div>
+
+                <p v-if="fuelForm.errors.cost || fuelForm.errors.price_per_liter" class="mt-2 text-xs text-red-600">{{ fuelForm.errors.cost || fuelForm.errors.price_per_liter }}</p>
 
                 <p v-if="fuelTotal" class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     Coût total : <span class="font-semibold text-gray-900">{{ fuelTotal }} €</span>

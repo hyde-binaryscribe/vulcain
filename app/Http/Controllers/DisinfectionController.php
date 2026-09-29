@@ -17,7 +17,8 @@ class DisinfectionController extends Controller
     {
         $validated = $request->validate([
             'type' => ['required', Rule::enum(DisinfectionType::class)],
-            'performed_at' => ['required', 'date', 'before_or_equal:now'],
+            // Tolérance d'un jour (heure locale terrain vs serveur UTC).
+            'performed_at' => ['required', 'date', 'before_or_equal:'.now()->addDay()->toDateTimeString()],
             'disinfection_protocol_id' => ['nullable', 'integer', Rule::exists('disinfection_protocols', 'id')->where('organisation_id', $vehicle->organisation_id)],
             'steps' => ['nullable', 'array', 'max:100'],
             'steps.*.label' => ['required_with:steps', 'string', 'max:500'],

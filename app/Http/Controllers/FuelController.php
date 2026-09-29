@@ -16,7 +16,9 @@ class FuelController extends Controller
     public function store(Request $request, Vehicle $vehicle): RedirectResponse
     {
         $validated = $request->validate([
-            'filled_at' => ['nullable', 'date', 'before_or_equal:now'],
+            // Tolérance d'un jour : l'app tourne en UTC mais le terrain envoie
+            // une heure locale (fuseau FR), qui serait sinon vue « dans le futur ».
+            'filled_at' => ['nullable', 'date', 'before_or_equal:'.now()->addDay()->toDateTimeString()],
             'mileage' => ['required', 'integer', 'min:0', 'max:9999999'],
             'liters' => ['required', 'numeric', 'min:0.1', 'max:9999'],
             'price_per_liter' => ['nullable', 'numeric', 'min:0', 'max:99'],

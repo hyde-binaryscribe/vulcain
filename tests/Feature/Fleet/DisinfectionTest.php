@@ -99,7 +99,7 @@ class DisinfectionTest extends TestCase
 
         $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/disinfections", [
             'type' => 'desinfection',
-            'performed_at' => now()->addDay()->format('Y-m-d\TH:i'),
+            'performed_at' => now()->addDays(5)->format('Y-m-d\TH:i'),
         ])->assertSessionHasErrors('performed_at');
     }
 

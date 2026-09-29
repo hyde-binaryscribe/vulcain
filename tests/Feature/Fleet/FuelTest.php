@@ -64,6 +64,50 @@ class FuelTest extends TestCase
         });
     }
 
+    public function test_local_time_ahead_of_utc_is_accepted(): void
+    {
+        // Reproduit le bug terrain : l'app tourne en UTC, le PWA envoie l'heure
+        // locale (fuseau FR), légèrement « dans le futur » côté serveur.
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$agent, $vehicle];
+        });
+
+        $this->actingAs($agent)->post("http://caserne.localhost/vehicles/{$vehicle->id}/fuel", [
+            'filled_at' => now()->addHours(2)->format('Y-m-d\TH:i'),
+            'mileage' => 1200,
+            'liters' => 48.5,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, fn () => $this->assertDatabaseHas('fuel_records', [
+            'vehicle_id' => $vehicle->id, 'mileage' => 1200,
+        ]));
+    }
+
+    public function test_far_future_date_is_still_rejected(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            return [$agent, $vehicle];
+        });
+
+        $this->actingAs($agent)->post("http://caserne.localhost/vehicles/{$vehicle->id}/fuel", [
+            'filled_at' => now()->addDays(5)->format('Y-m-d\TH:i'),
+            'mileage' => 1200,
+            'liters' => 48.5,
+        ])->assertSessionHasErrors('filled_at');
+    }
+
     public function test_cost_is_computed_from_price_per_liter(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
