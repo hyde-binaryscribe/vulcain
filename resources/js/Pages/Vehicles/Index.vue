@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import PlateInput from '@/Components/PlateInput.vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
@@ -229,7 +230,11 @@ function saveAssign() {
                         </div>
                     </div>
                     <div><InputLabel value="Indicatif" /><TextInput v-model="form.callsign" /></div>
-                    <div><InputLabel value="Immatriculation" /><TextInput v-model="form.registration" /></div>
+                    <div>
+                        <InputLabel value="Immatriculation" />
+                        <PlateInput v-model="form.registration" />
+                        <InputError :message="form.errors.registration" />
+                    </div>
                     <div v-if="sites.length">
                         <InputLabel :value="siteWord" />
                         <select v-model="form.site_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 focus:border-[var(--brand)] focus:ring-2 focus:ring-black/10">
