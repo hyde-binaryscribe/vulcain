@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Identity\InvitationService;
+use App\Models\User;
+use App\Support\Device;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,6 +47,13 @@ class AcceptInvitationController extends Controller
         ]);
 
         if ($user === null) {
+            // Invitation déjà acceptée : le compte existe → on oriente vers la connexion.
+            $email = mb_strtolower(trim($validated['email']));
+            if (User::withoutGlobalScopes()->where('email', $email)->exists()) {
+                return redirect()->route('login')
+                    ->with('status', 'Votre compte est déjà activé. Connectez-vous avec votre e-mail et votre mot de passe.');
+            }
+
             throw ValidationException::withMessages([
                 'email' => 'Cette invitation est invalide ou a expiré.',
             ]);
@@ -53,6 +62,10 @@ class AcceptInvitationController extends Controller
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard')->with('status', 'Bienvenue ! Votre compte administrateur est activé.');
+        // Redirection adaptée à l'appareil (comme à la connexion) : les agents de
+        // terrain sur mobile arrivent sur l'appli terrain, pas le dashboard web.
+        $default = Device::isMobile($request) ? route('terrain.home') : route('dashboard');
+
+        return redirect()->intended($default)->with('status', 'Bienvenue sur Vulkain ! Votre compte est activé.');
     }
 }
