@@ -39,6 +39,20 @@ function toggle(key) {
 }
 const openDamages = computed(() => props.body.damages.filter((d) => d.status === 'ouverte').length);
 
+// Pastille de statut (point + couleur de texte) selon la gravité d'une dimension.
+function sevClasses(sev) {
+    if (sev === 'critical') return { dot: 'bg-red-500', text: 'text-red-700' };
+    if (sev === 'warning') return { dot: 'bg-orange-500', text: 'text-orange-700' };
+    if (sev === 'watch') return { dot: 'bg-yellow-400', text: 'text-yellow-800' };
+    return null;
+}
+const okClasses = { dot: 'bg-green-500', text: 'text-green-700' };
+const neutralClasses = { dot: 'bg-gray-300', text: 'text-gray-500' };
+// Pastille verte (Disponible) sinon grise, pour l'état du véhicule.
+const vehiclePill = computed(() => props.vehicle.status === 'disponible'
+    ? 'bg-green-100 text-green-700'
+    : 'bg-gray-200 text-gray-600');
+
 const sevBadge = {
     critical: 'bg-red-100 text-red-800',
     warning: 'bg-orange-100 text-orange-800',
@@ -176,11 +190,17 @@ function setConsent(v) {
 
         <!-- En-tête véhicule -->
         <div class="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <Link href="/t" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100"><Icon name="arrow-left" :size="20" /></Link>
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-500"><Icon name="vehicle" :size="22" /></span>
+            <Link href="/t" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100"><Icon name="arrow-left" :size="22" /></Link>
+            <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-600"><Icon name="vehicle" :size="28" /></span>
             <div class="min-w-0 flex-1">
-                <h1 class="truncate text-lg font-bold text-gray-900">{{ vehicle.callsign || vehicle.name }}</h1>
-                <p class="text-xs text-gray-500">{{ vehicle.type || '—' }} · {{ vehicle.status_label }}</p>
+                <h1 class="truncate text-3xl font-extrabold leading-none tracking-tight text-gray-900">{{ vehicle.callsign || vehicle.name }}</h1>
+                <div class="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                    <span>{{ vehicle.type || '—' }}</span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold" :class="vehiclePill">
+                        <span class="h-1.5 w-1.5 rounded-full" :class="vehicle.status === 'disponible' ? 'bg-green-600' : 'bg-gray-500'"></span>
+                        {{ vehicle.status_label }}
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -252,48 +272,69 @@ function setConsent(v) {
             </ul>
         </section>
 
+        <!-- Carrosserie : information consultable (lecture + signalement). -->
+        <button v-if="body.enabled" type="button" class="mt-3 flex w-full items-center gap-4 rounded-2xl border-l-4 border-amber-400 bg-white p-4 text-left shadow-sm" :class="openSection === 'body' ? 'ring-1 ring-amber-300' : ''" @click="toggle('body')">
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><Icon name="vehicle" :size="26" /></span>
+            <span class="min-w-0 flex-1">
+                <span class="block text-lg font-bold text-gray-900">Carrosserie</span>
+                <span class="block text-sm font-semibold" :class="openDamages ? 'text-amber-700' : 'text-green-700'">
+                    {{ openDamages ? openDamages + ' signalement(s) · consulter / signaler' : 'Aucun signalement · signaler si besoin' }}
+                </span>
+            </span>
+            <Icon name="chevron-right" :size="22" class="shrink-0 text-gray-300" />
+        </button>
+
         <!-- Menu en tuiles (2 colonnes) -->
         <div class="mt-3 grid grid-cols-2 gap-3">
-            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'material' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('material')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600"><Icon name="materials" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Matériel</span><span class="block truncate text-xs text-gray-500">{{ locations.length }} emplacement(s)</span></span>
+            <!-- Matériel -->
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'material' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('material')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-600"><Icon name="materials" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Matériel</span>
+                <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="neutralClasses.dot"></span>{{ locations.length }} emplacement(s)</span>
             </button>
 
-            <button v-if="body.enabled" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'body' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('body')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-[var(--brand,#C6362B)]"><Icon name="vehicle" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Carrosserie</span><span class="block truncate text-xs text-gray-500">{{ openDamages ? openDamages + ' anomalie(s)' : 'RAS' }}</span></span>
-                <span v-if="openDamages" class="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ openDamages }}</span>
+            <!-- Désinfection -->
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'disinfection' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('disinfection')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-600"><Icon name="protocol" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Désinfection</span>
+                <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="(sevClasses(disinfection.severity) || okClasses).text"><span class="h-2 w-2 rounded-full" :class="(sevClasses(disinfection.severity) || okClasses).dot"></span>{{ disinfection.state_label || 'À jour' }}</span>
             </button>
 
-            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'disinfection' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('disinfection')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600"><Icon name="protocol" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Désinfection</span><span class="block truncate text-xs text-gray-500">{{ disinfection.state_label }}</span></span>
+            <!-- Entretien -->
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'maintenance' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('maintenance')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-600"><Icon name="settings" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Entretien</span>
+                <span v-if="maintenance.severity" class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="sevClasses(maintenance.severity).text"><span class="h-2 w-2 rounded-full" :class="sevClasses(maintenance.severity).dot"></span>{{ maintenance.state_label }}</span>
+                <span v-else class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="neutralClasses.dot"></span>{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span>
             </button>
 
-            <button v-if="fuel" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'fuel' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('fuel')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><Icon name="materials" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Carburant</span><span class="block truncate text-xs text-gray-500">{{ fuel.average ? fuel.average + ' L/100' : 'Plein' }}</span></span>
+            <!-- Carburant -->
+            <button v-if="fuel" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'fuel' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('fuel')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><Icon name="materials" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Carburant</span>
+                <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="fuel.average ? neutralClasses.text : okClasses.text"><span class="h-2 w-2 rounded-full" :class="fuel.average ? neutralClasses.dot : okClasses.dot"></span>{{ fuel.average ? fuel.average + ' L/100' : 'Plein' }}</span>
             </button>
 
-            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'maintenance' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('maintenance')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600"><Icon name="settings" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Entretien</span><span class="block truncate text-xs text-gray-500">{{ vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('fr-FR') + ' km' : '—' }}</span></span>
+            <!-- Documents -->
+            <button v-if="documents.vehicle.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'docs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('docs')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Icon name="template" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Documents</span>
+                <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="neutralClasses.dot"></span>{{ documents.vehicle.length }} document(s)</span>
             </button>
 
-            <button v-if="documents.vehicle.length" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'docs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('docs')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Icon name="template" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Documents</span><span class="block truncate text-xs text-gray-500">{{ documents.vehicle.length }} document(s)</span></span>
+            <!-- Mes documents -->
+            <button type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'mydocs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('mydocs')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600"><Icon name="user" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Mes documents</span>
+                <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="documents.consent ? okClasses.text : neutralClasses.text"><span class="h-2 w-2 rounded-full" :class="documents.consent ? okClasses.dot : neutralClasses.dot"></span>{{ documents.consent ? 'Autorisé' : 'À autoriser' }}</span>
             </button>
 
-            <button type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'mydocs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('mydocs')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><Icon name="user" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Mes documents</span><span class="block truncate text-xs text-gray-500">{{ documents.consent ? 'Autorisé' : 'À autoriser' }}</span></span>
-            </button>
-
-            <button v-if="anomalies.length" type="button" class="relative flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm" :class="openSection === 'anomalies' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('anomalies')">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><Icon name="bell" :size="20" /></span>
-                <span class="min-w-0"><span class="block text-sm font-semibold text-gray-900">Anomalies</span><span class="block truncate text-xs text-gray-500">{{ anomalies.length }} en cours</span></span>
-                <span class="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">{{ anomalies.length }}</span>
+            <!-- Anomalies (si présentes) -->
+            <button v-if="anomalies.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="openSection === 'anomalies' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="toggle('anomalies')">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600"><Icon name="bell" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Anomalies</span>
+                <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-red-700"><span class="h-2 w-2 rounded-full bg-red-500"></span>{{ anomalies.length }} en cours</span>
+                <span class="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">{{ anomalies.length }}</span>
             </button>
         </div>
 
