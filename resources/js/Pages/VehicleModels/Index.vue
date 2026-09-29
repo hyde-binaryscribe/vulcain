@@ -89,6 +89,19 @@ function addPlan(mo) {
 function removePlan(mo, i) {
     mo.plans.splice(i, 1);
 }
+// Remplit un plan d'entretien type (diesel, usage intensif) — ajustable ensuite.
+function fillStandardPlan(mo) {
+    if (mo.plans.length && !confirm('Remplacer les plans existants par un plan type diesel ?')) return;
+    mo.plans = [
+        { type: 'vidange', label: 'Vidange huile + filtre à huile', interval_km: 10000, interval_months: 12 },
+        { type: 'revision', label: 'Filtre habitacle', interval_km: 20000, interval_months: 12 },
+        { type: 'revision', label: 'Filtres air + gazole', interval_km: 40000, interval_months: 24 },
+        { type: 'autre', label: 'Liquide de frein', interval_km: '', interval_months: 24 },
+        { type: 'autre', label: 'Liquide de refroidissement', interval_km: 90000, interval_months: 48 },
+        { type: 'controle_technique', label: 'Contrôle technique', interval_km: '', interval_months: 24 },
+        { type: 'pneus', label: 'Contrôle pneus / géométrie', interval_km: 20000, interval_months: 12 },
+    ];
+}
 
 // Aperçu du libellé composé (identique au serveur).
 const previewName = computed(() => {
@@ -281,21 +294,53 @@ function kindLabel(value) {
                                     </button>
                                 </div>
 
-                                <div class="mt-2 border-l-2 border-gray-200 pl-3">
-                                    <div v-for="(p, pi) in mo.plans" :key="pi" class="mb-2 grid grid-cols-12 items-center gap-1.5">
-                                        <select v-model="p.type" class="col-span-4 rounded-md border-gray-300 px-1.5 py-1.5 text-xs">
-                                            <option v-for="t in maintenanceTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
-                                        </select>
-                                        <input v-model="p.interval_km" type="number" min="1" placeholder="km" class="col-span-3 rounded-md border-gray-300 px-1.5 py-1.5 text-xs" title="Périodicité en km" />
-                                        <input v-model="p.interval_months" type="number" min="1" placeholder="mois" class="col-span-3 rounded-md border-gray-300 px-1.5 py-1.5 text-xs" title="Périodicité en mois" />
-                                        <button type="button" class="col-span-2 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removePlan(mo, pi)">
-                                            <Icon name="x" :size="14" />
-                                        </button>
-                                        <input v-model="p.label" type="text" placeholder="Libellé (optionnel, ex. courroie de distribution)" class="col-span-12 rounded-md border-gray-300 px-2 py-1.5 text-xs" />
+                                <div class="mt-3 border-l-2 border-gray-200 pl-3">
+                                    <div v-if="mo.plans.length" class="overflow-x-auto">
+                                        <table class="min-w-full text-xs">
+                                            <thead class="text-left text-[11px] uppercase tracking-wide text-gray-400">
+                                                <tr>
+                                                    <th class="pb-1 pr-2 font-semibold">Type</th>
+                                                    <th class="pb-1 pr-2 font-semibold">Intitulé</th>
+                                                    <th class="pb-1 pr-2 font-semibold" title="Périodicité kilométrique">km</th>
+                                                    <th class="pb-1 pr-2 font-semibold" title="Périodicité temporelle">mois</th>
+                                                    <th class="pb-1"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="(p, pi) in mo.plans" :key="pi">
+                                                    <td class="py-1 pr-2 align-top">
+                                                        <select v-model="p.type" class="w-full min-w-[7rem] rounded-md border-gray-300 px-1.5 py-1.5 text-xs">
+                                                            <option v-for="t in maintenanceTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                                        </select>
+                                                    </td>
+                                                    <td class="py-1 pr-2 align-top">
+                                                        <input v-model="p.label" type="text" placeholder="ex. Vidange huile + filtre" class="w-full min-w-[9rem] rounded-md border-gray-300 px-2 py-1.5 text-xs" />
+                                                    </td>
+                                                    <td class="py-1 pr-2 align-top">
+                                                        <input v-model="p.interval_km" type="number" min="1" placeholder="—" class="w-20 rounded-md border-gray-300 px-1.5 py-1.5 text-xs" />
+                                                    </td>
+                                                    <td class="py-1 pr-2 align-top">
+                                                        <input v-model="p.interval_months" type="number" min="1" placeholder="—" class="w-16 rounded-md border-gray-300 px-1.5 py-1.5 text-xs" />
+                                                    </td>
+                                                    <td class="py-1 align-top">
+                                                        <button type="button" class="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removePlan(mo, pi)">
+                                                            <Icon name="x" :size="14" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[var(--brand)]" @click="addPlan(mo)">
-                                        <Icon name="plus" :size="12" /> Plan d'entretien
-                                    </button>
+                                    <p v-else class="text-[11px] text-gray-400">Aucun item. Ajoutez une ligne ou remplissez un plan type.</p>
+                                    <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                                        <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[var(--brand)]" @click="addPlan(mo)">
+                                            <Icon name="plus" :size="12" /> Ligne
+                                        </button>
+                                        <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[var(--brand)]" @click="fillStandardPlan(mo)">
+                                            <Icon name="settings" :size="12" /> Plan type diesel
+                                        </button>
+                                    </div>
+                                    <p class="mt-1 text-[11px] text-gray-400">Un champ vide (km ou mois) = l'échéance se déclenche sur l'autre critère. Vide des deux = ligne ignorée.</p>
                                 </div>
                             </div>
                         </div>
