@@ -118,6 +118,24 @@ class Organisation extends Model
         return $value !== null ? (int) $value : null;
     }
 
+    /** Délai d'alerte avant une échéance d'entretien datée (jours). */
+    public function maintenanceAlertDays(): int
+    {
+        return (int) ($this->settings['maintenance_alert_days'] ?? 14);
+    }
+
+    /** Délai d'alerte avant une échéance d'entretien kilométrique (km). */
+    public function maintenanceAlertKm(): int
+    {
+        return (int) ($this->settings['maintenance_alert_km'] ?? 500);
+    }
+
+    /** Délai d'alerte avant une date de péremption / expiration (jours). */
+    public function expiryAlertDays(): int
+    {
+        return (int) ($this->settings['expiry_alert_days'] ?? 30);
+    }
+
     /** Colonne Kanban où atterrissent les nouvelles anomalies (ou null → 1re colonne). */
     public function anomalyEntryColumnId(): ?int
     {

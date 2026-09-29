@@ -13,6 +13,9 @@ const form = useForm({
     vehicle_access_qr_only: props.settings.vehicle_access_qr_only,
     fuel_tracking_enabled: props.settings.fuel_tracking_enabled,
     body_inspection_enabled: props.settings.body_inspection_enabled,
+    maintenance_alert_days: props.settings.maintenance_alert_days ?? 14,
+    maintenance_alert_km: props.settings.maintenance_alert_km ?? 500,
+    expiry_alert_days: props.settings.expiry_alert_days ?? 30,
     anomaly_entry_column_id: props.settings.anomaly_entry_column_id ?? '',
     service_start_steps: [...(props.settings.service_start_steps ?? [])],
 });
@@ -116,6 +119,26 @@ function save() {
                         </span>
                     </span>
                 </label>
+
+                <div class="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <p class="text-sm font-medium text-gray-900">Alertes d'échéances</p>
+                    <p class="text-xs text-gray-500">Délai avant une échéance à partir duquel l'alerte (orange) apparaît.</p>
+                    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <label class="block">
+                            <span class="block text-xs font-medium text-gray-600">Entretien — jours avant</span>
+                            <input v-model.number="form.maintenance_alert_days" type="number" min="1" max="365" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs font-medium text-gray-600">Entretien — km avant</span>
+                            <input v-model.number="form.maintenance_alert_km" type="number" min="1" max="100000" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs font-medium text-gray-600">Péremptions & dates — jours avant</span>
+                            <input v-model.number="form.expiry_alert_days" type="number" min="1" max="365" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
+                        </label>
+                    </div>
+                    <p class="mt-2 text-[11px] text-gray-400">Ex. 14 jours et 500 km pour l'entretien, 30 jours pour les péremptions et documents.</p>
+                </div>
 
                 <label class="mt-5 flex items-start gap-3">
                     <input v-model="form.vehicle_access_qr_only" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300" />

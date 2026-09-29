@@ -26,13 +26,14 @@ class PharmacyController extends Controller
     public function index(): Response
     {
         $today = Carbon::today();
+        $soon = $today->copy()->addDays($this->tenant->organisation()->expiryAlertDays());
 
         $consumables = Material::query()
             ->where('tracking_mode', Material::MODE_LOT)
             ->with(['category:id,name', 'type:id,name', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id', 'lots:id,material_id,quantity,expiry_date'])
             ->orderBy('name')
             ->get()
-            ->map(function (Material $m) use ($today) {
+            ->map(function (Material $m) use ($today, $soon) {
                 $nearest = $m->lots->pluck('expiry_date')->filter()->sort()->first();
 
                 return [
@@ -49,7 +50,7 @@ class PharmacyController extends Controller
                     'nearest_expiry' => $nearest?->format('d/m/Y'),
                     'nearest_expiry_sort' => $nearest?->format('Y-m-d'),
                     'expired' => $nearest !== null && $nearest->lt($today),
-                    'expiring_soon' => $nearest !== null && $nearest->gte($today) && $nearest->lte($today->copy()->addDays(30)),
+                    'expiring_soon' => $nearest !== null && $nearest->gte($today) && $nearest->lte($soon),
                 ];
             })
             // FEFO : péremption la plus proche d'abord (sans date en dernier).

@@ -73,7 +73,14 @@ class VehicleController extends Controller
 
         // Suivi mécanique : historique, échéance et statut agrégé.
         $maintenances = $vehicle->maintenances()->with('user:id,name')->limit(50)->get();
-        $maintenanceStatus = MaintenanceStatus::forVehicleRecords($maintenances, $vehicle->mileage !== null ? (int) $vehicle->mileage : null);
+        $org = $this->tenant->organisation();
+        $maintenanceStatus = MaintenanceStatus::forVehicleRecords(
+            $maintenances,
+            $vehicle->mileage !== null ? (int) $vehicle->mileage : null,
+            null,
+            $org->maintenanceAlertDays(),
+            $org->maintenanceAlertKm(),
+        );
 
         // Carburant : historique et consommation (si le suivi est activé).
         $fuelEnabled = $this->tenant->organisation()->fuelTrackingEnabled();
@@ -210,7 +217,7 @@ class VehicleController extends Controller
             if ($lot !== null) {
                 $expiry = $lot->expiry_date?->format('Y-m-d');
                 $expired = $lot->isExpired();
-                $soon = $lot->expiresWithin(30);
+                $soon = $lot->expiresWithin($this->tenant->organisation()->expiryAlertDays());
             }
         }
 

@@ -92,12 +92,18 @@ class TerrainController extends Controller
             ->get()
             ->keyBy('vehicle_id');
 
-        $cards = $vehicles->map(function (Vehicle $v) use ($intervals, $openAnomalies, $openSessions, $user) {
+        $alertDays = $this->tenant->organisation()->maintenanceAlertDays();
+        $alertKm = $this->tenant->organisation()->maintenanceAlertKm();
+
+        $cards = $vehicles->map(function (Vehicle $v) use ($intervals, $openAnomalies, $openSessions, $user, $alertDays, $alertKm) {
             $lastDisinfection = $v->disinfections()->first()?->performed_at;
             $disinfection = DisinfectionStatus::compute($lastDisinfection, $intervals[$v->type] ?? null);
             $maintenance = MaintenanceStatus::forVehicleRecords(
                 $v->maintenances()->get(),
                 $v->mileage !== null ? (int) $v->mileage : null,
+                null,
+                $alertDays,
+                $alertKm,
             );
             $session = $openSessions->get($v->id);
 
@@ -178,6 +184,9 @@ class TerrainController extends Controller
         $maintenanceStatus = MaintenanceStatus::forVehicleRecords(
             $vehicle->maintenances()->get(),
             $vehicle->mileage !== null ? (int) $vehicle->mileage : null,
+            null,
+            $this->tenant->organisation()->maintenanceAlertDays(),
+            $this->tenant->organisation()->maintenanceAlertKm(),
         );
 
         $anomalies = Event::query()

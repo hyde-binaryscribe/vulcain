@@ -24,9 +24,11 @@ final class MaintenanceStatus
         public readonly string $state, // none | ok | soon | overdue
     ) {}
 
-    public static function compute(?Carbon $dueAt, ?int $dueMileage, ?int $currentMileage, ?Carbon $now = null): self
+    public static function compute(?Carbon $dueAt, ?int $dueMileage, ?int $currentMileage, ?Carbon $now = null, ?int $soonDays = null, ?int $soonKm = null): self
     {
         $now ??= Carbon::now();
+        $soonDays ??= self::SOON_DAYS;
+        $soonKm ??= self::SOON_KM;
 
         if ($dueAt === null && $dueMileage === null) {
             return new self(null, null, null, 'none');
@@ -38,7 +40,7 @@ final class MaintenanceStatus
         if ($dueAt !== null) {
             if ($now->greaterThanOrEqualTo($dueAt)) {
                 $severity = Severity::CRITICAL;
-            } elseif ($now->greaterThanOrEqualTo($dueAt->copy()->subDays(self::SOON_DAYS))) {
+            } elseif ($now->greaterThanOrEqualTo($dueAt->copy()->subDays($soonDays))) {
                 $severity = Severity::WARNING;
             }
         }
@@ -47,7 +49,7 @@ final class MaintenanceStatus
         if ($dueMileage !== null && $currentMileage !== null) {
             if ($currentMileage >= $dueMileage) {
                 $severity = Severity::CRITICAL;
-            } elseif ($currentMileage >= $dueMileage - self::SOON_KM && $severity !== Severity::CRITICAL) {
+            } elseif ($currentMileage >= $dueMileage - $soonKm && $severity !== Severity::CRITICAL) {
                 $severity = Severity::WARNING;
             }
         }
@@ -67,7 +69,7 @@ final class MaintenanceStatus
      *
      * @param  \Illuminate\Support\Collection<int, \App\Models\MaintenanceRecord>  $records
      */
-    public static function forVehicleRecords($records, ?int $currentMileage, ?Carbon $now = null): self
+    public static function forVehicleRecords($records, ?int $currentMileage, ?Carbon $now = null, ?int $soonDays = null, ?int $soonKm = null): self
     {
         $withDue = $records->filter(fn ($r) => $r->next_due_at !== null || $r->next_due_mileage !== null);
 
@@ -77,7 +79,7 @@ final class MaintenanceStatus
 
         $worst = new self(null, null, null, 'none');
         foreach ($latestPerType as $record) {
-            $status = self::compute($record->next_due_at, $record->next_due_mileage, $currentMileage, $now);
+            $status = self::compute($record->next_due_at, $record->next_due_mileage, $currentMileage, $now, $soonDays, $soonKm);
             if (($status->severity?->rank() ?? 0) > ($worst->severity?->rank() ?? 0)) {
                 $worst = $status;
             }

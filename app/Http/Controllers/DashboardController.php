@@ -16,16 +16,19 @@ use App\Models\StockLot;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleType;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenant) {}
+
     public function index(): Response
     {
         $today = Carbon::today();
-        $soon = $today->copy()->addDays(30);
+        $soon = $today->copy()->addDays($this->tenant->organisation()->expiryAlertDays());
 
         $lowStock = Material::query()
             ->where('minimum_qty', '>', 0)
@@ -90,6 +93,9 @@ class DashboardController extends Controller
             $status = MaintenanceStatus::forVehicleRecords(
                 $vehicleRecords,
                 $mileage !== null ? (int) $mileage : null,
+                null,
+                $this->tenant->organisation()->maintenanceAlertDays(),
+                $this->tenant->organisation()->maintenanceAlertKm(),
             );
 
             if ($status->severity === Severity::CRITICAL) {

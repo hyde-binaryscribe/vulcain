@@ -99,7 +99,7 @@ class MaterialController extends Controller
                 'quantity' => $l->quantity,
                 'expiry_date' => $l->expiry_date?->format('Y-m-d'),
                 'expired' => $l->isExpired(),
-                'expiring_soon' => $l->expiresWithin(30),
+                'expiring_soon' => $l->expiresWithin($this->tenant->organisation()->expiryAlertDays()),
                 'status' => $l->status->value,
                 'status_label' => $l->status->label(),
                 'location' => $l->location?->fullPath(),
