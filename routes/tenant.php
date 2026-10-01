@@ -25,6 +25,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\BodyDamageController;
 use App\Http\Controllers\FuelController;
+use App\Http\Controllers\MaterialConsumptionController;
 use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\ServiceSessionController;
 use App\Http\Controllers\TerrainController;
@@ -83,6 +84,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::get('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'serviceEnd'])->name('service-end');
         Route::post('vehicules/{vehicle}/fin-de-service', [TerrainController::class, 'closeSession'])->name('service-end.store');
         Route::post('vehicules/{vehicle}/binome', [TerrainController::class, 'changePartner'])->name('partner');
+        Route::post('vehicules/{vehicle}/consommation', [MaterialConsumptionController::class, 'store'])->name('consume');
+        Route::post('vehicules/{vehicle}/rearmement', [MaterialConsumptionController::class, 'restock'])->name('restock');
         Route::get('vehicules/{vehicle}', [TerrainController::class, 'vehicle'])->name('vehicle');
         Route::get('vehicules/{vehicle}/s/{section}', [TerrainController::class, 'vehicle'])->name('vehicle.section');
     });

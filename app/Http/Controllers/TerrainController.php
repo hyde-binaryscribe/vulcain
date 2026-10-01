@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Catalog\VehicleInventory;
 use App\Domain\Events\EventStatus;
 use App\Domain\Events\EventType;
 use App\Domain\Fleet\DisinfectionStatus;
@@ -190,18 +191,37 @@ class TerrainController extends Controller
             ->orderBy('name')
             ->get();
 
-        $grouped = $locations->map(fn (Location $l) => [
-            'id' => $l->id,
-            'name' => $l->name,
-            'materials' => $materials->where('location_id', $l->id)->map(fn (Material $m) => [
+        $materialCard = function (Material $m) {
+            $stock = $m->stockQuantity();
+            $theoretical = (int) $m->theoretical_qty;
+
+            return [
                 'id' => $m->id,
                 'name' => $m->name,
                 'reference' => $m->reference,
                 'status' => $m->status->value,
                 'status_label' => $m->status->label(),
+                'tracking_mode' => $m->tracking_mode,
+                'theoretical_qty' => $theoretical,
+                'stock' => $stock,
+                'missing' => VehicleInventory::missing($m),
                 'below_threshold' => $m->minimum_qty > 0 && $m->isBelowThreshold(),
-            ])->values(),
+                // Exemplaires disponibles (mode unitaire) pour choisir le n° de série sorti.
+                'items' => $m->tracking_mode === Material::MODE_SERIAL
+                    ? $m->items->map(fn ($i) => ['id' => $i->id, 'serial_number' => $i->serial_number])->values()
+                    : [],
+            ];
+        };
+
+        $grouped = $locations->map(fn (Location $l) => [
+            'id' => $l->id,
+            'name' => $l->name,
+            'materials' => $materials->where('location_id', $l->id)->map($materialCard)->values(),
         ]);
+
+        // Matériels en manque (sous le niveau théorique) pour le réarmement / l'alerte.
+        $missingMaterials = $materials->filter(fn (Material $m) => VehicleInventory::missing($m) > 0)
+            ->map($materialCard)->values();
 
         $disinfections = $vehicle->disinfections()->with(['user:id,name', 'protocol:id,name'])->limit(10)->get();
         $disinfectionStatus = VehicleDisinfection::statusFor($vehicle);
@@ -289,6 +309,11 @@ class TerrainController extends Controller
                 'mileage' => $vehicle->mileage,
             ],
             'locations' => $grouped,
+            // Sortie de consommables + réarmement (équipage en service ou gestionnaire).
+            'inventory' => [
+                'can_consume' => $mine || $request->user()->can('vehicles.manage'),
+                'missing' => $missingMaterials,
+            ],
             'disinfection' => [
                 // « Dernière » = dernier enregistrement réel du véhicule (indépendant
                 // des protocoles affectés), tandis que l'échéance/gravité vient du
@@ -483,6 +508,11 @@ class TerrainController extends Controller
             'current_since' => $openSession?->opened_at?->fr('d/m/Y H:i'),
             // Équipiers proposés pour le binôme (agents actifs de l'organisation, sauf soi).
             'crew' => $this->crewOptions($user),
+            // Manquements laissés par l'équipage précédent (non réarmés).
+            'shortage' => $this->materialsInShortage($vehicle)->map(fn (Material $m) => [
+                'name' => $m->name,
+                'missing' => VehicleInventory::missing($m),
+            ])->values(),
             'status' => session('status'),
         ]);
     }
@@ -571,7 +601,27 @@ class TerrainController extends Controller
             'fields' => $this->protocolFields($vehicle, ProtocolPhase::FERMETURE),
             'body' => $this->bodyInspectionData($vehicle),
             'opened_at' => $session->opened_at?->fr('d/m/Y H:i'),
+            // Réarmement guidé : matériels sous le niveau théorique à pointer.
+            'rearm' => $this->materialsInShortage($vehicle)->map(fn (Material $m) => [
+                'id' => $m->id,
+                'name' => $m->name,
+                'missing' => VehicleInventory::missing($m),
+                'theoretical_qty' => (int) $m->theoretical_qty,
+                'stock' => $m->stockQuantity(),
+            ])->values(),
         ]);
+    }
+
+    /** Matériels du véhicule sous le niveau théorique (manquements). */
+    private function materialsInShortage(Vehicle $vehicle)
+    {
+        return Material::query()
+            ->whereIn('location_id', Location::query()->where('vehicle_id', $vehicle->id)->pluck('id'))
+            ->with(['items', 'lots'])
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Material $m) => VehicleInventory::missing($m) > 0)
+            ->values();
     }
 
     public function closeSession(Request $request, Vehicle $vehicle): RedirectResponse
@@ -585,11 +635,21 @@ class TerrainController extends Controller
             'mileage' => ['nullable', 'integer', 'min:0', 'max:9999999'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'photos.*' => ['nullable', 'image', 'max:5120'],
+            'restocked_material_ids' => ['array'],
+            'restocked_material_ids.*' => ['integer'],
         ]);
 
         $this->validateBodyInspection($request);
 
         $responses = $this->processResponses($request, $vehicle, ProtocolPhase::FERMETURE);
+
+        // Réarmement pointé : remise au niveau théorique des matériels cochés.
+        $restockIds = collect($request->input('restocked_material_ids', []))->map('intval');
+        if ($restockIds->isNotEmpty()) {
+            $this->materialsInShortage($vehicle)
+                ->filter(fn (Material $m) => $restockIds->contains($m->id))
+                ->each(fn (Material $m) => VehicleInventory::restock($m));
+        }
 
         $session->update([
             'closed_at' => now(),
@@ -604,7 +664,57 @@ class TerrainController extends Controller
             $vehicle->update(['mileage' => $validated['mileage']]);
         }
 
+        // Manquements restants (non réarmés) : alerte admin + visibles pour le suivant.
+        $this->flagUnrestocked($vehicle, $request->user()->id);
+
         return redirect()->route('terrain.home')->with('status', 'Service clôturé.');
+    }
+
+    /**
+     * Crée (ou met à jour) une alerte « réarmement incomplet » si des matériels
+     * restent sous le niveau théorique à la clôture. Dédupliquée par véhicule.
+     */
+    private function flagUnrestocked(Vehicle $vehicle, int $userId): void
+    {
+        $shortage = $this->materialsInShortage($vehicle);
+        $sourceKey = 'rearm:'.$vehicle->id;
+
+        // Un manquement est résorbé : on clôt l'alerte ouverte s'il y en a une.
+        if ($shortage->isEmpty()) {
+            Event::query()
+                ->where('source_key', $sourceKey)
+                ->whereIn('status', [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value])
+                ->update(['status' => EventStatus::RESOLU->value, 'resolved_at' => now()]);
+
+            return;
+        }
+
+        // Déduplication : une seule alerte ouverte par véhicule.
+        $exists = Event::query()->where('source_key', $sourceKey)
+            ->whereIn('status', [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value])
+            ->exists();
+
+        $names = $shortage->map(fn (Material $m) => $m->name.' ('.VehicleInventory::missing($m).')')->implode(', ');
+
+        if ($exists) {
+            Event::query()->where('source_key', $sourceKey)
+                ->whereIn('status', [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value])
+                ->update(['description' => 'Non réarmé : '.$names.'.']);
+
+            return;
+        }
+
+        Event::create([
+            'type' => EventType::AUTRE->value,
+            'source_key' => $sourceKey,
+            'title' => "Réarmement incomplet — {$vehicle->name}",
+            'description' => 'Non réarmé : '.$names.'.',
+            'priority' => 'haute',
+            'status' => EventStatus::A_TRAITER->value,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->tenant->organisation()),
+            'vehicle_id' => $vehicle->id,
+            'created_by' => $userId,
+        ]);
     }
 
     /**

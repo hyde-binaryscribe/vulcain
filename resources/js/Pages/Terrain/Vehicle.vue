@@ -17,9 +17,28 @@ const props = defineProps({
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
+    inventory: { type: Object, default: () => ({ can_consume: false, missing: [] }) },
     // Section ouverte (page dédiée) ; null = menu du véhicule.
     section: { type: String, default: null },
 });
+
+// Sortie de consommable.
+const consuming = ref(null); // matériel en cours de sortie
+const consumeForm = useForm({ material_id: null, quantity: 1, material_item_id: '', notes: '' });
+function openConsume(m) {
+    consuming.value = m;
+    consumeForm.clearErrors();
+    consumeForm.material_id = m.id;
+    consumeForm.quantity = 1;
+    consumeForm.material_item_id = '';
+    consumeForm.notes = '';
+}
+function submitConsume() {
+    consumeForm.post(`/t/vehicules/${props.vehicle.id}/consommation`, {
+        preserveScroll: true,
+        onSuccess: () => { consuming.value = null; },
+    });
+}
 
 // Navigation par page : chaque tuile ouvre une route dédiée.
 const secUrl = (key) => `/t/vehicules/${props.vehicle.id}/s/${key}`;
@@ -290,6 +309,15 @@ function setConsent(v) {
             </ul>
         </section>
 
+        <!-- Manquements consommables laissés non réarmés (alerte pour l'équipage). -->
+        <div v-if="inventory.missing && inventory.missing.length" class="mt-3 flex items-start gap-3 rounded-2xl border-l-4 border-red-400 bg-red-50 p-4">
+            <Icon name="materials" :size="22" class="mt-0.5 shrink-0 text-red-600" />
+            <div class="min-w-0 text-sm">
+                <p class="font-bold text-red-800">{{ inventory.missing.length }} consommable(s) à réarmer</p>
+                <p class="truncate text-red-700">{{ inventory.missing.map(m => m.name + ' (' + m.missing + ')').join(', ') }}</p>
+            </div>
+        </div>
+
         <!-- Carrosserie : information consultable (lecture + signalement). -->
         <button v-if="body.enabled" type="button" class="mt-3 flex w-full items-center gap-4 rounded-2xl border-l-4 border-amber-400 bg-white p-4 text-left shadow-sm" :class="section === 'body' ? 'ring-1 ring-amber-300' : ''" @click="router.visit(secUrl('body'))">
             <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><Icon name="vehicle" :size="26" /></span>
@@ -556,13 +584,20 @@ function setConsent(v) {
             <div v-for="loc in locations" :key="loc.id" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <p class="border-b border-gray-100 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700">{{ loc.name }}</p>
                 <ul class="divide-y divide-gray-100">
-                    <li v-for="m in loc.materials" :key="m.id" class="flex items-center gap-2 px-4 py-2.5 text-sm">
-                        <span class="min-w-0 flex-1">
-                            <span class="block truncate text-gray-900">{{ m.name }}</span>
-                            <span v-if="m.reference" class="block truncate text-xs text-gray-400">{{ m.reference }}</span>
-                        </span>
-                        <span v-if="m.below_threshold" class="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">stock bas</span>
-                        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusChip[m.status] || 'bg-gray-100 text-gray-600'">{{ m.status_label }}</span>
+                    <li v-for="m in loc.materials" :key="m.id" class="px-4 py-2.5 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-gray-900">{{ m.name }}</span>
+                                <span class="block truncate text-xs text-gray-400">
+                                    <template v-if="m.theoretical_qty > 0">{{ m.stock }}/{{ m.theoretical_qty }}</template>
+                                    <template v-if="m.reference"><template v-if="m.theoretical_qty > 0"> · </template>{{ m.reference }}</template>
+                                </span>
+                            </span>
+                            <span v-if="m.missing > 0" class="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">manque {{ m.missing }}</span>
+                            <span v-else-if="m.below_threshold" class="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">stock bas</span>
+                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusChip[m.status] || 'bg-gray-100 text-gray-600'">{{ m.status_label }}</span>
+                            <button v-if="inventory.can_consume" type="button" class="shrink-0 rounded-lg border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openConsume(m)">Sortir</button>
+                        </div>
                     </li>
                     <li v-if="loc.materials.length === 0" class="px-4 py-3 text-xs text-gray-400">Aucun matériel.</li>
                 </ul>
@@ -710,6 +745,40 @@ function setConsent(v) {
                 <div class="mt-5 flex gap-2">
                     <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="consulting = null">Annuler</button>
                     <button type="button" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="confirmConsult">Ouvrir le document</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modale : sortie de consommable -->
+        <div v-if="consuming" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="consuming = null">
+            <div class="w-full max-w-md rounded-t-3xl bg-white p-5 pb-8">
+                <h3 class="text-lg font-bold text-gray-900">Sortir du consommable</h3>
+                <p class="mt-0.5 text-sm text-gray-500">{{ consuming.name }} — en stock : {{ consuming.stock }}<template v-if="consuming.theoretical_qty > 0">/{{ consuming.theoretical_qty }}</template></p>
+
+                <!-- Mode unitaire : choisir le n° de série sorti -->
+                <div v-if="consuming.tracking_mode === 'serial'" class="mt-4">
+                    <label class="block text-sm font-semibold text-gray-800">Exemplaire sorti</label>
+                    <select v-model="consumeForm.material_item_id" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm">
+                        <option value="">Le plus ancien</option>
+                        <option v-for="it in consuming.items" :key="it.id" :value="it.id">{{ it.serial_number || ('Exemplaire #' + it.id) }}</option>
+                    </select>
+                </div>
+
+                <!-- Autres modes : quantité -->
+                <div v-else class="mt-4">
+                    <label class="block text-sm font-semibold text-gray-800">Quantité sortie</label>
+                    <input v-model.number="consumeForm.quantity" type="number" min="1" inputmode="numeric" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-lg font-semibold" />
+                    <p v-if="consumeForm.errors.quantity" class="mt-1 text-xs text-red-600">{{ consumeForm.errors.quantity }}</p>
+                </div>
+
+                <div class="mt-3">
+                    <label class="block text-sm font-semibold text-gray-800">Note (optionnel)</label>
+                    <input v-model="consumeForm.notes" type="text" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm" placeholder="Intervention, patient…" />
+                </div>
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="consuming = null">Annuler</button>
+                    <button type="button" :disabled="consumeForm.processing" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitConsume">Enregistrer la sortie</button>
                 </div>
             </div>
         </div>

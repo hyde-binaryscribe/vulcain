@@ -12,6 +12,7 @@ const props = defineProps({
     current_holder: { type: String, default: null },
     current_since: { type: String, default: null },
     crew: { type: Array, default: () => [] },
+    shortage: { type: Array, default: () => [] },
 });
 
 // Valeurs par défaut selon le type de champ.
@@ -71,6 +72,12 @@ function submit() {
         </div>
 
         <form class="mt-3 space-y-3" @submit.prevent="submit">
+            <!-- Manquements laissés par l'équipage précédent -->
+            <div v-if="shortage.length" class="rounded-2xl border-l-4 border-red-400 bg-red-50 p-4">
+                <p class="flex items-center gap-2 text-sm font-bold text-red-800"><Icon name="materials" :size="16" /> {{ shortage.length }} consommable(s) non réarmé(s)</p>
+                <p class="mt-1 text-xs text-red-700">{{ shortage.map(s => s.name + ' (' + s.missing + ')').join(', ') }}</p>
+            </div>
+
             <!-- Kilométrage -->
             <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <label class="block text-sm font-semibold text-gray-800">Kilométrage au compteur</label>
