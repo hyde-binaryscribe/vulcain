@@ -23,6 +23,112 @@ class LeaveController extends Controller
 {
     public function __construct(private readonly TenantContext $tenant) {}
 
+    /**
+     * Tableau de bord RH / Congés : présence du jour, demandes en attente et
+     * soldes par période de référence (N-1 reliquat / N en cours / N+1 en
+     * acquisition).
+     */
+    public function dashboard(): Response
+    {
+        $today = Carbon::today();
+        [$usageStart, $usageEnd] = $this->currentLeavePeriod();
+
+        $activeUsers = User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'job_role', 'hire_date']);
+        $activeCount = $activeUsers->count();
+
+        $onLeaveToday = LeaveRequest::query()
+            ->where('status', LeaveStatus::APPROVED->value)
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->pluck('user_id')->unique();
+        $onLeaveCount = $onLeaveToday->count();
+
+        $pending = LeaveRequest::query()
+            ->where('status', LeaveStatus::PENDING->value)
+            ->with('user:id,name')
+            ->orderBy('start_date')
+            ->get()
+            ->map(fn (LeaveRequest $l) => [
+                'id' => $l->id,
+                'user' => $l->user?->name,
+                'type' => $l->type?->label(),
+                'type_key' => $l->type?->value,
+                'start' => $l->start_date?->format('d/m'),
+                'end' => $l->end_date?->isSameDay($l->start_date) ? null : $l->end_date?->format('d/m'),
+                'days' => $l->decompteDays(),
+            ]);
+
+        $balances = $activeUsers->map(function (User $u) {
+            return ['id' => $u->id, 'name' => $u->name] + $this->periodBalances($u);
+        });
+
+        $totals = [
+            'n_minus_1' => $balances->sum('n_minus_1'),
+            'n' => $balances->sum('n'),
+            'n_plus_1' => $balances->sum('n_plus_1'),
+            'available' => $balances->sum('available'),
+        ];
+
+        // Soldes : reliquat N-1 le plus élevé en tête (à poser en priorité).
+        $balances = $balances->sortByDesc('n_minus_1')->values();
+
+        return Inertia::render('Hr/Dashboard', [
+            'kpis' => [
+                'active' => $activeCount,
+                'on_leave' => $onLeaveCount,
+                'pending' => $pending->count(),
+                'reliquat_n1' => $totals['n_minus_1'],
+                'avg_available' => $balances->isEmpty() ? 0 : (int) round($balances->avg('available')),
+            ],
+            'presence' => [
+                'present' => max(0, $activeCount - $onLeaveCount),
+                'on_leave' => $onLeaveCount,
+            ],
+            'pending' => $pending,
+            'balances' => $balances,
+            'totals' => $totals,
+            'period_label' => 'mai '.$usageStart->year.' → avril '.$usageEnd->year,
+            'reliquat_deadline' => $usageEnd->format('d/m/Y'),
+        ]);
+    }
+
+    /**
+     * Soldes de congés payés d'un agent, ventilés par période de référence :
+     * N-1 (reliquat de la période précédente, à poser), N (droits de l'année
+     * en cours), N+1 (en cours d'acquisition sur la période courante).
+     *
+     * @return array{n_minus_1:int,n:int,n_plus_1:int,available:int}
+     */
+    private function periodBalances(User $user): array
+    {
+        [$usageStart, $usageEnd] = $this->currentLeavePeriod();
+        $configured = $user->job_role
+            ? LeaveRule::query()->where('job_role', $user->job_role)->value('annual_days')
+            : null;
+
+        // N : période courante (mai → avril), acquisition l'année précédente.
+        $entN = $this->entitlementFor($configured, $user->hire_date, $usageStart->copy()->subYear(), $usageStart->copy()->subDay());
+        $remN = max(0, $entN['effective'] - $this->consumedWorkingDays($user->id, $usageStart, $usageEnd));
+
+        // N-1 : période précédente (reliquat restant).
+        $prevStart = $usageStart->copy()->subYear();
+        $prevEnd = $usageEnd->copy()->subYear();
+        $entPrev = $this->entitlementFor($configured, $user->hire_date, $prevStart->copy()->subYear(), $prevStart->copy()->subDay());
+        $remPrev = max(0, $entPrev['effective'] - $this->consumedWorkingDays($user->id, $prevStart, $prevEnd));
+
+        // N+1 : en cours d'acquisition sur la période courante (jusqu'à aujourd'hui).
+        $now = Carbon::now();
+        $acqEndNow = $now->lessThan($usageEnd) ? $now : $usageEnd;
+        $entNext = $this->entitlementFor($configured, $user->hire_date, $usageStart, $acqEndNow);
+
+        return [
+            'n_minus_1' => $remPrev,
+            'n' => $remN,
+            'n_plus_1' => $entNext['effective'],
+            'available' => $remPrev + $remN,
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();

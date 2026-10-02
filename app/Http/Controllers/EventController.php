@@ -15,6 +15,7 @@ use App\Notifications\EventAssigned;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +23,93 @@ use Inertia\Response;
 class EventController extends Controller
 {
     public function __construct(private readonly TenantContext $tenant) {}
+
+    /**
+     * Tableau de bord Événements : indicateurs, répartition par statut,
+     * par priorité et par type, et derniers événements.
+     */
+    public function dashboard(): Response
+    {
+        $now = Carbon::now();
+        $since = $now->copy()->subDays(30);
+        $openStatuses = [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value];
+
+        $byStatus = Event::query()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $aTraiter = (int) ($byStatus[EventStatus::A_TRAITER->value] ?? 0);
+        $enCours = (int) ($byStatus[EventStatus::EN_COURS->value] ?? 0);
+        $resolu = (int) ($byStatus[EventStatus::RESOLU->value] ?? 0);
+        $ferme = (int) ($byStatus[EventStatus::FERME->value] ?? 0);
+
+        // Délai moyen de résolution (jours) sur les 30 derniers jours.
+        $resolvedRecent = Event::query()
+            ->whereNotNull('resolved_at')
+            ->where('resolved_at', '>=', $since)
+            ->get(['created_at', 'resolved_at']);
+        $avgDays = $resolvedRecent->isEmpty()
+            ? null
+            : round($resolvedRecent->avg(fn (Event $e) => $e->created_at->floatDiffInDays($e->resolved_at)), 1);
+
+        // Répartition par priorité (événements ouverts).
+        $byPriority = Event::query()
+            ->whereIn('status', $openStatuses)
+            ->selectRaw('priority, count(*) as total')
+            ->groupBy('priority')
+            ->pluck('total', 'priority');
+
+        // Répartition par type sur 30 jours.
+        $byType = Event::query()
+            ->where('created_at', '>=', $since)
+            ->selectRaw('type, count(*) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        $recent = Event::query()
+            ->with(['vehicle:id,name,callsign', 'author:id,name'])
+            ->latest('created_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (Event $e) => [
+                'id' => $e->id,
+                'title' => $e->title,
+                'type' => $e->type?->label(),
+                'vehicle' => $e->vehicle?->callsign ?: $e->vehicle?->name,
+                'priority' => $e->priority,
+                'status' => $e->status?->value,
+                'status_label' => $e->status?->label(),
+                'created_at' => $e->created_at?->format('d/m'),
+                'author' => $e->author?->name,
+            ]);
+
+        return Inertia::render('Events/Dashboard', [
+            'kpis' => [
+                'a_traiter' => $aTraiter,
+                'en_cours' => $enCours,
+                'high_priority' => Event::query()->whereIn('status', $openStatuses)->where('priority', 'haute')->count(),
+                'resolved_30d' => Event::query()->whereNotNull('resolved_at')->where('resolved_at', '>=', $since)->count(),
+                'avg_days' => $avgDays,
+            ],
+            'statusChart' => [
+                ['key' => 'a_traiter', 'label' => 'À traiter', 'count' => $aTraiter, 'color' => '#ec835a'],
+                ['key' => 'en_cours', 'label' => 'En cours', 'count' => $enCours, 'color' => '#2a78d6'],
+                ['key' => 'resolu', 'label' => 'Résolus', 'count' => $resolu, 'color' => '#0ca30c'],
+                ['key' => 'ferme', 'label' => 'Fermés', 'count' => $ferme, 'color' => '#aab2be'],
+            ],
+            'priority' => [
+                'haute' => (int) ($byPriority['haute'] ?? 0),
+                'normale' => (int) ($byPriority['normale'] ?? 0),
+                'basse' => (int) ($byPriority['basse'] ?? 0),
+            ],
+            'typeChart' => collect(EventType::cases())->map(fn (EventType $t) => [
+                'label' => $t->label(),
+                'count' => (int) ($byType[$t->value] ?? 0),
+            ])->values(),
+            'recent' => $recent,
+        ]);
+    }
 
     public function index(Request $request): Response
     {

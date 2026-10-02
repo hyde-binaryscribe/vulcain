@@ -36,7 +36,7 @@ const navGroups = computed(() =>
                 { label: 'Tableau de bord', href: '/dashboard', icon: 'dashboard', permission: null },
                 { label: 'Application terrain', href: '/t', icon: 'vehicle', permission: null },
                 { label: 'Protocoles', href: '/protocols', icon: 'protocol', permission: 'protocols.perform' },
-                { label: 'Événements', href: '/events', icon: 'events', permission: 'anomalies.manage' },
+                { label: 'Événements', href: '/events/tableau-de-bord', icon: 'events', permission: 'anomalies.manage' },
             ],
         },
         {
@@ -74,6 +74,7 @@ const navGroups = computed(() =>
         {
             label: 'RH',
             items: [
+                { label: 'Tableau de bord RH', href: '/leave/tableau-de-bord', icon: 'dashboard', permission: 'leave.manage' },
                 { label: 'Congés & absences', href: '/leave', icon: 'calendar', permission: null },
             ],
         },

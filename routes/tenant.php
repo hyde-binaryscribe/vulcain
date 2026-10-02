@@ -197,6 +197,8 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     // RH : congés & absences. Toute personne connectée gère ses propres demandes ;
     // la validation est réservée aux responsables (permission leave.manage).
+    Route::get('leave/tableau-de-bord', [LeaveController::class, 'dashboard'])
+        ->middleware('permission:leave.manage')->name('leave.dashboard');
     Route::get('leave', [LeaveController::class, 'index'])->name('leave.index');
     Route::post('leave', [LeaveController::class, 'store'])->name('leave.store');
     Route::patch('leave/{leaveRequest}', [LeaveController::class, 'update'])->name('leave.update');
@@ -220,6 +222,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
     // Événements (anomalies / réparations) — tableau Kanban.
     Route::middleware('permission:anomalies.manage')->group(function () {
+        Route::get('events/tableau-de-bord', [EventController::class, 'dashboard'])->name('events.dashboard');
         Route::get('events', [EventController::class, 'index'])->name('events.index');
         Route::post('events', [EventController::class, 'store'])->name('events.store');
         Route::patch('events/{event}', [EventController::class, 'update'])->name('events.update');

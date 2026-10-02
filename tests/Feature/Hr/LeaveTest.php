@@ -9,6 +9,7 @@ use App\Models\Organisation;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class LeaveTest extends TestCase
@@ -45,6 +46,36 @@ class LeaveTest extends TestCase
 
             return [$org, $manager, $employee];
         });
+    }
+
+    public function test_rh_dashboard_is_manager_only_and_reports_balances(): void
+    {
+        [$org, $manager, $employee] = $this->orgWithUsers();
+
+        $this->tenant()->runFor($org, function () use ($org, $employee) {
+            // Employé embauché il y a longtemps : droits pleins, en congé aujourd'hui.
+            $employee->forceFill(['hire_date' => now()->subYears(3)])->save();
+            LeaveRequest::create([
+                'organisation_id' => $org->id,
+                'user_id' => $employee->id,
+                'type' => 'conge_paye',
+                'status' => 'approuve',
+                'start_date' => now()->subDay(),
+                'end_date' => now()->addDay(),
+            ]);
+        });
+
+        // Un employé sans droit de gestion ne voit pas le tableau de bord RH.
+        $this->actingAs($employee)->get('http://caserne.localhost/leave/tableau-de-bord')->assertForbidden();
+
+        $this->actingAs($manager)->get('http://caserne.localhost/leave/tableau-de-bord')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Hr/Dashboard')
+                ->where('kpis.active', 2)
+                ->where('kpis.on_leave', 1)
+                ->where('presence.present', 1)
+                ->has('balances', 2)
+                ->has('totals'));
     }
 
     public function test_employee_can_submit_a_request(): void

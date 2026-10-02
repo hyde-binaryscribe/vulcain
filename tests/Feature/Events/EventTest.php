@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\EventAssigned;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class EventTest extends TestCase
@@ -47,6 +48,31 @@ class EventTest extends TestCase
         });
 
         return [$org, $user];
+    }
+
+    public function test_events_dashboard_reports_kpis(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+        $this->tenant()->runFor($org, function () use ($org) {
+            Event::factory()->create(['organisation_id' => $org->id, 'status' => 'a_traiter', 'priority' => 'haute', 'type' => 'anomalie']);
+            Event::factory()->create([
+                'organisation_id' => $org->id,
+                'status' => 'ferme',
+                'type' => 'reparation',
+                'created_at' => now()->subDays(5),
+                'resolved_at' => now()->subDays(2),
+            ]);
+        });
+
+        $this->actingAs($admin)->get('http://caserne.localhost/events/tableau-de-bord')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Events/Dashboard')
+                ->where('kpis.a_traiter', 1)
+                ->where('kpis.high_priority', 1)
+                ->where('kpis.resolved_30d', 1)
+                ->has('statusChart', 4)
+                ->has('typeChart', 3)
+                ->has('recent', 2));
     }
 
     public function test_admin_can_create_an_event(): void

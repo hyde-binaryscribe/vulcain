@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -135,6 +135,12 @@ function remove(event) {
     <AppLayout>
         <Head title="Événements" />
         <template #title>Événements</template>
+
+        <!-- Onglets -->
+        <div class="mb-6 flex gap-1 border-b border-gray-200">
+            <Link href="/events/tableau-de-bord" class="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-800">Tableau de bord</Link>
+            <Link href="/events" class="border-b-2 border-[var(--brand)] px-4 py-2 text-sm font-semibold text-gray-900">Kanban</Link>
+        </div>
 
         <div class="mb-4 flex items-center justify-between">
             <p class="text-sm text-gray-500">Anomalies et réparations à suivre. Déplace les cartes selon leur avancement.</p>
