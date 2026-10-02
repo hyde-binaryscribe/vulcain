@@ -9,6 +9,32 @@ const props = defineProps({
     fleet: { type: Array, default: () => [] },
 });
 
+// Donut de disponibilité : trois arcs (disponible / en service / indisponible),
+// tracés à l'échelle sur un cercle de rayon 56 (circonférence ≈ 351.86).
+const CIRC = 2 * Math.PI * 56;
+const availabilitySegments = computed(() => {
+    const total = props.stats.vehicles || 0;
+    const segs = [
+        { key: 'available', label: 'Disponible', value: props.stats.vehicles_available ?? 0, color: '#0ca30c' },
+        { key: 'in_service', label: 'En service', value: props.stats.vehicles_in_service ?? 0, color: '#2a78d6' },
+        { key: 'unavailable', label: 'Indisponible', value: props.stats.vehicles_unavailable ?? 0, color: '#d03b3b' },
+    ];
+    let offset = 0;
+    return segs.map((s) => {
+        const len = total > 0 ? (s.value / total) * CIRC : 0;
+        const arc = { ...s, dash: `${len} ${CIRC - len}`, offset: -offset };
+        offset += len;
+        return arc;
+    });
+});
+
+// Pastille « Consommables » : manque N (rouge si critique, orange si à prévoir).
+function consoChip(v) {
+    if (!v.consumables) return { cls: 'bg-green-100 text-green-700', label: 'OK' };
+    const cls = v.consumables === 'critical' ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800';
+    return { cls, label: `Manque ${v.consumables_missing}` };
+}
+
 // Échelle de gravité unifiée : rouge (critique) / orange (important) / jaune (à surveiller).
 const alertCards = computed(() => [
     { label: 'Désinfections en retard', value: props.alerts.disinfection_overdue ?? 0, tone: 'red', href: '/vehicles' },
@@ -73,6 +99,35 @@ const tenant = computed(() => page.props.tenant);
             </div>
         </div>
 
+        <!-- Disponibilité du parc -->
+        <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Disponibilité du parc</h2>
+            <div class="mt-4 flex flex-wrap items-center gap-8">
+                <svg width="150" height="150" viewBox="0 0 150 150" class="shrink-0">
+                    <circle cx="75" cy="75" r="56" fill="none" stroke="#eef0f3" stroke-width="20" />
+                    <g transform="rotate(-90 75 75)">
+                        <circle
+                            v-for="s in availabilitySegments"
+                            :key="s.key"
+                            cx="75" cy="75" r="56" fill="none" stroke-width="20"
+                            :stroke="s.color"
+                            :stroke-dasharray="s.dash"
+                            :stroke-dashoffset="s.offset"
+                        />
+                    </g>
+                    <text x="75" y="70" text-anchor="middle" font-size="26" font-weight="800" fill="#1B2430">{{ stats.vehicles }}</text>
+                    <text x="75" y="90" text-anchor="middle" font-size="11" fill="#6B7280">véhicules</text>
+                </svg>
+                <div class="flex flex-col gap-3 text-sm">
+                    <div v-for="s in availabilitySegments" :key="s.key" class="flex items-center gap-3">
+                        <span class="h-3 w-3 rounded" :style="{ background: s.color }"></span>
+                        <span class="text-gray-700">{{ s.label }}</span>
+                        <b class="ml-auto tabular-nums text-gray-900">{{ s.value }}</b>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Alertes -->
         <div class="mt-8 mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Alertes</h2>
@@ -116,6 +171,7 @@ const tenant = computed(() => page.props.tenant);
                             <th class="px-4 py-3">Désinfection</th>
                             <th class="px-4 py-3">Entretien</th>
                             <th class="px-4 py-3">Documents</th>
+                            <th class="px-4 py-3">Consommables</th>
                             <th class="px-4 py-3">Événements</th>
                         </tr>
                     </thead>
@@ -129,12 +185,13 @@ const tenant = computed(() => page.props.tenant);
                             <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="sevChip(v.disinfection).cls">{{ sevChip(v.disinfection).label }}</span></td>
                             <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="sevChip(v.maintenance).cls">{{ sevChip(v.maintenance).label }}</span></td>
                             <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="sevChip(v.documents).cls">{{ sevChip(v.documents).label }}</span></td>
+                            <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="consoChip(v).cls">{{ consoChip(v).label }}</span></td>
                             <td class="px-4 py-3">
                                 <Link v-if="v.open_events > 0" href="/events" class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">{{ v.open_events }}</Link>
                                 <span v-else class="text-xs text-gray-400">—</span>
                             </td>
                         </tr>
-                        <tr v-if="fleet.length === 0"><td colspan="6" class="px-4 py-8 text-center text-gray-500">Aucun véhicule.</td></tr>
+                        <tr v-if="fleet.length === 0"><td colspan="7" class="px-4 py-8 text-center text-gray-500">Aucun véhicule.</td></tr>
                     </tbody>
                 </table>
             </div>

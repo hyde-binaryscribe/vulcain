@@ -6,7 +6,9 @@ use App\Domain\Catalog\MaterialStatus;
 use App\Models\Location;
 use App\Models\Material;
 use App\Models\MaterialCategory;
+use App\Models\MaterialConsumption;
 use App\Models\MaterialType;
+use App\Models\StockLot;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,6 +73,103 @@ class PharmacyController extends Controller
                 ->orderBy('name')->get()
                 ->map(fn (Location $l) => ['id' => $l->id, 'name' => $l->fullPath()]),
             'status' => session('status'),
+        ]);
+    }
+
+    /**
+     * Tableau de bord pharmacie / consommables : indicateurs clés, péremptions
+     * à venir (FEFO), références à réapprovisionner et journal des sorties.
+     */
+    public function dashboard(): Response
+    {
+        $today = Carbon::today();
+        $alertDays = $this->tenant->organisation()->expiryAlertDays();
+        $soonLimit = $today->copy()->addDays($alertDays);
+
+        // Consommables suivis par lot (références pharmacie).
+        $materials = Material::query()
+            ->where('tracking_mode', Material::MODE_LOT)
+            ->with(['lots:id,material_id,quantity,expiry_date', 'location:id,name,parent_id,vehicle_id', 'location.vehicle:id,name', 'location.parent:id,name,parent_id,vehicle_id'])
+            ->orderBy('name')
+            ->get();
+
+        // KPI péremptions, sur les lots encore en stock.
+        $lots = StockLot::query()
+            ->where('quantity', '>', 0)
+            ->whereNotNull('expiry_date')
+            ->orderBy('expiry_date')
+            ->get(['id', 'expiry_date']);
+
+        $expired = $lots->filter(fn (StockLot $l) => $l->expiry_date->lt($today))->count();
+        $soon = $lots->filter(fn (StockLot $l) => $l->expiry_date->gte($today) && $l->expiry_date->lte($soonLimit))->count();
+
+        // Graphique « péremptions à venir » (FEFO) : périmé, bientôt, puis par mois.
+        $months = [];
+        foreach ($lots as $l) {
+            if ($l->expiry_date->lte($soonLimit)) {
+                continue;
+            }
+            $key = $l->expiry_date->format('Y-m');
+            $months[$key] = ($months[$key] ?? 0) + 1;
+        }
+        ksort($months);
+        $expiryChart = [
+            ['label' => 'Déjà périmé', 'count' => $expired, 'tone' => 'critical'],
+            ['label' => '< '.$alertDays.' j', 'count' => $soon, 'tone' => 'serious'],
+        ];
+        foreach (array_slice($months, 0, 4, true) as $key => $count) {
+            $label = Carbon::createFromFormat('Y-m-d', $key.'-01')->translatedFormat('M Y');
+            $expiryChart[] = ['label' => ucfirst($label), 'count' => $count, 'tone' => 'series'];
+        }
+
+        // À réapprovisionner : références sous le seuil mini (gravité par ratio).
+        $restock = $materials
+            ->filter(fn (Material $m) => $m->isBelowThreshold())
+            ->map(function (Material $m) {
+                $stock = $m->stockQuantity();
+                $min = (int) $m->minimum_qty;
+                $ratio = $min > 0 ? $stock / $min : 1;
+                $tone = $ratio <= 0.25 ? 'critical' : ($ratio <= 0.5 ? 'serious' : 'warning');
+
+                return [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'location' => $m->location?->fullPath(),
+                    'stock' => $stock,
+                    'minimum_qty' => $min,
+                    'tone' => $tone,
+                ];
+            })
+            ->sortBy('stock')
+            ->values();
+
+        // Sorties récentes (consommations véhicules).
+        $recent = MaterialConsumption::query()
+            ->with(['material:id,name', 'vehicle:id,name,callsign', 'user:id,name'])
+            ->latest('consumed_at')
+            ->limit(12)
+            ->get()
+            ->map(fn (MaterialConsumption $c) => [
+                'id' => $c->id,
+                'date' => $c->consumed_at?->format('d/m H:i'),
+                'material' => $c->material?->name ?? '—',
+                'quantity' => $c->quantity,
+                'vehicle' => $c->vehicle?->callsign ?: $c->vehicle?->name ?? '—',
+                'user' => $c->user?->name ?? '—',
+                'serial' => $c->serial_number,
+            ]);
+
+        return Inertia::render('Pharmacy/Dashboard', [
+            'kpis' => [
+                'references' => $materials->count(),
+                'low_stock' => $materials->filter(fn (Material $m) => $m->isBelowThreshold())->count(),
+                'expired' => $expired,
+                'expiring_soon' => $soon,
+            ],
+            'expiryChart' => $expiryChart,
+            'restock' => $restock,
+            'recent' => $recent,
+            'alertDays' => $alertDays,
         ]);
     }
 

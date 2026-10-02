@@ -50,7 +50,7 @@ const navGroups = computed(() =>
                     ? [{ label: 'Sacs', href: '/sacs', icon: 'materials', permission: 'locations.manage' }]
                     : []),
                 { label: 'Matériel', href: '/materials', icon: 'materials', permission: 'catalog.manage' },
-                { label: 'Pharmacie', href: '/pharmacy', icon: 'pharmacy', permission: 'pharmacy.manage' },
+                { label: 'Pharmacie', href: '/pharmacy/tableau-de-bord', icon: 'pharmacy', permission: 'pharmacy.manage' },
             ],
         },
         {

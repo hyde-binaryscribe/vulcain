@@ -210,6 +210,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Pharmacie : déclaration rapide des consommables.
     Route::middleware('permission:pharmacy.manage')->group(function () {
         Route::get('pharmacy', [PharmacyController::class, 'index'])->name('pharmacy.index');
+        Route::get('pharmacy/tableau-de-bord', [PharmacyController::class, 'dashboard'])->name('pharmacy.dashboard');
         Route::post('pharmacy/consumables', [PharmacyController::class, 'store'])->name('pharmacy.consumables.store');
     });
 

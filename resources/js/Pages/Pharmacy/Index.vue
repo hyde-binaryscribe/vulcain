@@ -37,6 +37,12 @@ function declare() {
         <Head title="Pharmacie" />
         <template #title>Pharmacie</template>
 
+        <!-- Onglets -->
+        <div class="mb-6 flex gap-1 border-b border-gray-200">
+            <Link href="/pharmacy/tableau-de-bord" class="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-800">Tableau de bord</Link>
+            <Link href="/pharmacy" class="border-b-2 border-[var(--brand)] px-4 py-2 text-sm font-semibold text-gray-900">Consommables</Link>
+        </div>
+
         <div class="grid gap-6 lg:grid-cols-3">
             <!-- Liste des consommables -->
             <section class="lg:col-span-2">
