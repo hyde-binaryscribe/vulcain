@@ -115,6 +115,28 @@ function submitDisinf() {
         });
 }
 
+// État de chaque protocole (depuis le détail d'échéance), pour guider la saisie.
+const scheduleById = computed(() => Object.fromEntries((props.disinfection.schedules || []).map((s) => [s.id, s])));
+const chipStates = {
+    overdue: { label: 'en retard', cls: 'text-red-600' },
+    never: { label: 'jamais', cls: 'text-red-600' },
+    soon: { label: 'à prévoir', cls: 'text-orange-600' },
+    ok: { label: 'à jour', cls: 'text-green-600' },
+    none: { label: 'à l’usage', cls: 'text-gray-400' },
+};
+function chipState(id) {
+    const s = scheduleById.value[id];
+    return s ? (chipStates[s.state] || null) : null;
+}
+// Ouvre la modale en présélectionnant le protocole le plus urgent (retard > jamais > à prévoir).
+function openDisinf() {
+    showDisinf.value = true;
+    const order = { overdue: 4, never: 3, soon: 2, ok: 1, none: 0 };
+    const sched = [...(props.disinfection.schedules || [])].sort((a, b) => (order[b.state] || 0) - (order[a.state] || 0));
+    if (sched.length) chooseProtocol(sched[0].id);
+    else if (props.disinfection.protocols?.[0]) chooseProtocol(props.disinfection.protocols[0].id);
+}
+
 
 // --- Carburant (plein) ---
 const showFuel = ref(false);
@@ -462,7 +484,7 @@ function setConsent(v) {
                 </div>
             </div>
 
-            <button v-if="disinfection.can_record" class="mt-3 w-full rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="showDisinf = true">
+            <button v-if="disinfection.can_record" class="mt-3 w-full rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="openDisinf">
                 Réaliser une désinfection
             </button>
 
@@ -614,15 +636,19 @@ function setConsent(v) {
                 <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300"></div>
                 <h3 class="text-lg font-bold text-gray-900">Réaliser une désinfection</h3>
 
-                <label class="mt-4 block text-xs font-medium text-gray-600">Protocole</label>
-                <div class="mt-1 flex flex-wrap gap-2">
+                <label class="mt-4 block text-xs font-medium text-gray-600">Protocole à réaliser</label>
+                <div class="mt-1 flex flex-col gap-2">
                     <button
                         v-for="p in disinfection.protocols" :key="p.id" type="button"
-                        class="rounded-full border px-3 py-1.5 text-xs font-medium"
-                        :class="disinfForm.disinfection_protocol_id === p.id ? 'border-[var(--brand,#C6362B)] bg-[var(--brand,#C6362B)]/10 text-[var(--brand,#C6362B)]' : 'border-gray-300 text-gray-600'"
+                        class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium"
+                        :class="disinfForm.disinfection_protocol_id === p.id ? 'border-[var(--brand,#C6362B)] bg-[var(--brand,#C6362B)]/10 text-[var(--brand,#C6362B)]' : 'border-gray-300 text-gray-700'"
                         @click="chooseProtocol(p.id)"
-                    >{{ p.name }}</button>
+                    >
+                        <span>{{ p.name }}</span>
+                        <span v-if="chipState(p.id)" class="text-xs font-semibold" :class="chipState(p.id).cls">{{ chipState(p.id).label }}</span>
+                    </button>
                 </div>
+                <p class="mt-1.5 text-[11px] text-gray-400">Chaque protocole a sa propre échéance : réalisez celui marqué « en retard » ou « jamais ».</p>
 
                 <div v-if="disinfForm.steps.length" class="mt-4 space-y-1.5">
                     <label class="block text-xs font-medium text-gray-600">Checklist</label>
