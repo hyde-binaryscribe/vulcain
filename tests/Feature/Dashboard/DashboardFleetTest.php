@@ -54,9 +54,9 @@ class DashboardFleetTest extends TestCase
             return [$admin, $vehicle];
         });
 
-        $this->actingAs($admin)->get('http://cis.localhost/dashboard')
+        $this->actingAs($admin)->get('http://cis.localhost/parc')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->component('Dashboard')
+                ->component('Fleet/Dashboard')
                 ->has('fleet', 1)
                 ->where('fleet.0.id', $vehicle->id)
                 ->where('fleet.0.disinfection', 'critical'));
@@ -88,11 +88,11 @@ class DashboardFleetTest extends TestCase
             return [$admin, $vehicle];
         });
 
-        $this->actingAs($admin)->get('http://cis.localhost/dashboard')
+        $this->actingAs($admin)->get('http://cis.localhost/parc')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->component('Dashboard')
+                ->component('Fleet/Dashboard')
                 ->where('stats.vehicles', 1)
-                ->where('stats.vehicles_available', 1)
+                ->where('stats.available', 1)
                 ->where('fleet.0.id', $vehicle->id)
                 ->where('fleet.0.consumables', 'critical')
                 ->where('fleet.0.consumables_missing', 1));

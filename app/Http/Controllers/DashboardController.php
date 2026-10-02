@@ -45,16 +45,11 @@ class DashboardController extends Controller
         $disinfection = $this->disinfectionCounts();
         $maintenance = $this->maintenanceCounts();
 
-        $availability = $this->availability();
-
-        $fleet = $this->fleet();
-
+        // Accueil : synthèse multi-domaines (les détails parc vont sur /parc).
         return Inertia::render('Dashboard', [
             'stats' => [
-                'vehicles' => $availability['total'],
-                'vehicles_available' => $availability['available'],
-                'vehicles_in_service' => $availability['in_service'],
-                'vehicles_unavailable' => $availability['unavailable'],
+                'vehicles' => Vehicle::query()->count(),
+                'vehicles_available' => Vehicle::query()->where('status', VehicleStatus::DISPONIBLE->value)->count(),
                 'users' => User::query()->where('is_active', true)->count(),
                 'protocols_draft' => Protocol::query()->where('status', Protocol::STATUS_DRAFT)->count(),
                 'protocols_total' => Protocol::query()->count(),
@@ -71,7 +66,46 @@ class DashboardController extends Controller
                 'documents_expired' => Document::query()->whereNotNull('expires_at')->whereDate('expires_at', '<', $today)->count(),
                 'documents_soon' => Document::query()->whereNotNull('expires_at')->whereDate('expires_at', '>=', $today)->whereDate('expires_at', '<=', $soon)->count(),
             ],
-            // Vue parc : une ligne par véhicule, retards en tête.
+        ]);
+    }
+
+    /**
+     * Tableau de bord Parc véhicules (page dédiée) : KPI, disponibilité (donut),
+     * alertes parc et état véhicule par véhicule.
+     */
+    public function parc(): Response
+    {
+        $today = Carbon::today();
+
+        $availability = $this->availability();
+        $disinfection = $this->disinfectionCounts();
+        $maintenance = $this->maintenanceCounts();
+        $fleet = $this->fleet();
+
+        $documentsExpired = Document::query()
+            ->where('documentable_type', Vehicle::class)
+            ->whereNotNull('expires_at')
+            ->whereDate('expires_at', '<', $today)
+            ->count();
+
+        $upToDate = collect($fleet)->filter(fn ($v) => ($v['worst'] ?? 0) === 0)->count();
+
+        return Inertia::render('Fleet/Dashboard', [
+            'stats' => [
+                'vehicles' => $availability['total'],
+                'available' => $availability['available'],
+                'in_service' => $availability['in_service'],
+                'unavailable' => $availability['unavailable'],
+                'overdue' => $disinfection['overdue'] + $maintenance['overdue'],
+                'documents_expired' => $documentsExpired,
+            ],
+            'availability' => $availability,
+            'alerts' => [
+                'maintenance_overdue' => $maintenance['overdue'],
+                'disinfection_soon' => $disinfection['soon'],
+                'disinfection_overdue' => $disinfection['overdue'],
+                'up_to_date' => $upToDate,
+            ],
             'fleet' => $fleet,
         ]);
     }
