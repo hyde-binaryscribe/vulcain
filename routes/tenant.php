@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\BagController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DisinfectionController;
@@ -45,6 +46,12 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Recherche globale (résultats filtrés par permissions dans le contrôleur).
     Route::get('search', [SearchController::class, 'index'])->name('search.index');
     Route::get('search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+
+    // Panel d'administration (accueil en cartes) — accessible dès qu'on a au
+    // moins une permission de paramétrage.
+    Route::get('administration', [AdminController::class, 'index'])
+        ->middleware('permission:vehicles.manage|catalog.manage|templates.manage|users.manage|settings.manage|history.view')
+        ->name('admin.index');
 
     // Enregistrement d'un plein de carburant : accessible à tout agent connecté
     // (le personnel de terrain fait le plein). Suppression réservée (voir ci-dessus).

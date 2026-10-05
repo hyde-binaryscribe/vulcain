@@ -67,29 +67,6 @@ const navGroups = computed(() =>
             ],
         },
         {
-            label: 'Configuration',
-            items: [
-                { label: 'Types de véhicule', href: '/vehicle-types', icon: 'tag', permission: 'vehicles.manage' },
-                { label: 'Modèles de véhicule', href: '/vehicle-models', icon: 'vehicle', permission: 'vehicles.manage' },
-                { label: 'Protocoles de service', href: '/protocoles-service', icon: 'clock', permission: 'vehicles.manage' },
-                // Protocoles de désinfection : réservé au secteur ambulance privée.
-                ...(profile.value?.sector === 'ambulance_privee'
-                    ? [{ label: 'Protocoles de désinfection', href: '/disinfection-protocols', icon: 'protocol', permission: 'vehicles.manage' }]
-                    : []),
-                { label: 'Modèles de protocole', href: '/templates', icon: 'template', permission: 'templates.manage' },
-                { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
-                { label: 'Catégories de matériel', href: '/material-categories', icon: 'bookmark', permission: 'catalog.manage' },
-            ],
-        },
-        {
-            label: 'Administration',
-            items: [
-                { label: 'Utilisateurs', href: '/users', icon: 'users', permission: 'users.manage' },
-                { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
-                { label: 'Historique', href: '/activity', icon: 'clock', permission: 'history.view' },
-            ],
-        },
-        {
             label: 'Mon compte',
             items: [
                 { label: 'Profil', href: '/profile', icon: 'user', permission: null },
@@ -99,6 +76,64 @@ const navGroups = computed(() =>
         .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) }))
         .filter((group) => group.items.length > 0),
 );
+
+// Panel d'administration : navigation dédiée (le paramétrage sort du menu
+// quotidien et se regroupe ici).
+const adminGroups = computed(() =>
+    [
+        {
+            label: 'Flotte',
+            items: [
+                { label: "Vue d'ensemble", href: '/administration', icon: 'dashboard', permission: null },
+                { label: 'Types de véhicule', href: '/vehicle-types', icon: 'tag', permission: 'vehicles.manage' },
+                { label: 'Modèles de véhicule', href: '/vehicle-models', icon: 'vehicle', permission: 'vehicles.manage' },
+                { label: 'Protocoles de service', href: '/protocoles-service', icon: 'clock', permission: 'vehicles.manage' },
+                ...(profile.value?.sector === 'ambulance_privee'
+                    ? [{ label: 'Protocoles de désinfection', href: '/disinfection-protocols', icon: 'protocol', permission: 'vehicles.manage' }]
+                    : []),
+            ],
+        },
+        {
+            label: 'Matériel',
+            items: [
+                { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
+                { label: 'Catégories de matériel', href: '/material-categories', icon: 'bookmark', permission: 'catalog.manage' },
+                { label: 'Modèles de protocole', href: '/templates', icon: 'template', permission: 'templates.manage' },
+            ],
+        },
+        {
+            label: 'Organisation',
+            items: [
+                { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
+            ],
+        },
+        {
+            label: 'Accès',
+            items: [
+                { label: 'Utilisateurs & rôles', href: '/users', icon: 'users', permission: 'users.manage' },
+            ],
+        },
+        {
+            label: 'Journal',
+            items: [
+                { label: 'Historique', href: '/activity', icon: 'clock', permission: 'history.view' },
+            ],
+        },
+    ]
+        .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) }))
+        .filter((group) => group.items.length > 0),
+);
+
+// A-t-on accès à au moins un paramétrage ? (affiche l'entrée « Administration »)
+const adminPermissions = ['vehicles.manage', 'catalog.manage', 'templates.manage', 'users.manage', 'settings.manage', 'history.view'];
+const canAdmin = computed(() => adminPermissions.some((p) => permissions.value.includes(p)));
+
+// Routes appartenant au panel d'administration (bascule la barre latérale).
+const adminPaths = ['/administration', '/vehicle-types', '/vehicle-models', '/protocoles-service', '/disinfection-protocols', '/templates', '/material-types', '/material-categories', '/settings', '/users', '/activity'];
+const isAdminArea = computed(() => adminPaths.some((p) => page.url.startsWith(p)));
+
+// Groupes affichés dans la barre selon le contexte (app ou admin).
+const displayedGroups = computed(() => (isAdminArea.value ? adminGroups.value : navGroups.value));
 
 function isActive(href) {
     return page.url.startsWith(href);
@@ -161,7 +196,19 @@ const initials = computed(() => {
             </div>
 
             <nav class="flex-1 space-y-4 overflow-y-auto p-3">
-                <div v-for="group in navGroups" :key="group.label">
+                <!-- Panel admin : retour à l'application -->
+                <Link
+                    v-if="isAdminArea"
+                    href="/dashboard"
+                    class="flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-white/10 hover:text-white"
+                    @click="sidebarOpen = false"
+                >
+                    <Icon name="arrow-left" :size="16" class="shrink-0" />
+                    Retour à l'application
+                </Link>
+                <p v-if="isAdminArea" class="px-3 pt-1 text-[11px] font-bold uppercase tracking-wider text-[var(--brand)]">Administration</p>
+
+                <div v-for="group in displayedGroups" :key="group.label">
                     <p class="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">{{ group.label }}</p>
                     <div class="space-y-0.5">
                         <Link
@@ -179,7 +226,16 @@ const initials = computed(() => {
                 </div>
             </nav>
 
-            <div class="shrink-0 border-t border-white/10 p-3">
+            <div class="shrink-0 space-y-0.5 border-t border-white/10 p-3">
+                <Link
+                    v-if="canAdmin && !isAdminArea"
+                    href="/administration"
+                    class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+                    @click="sidebarOpen = false"
+                >
+                    <Icon name="settings" :size="17" class="shrink-0 opacity-90" />
+                    Administration
+                </Link>
                 <button
                     type="button"
                     class="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
