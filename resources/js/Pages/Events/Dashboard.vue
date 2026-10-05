@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import SubTabs from '@/Components/SubTabs.vue';
 
 const props = defineProps({
     kpis: { type: Object, default: () => ({}) },
@@ -10,6 +11,13 @@ const props = defineProps({
     typeChart: { type: Array, default: () => [] },
     recent: { type: Array, default: () => [] },
 });
+
+const section = ref('recent');
+const sections = computed(() => [
+    { key: 'recent', label: 'Derniers événements', badge: props.kpis.a_traiter || null },
+    { key: 'status', label: 'Statuts & priorités' },
+    { key: 'type', label: 'Par type' },
+]);
 
 const TONES = { critical: '#d03b3b', serious: '#ec835a', warning: '#fab219', s1: '#2a78d6', s2: '#eb6834', s3: '#1baf7a' };
 
@@ -88,9 +96,10 @@ const statusChip = {
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
-            <!-- Répartition par statut -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <SubTabs v-model="section" :tabs="sections" class="mt-5" />
+
+        <!-- Répartition par statut -->
+        <div v-show="section === 'status'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-bold text-gray-900">Répartition par statut</h2>
                 <div class="mt-4 flex items-center gap-5">
                     <svg width="150" height="150" viewBox="0 0 150 150" class="shrink-0">
@@ -118,8 +127,8 @@ const statusChip = {
                 </div>
             </div>
 
-            <!-- Derniers événements -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <!-- Derniers événements -->
+        <div v-show="section === 'recent'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-sm font-bold text-gray-900">Derniers événements</h2>
                     <Link href="/events" class="text-xs font-semibold text-[var(--brand)] hover:underline">Ouvrir le Kanban ›</Link>
@@ -151,10 +160,9 @@ const statusChip = {
                     </table>
                 </div>
             </div>
-        </div>
 
         <!-- Événements par type -->
-        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div v-show="section === 'type'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 class="text-sm font-bold text-gray-900">Événements par type (30 derniers jours)</h2>
             <div class="mt-5 flex items-end gap-10 border-b border-gray-200 px-4" style="height: 170px">
                 <div v-for="(t, i) in typeChart" :key="t.label" class="flex flex-1 flex-col items-center justify-end" style="height: 100%">

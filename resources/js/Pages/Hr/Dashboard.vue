@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import SubTabs from '@/Components/SubTabs.vue';
 
 const props = defineProps({
     kpis: { type: Object, default: () => ({}) },
@@ -12,6 +13,12 @@ const props = defineProps({
     period_label: { type: String, default: '' },
     reliquat_deadline: { type: String, default: '' },
 });
+
+const section = ref('presence');
+const sections = computed(() => [
+    { key: 'presence', label: 'Présence & demandes', badge: props.kpis.pending || null },
+    { key: 'balances', label: 'Soldes par période' },
+]);
 
 const TONES = { good: '#0ca30c', s1: '#2a78d6', crit: '#d03b3b', warn: '#fab219' };
 
@@ -88,7 +95,9 @@ function n1Cls(v) {
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
+        <SubTabs v-model="section" :tabs="sections" class="mt-5" />
+
+        <div v-show="section === 'presence'" class="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
             <!-- Présence -->
             <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-bold text-gray-900">Présence aujourd'hui</h2>
@@ -141,7 +150,7 @@ function n1Cls(v) {
         </div>
 
         <!-- Soldes par période de référence -->
-        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div v-show="section === 'balances'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-sm font-bold text-gray-900">Soldes de congés par période de référence</h2>
                 <span class="text-xs text-gray-500">Période {{ period_label }}</span>

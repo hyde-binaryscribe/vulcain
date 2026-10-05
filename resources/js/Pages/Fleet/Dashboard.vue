@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import SubTabs from '@/Components/SubTabs.vue';
 
 const props = defineProps({
     stats: { type: Object, default: () => ({}) },
@@ -9,6 +10,8 @@ const props = defineProps({
     alerts: { type: Object, default: () => ({}) },
     fleet: { type: Array, default: () => [] },
 });
+
+const section = ref('fleet');
 
 // Donut de disponibilité, tracé à l'échelle (cercle r=56, circonférence ≈ 351.86).
 const CIRC = 2 * Math.PI * 56;
@@ -63,6 +66,11 @@ function consoChip(v) {
     return { cls, label: `Manque ${v.consumables_missing}` };
 }
 const fleetIssues = computed(() => props.fleet.filter((v) => v.worst > 0).length);
+
+const sections = computed(() => [
+    { key: 'fleet', label: 'État du parc', badge: fleetIssues.value || null },
+    { key: 'availability', label: 'Disponibilité & alertes' },
+]);
 </script>
 
 <template>
@@ -79,9 +87,10 @@ const fleetIssues = computed(() => props.fleet.filter((v) => v.worst > 0).length
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-[360px_1fr]">
-            <!-- Disponibilité -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <SubTabs v-model="section" :tabs="sections" class="mt-5" />
+
+        <!-- Disponibilité & alertes -->
+        <div v-show="section === 'availability'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-bold text-gray-900">Disponibilité</h2>
                 <div class="mt-4 flex items-center gap-5">
                     <svg width="150" height="150" viewBox="0 0 150 150" class="shrink-0">
@@ -110,7 +119,7 @@ const fleetIssues = computed(() => props.fleet.filter((v) => v.worst > 0).length
             </div>
 
             <!-- État du parc -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div v-show="section === 'fleet'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-sm font-bold text-gray-900">État du parc — véhicule par véhicule</h2>
                     <Link href="/vehicles" class="text-xs font-semibold text-[var(--brand)] hover:underline">Tout voir ›</Link>
@@ -153,6 +162,5 @@ const fleetIssues = computed(() => props.fleet.filter((v) => v.worst > 0).length
                     <template v-else>Tout le parc est à jour.</template>
                 </p>
             </div>
-        </div>
     </AppLayout>
 </template>

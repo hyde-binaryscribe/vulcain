@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import SubTabs from '@/Components/SubTabs.vue';
 
 const props = defineProps({
     kpis: { type: Object, default: () => ({ references: 0, low_stock: 0, expired: 0, expiring_soon: 0 }) },
@@ -10,6 +11,13 @@ const props = defineProps({
     recent: { type: Array, default: () => [] },
     alertDays: { type: Number, default: 30 },
 });
+
+const section = ref('restock');
+const sections = computed(() => [
+    { key: 'restock', label: 'À réapprovisionner', badge: props.restock.length || null },
+    { key: 'expiry', label: 'Péremptions à venir' },
+    { key: 'recent', label: 'Sorties récentes' },
+]);
 
 // Palette de statut (data-viz) — fixe, jamais thématisée.
 const TONES = {
@@ -68,9 +76,10 @@ function barHeight(count) {
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 lg:grid-cols-2">
-            <!-- Péremptions à venir -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <SubTabs v-model="section" :tabs="sections" class="mt-5" />
+
+        <!-- Péremptions à venir -->
+        <div v-show="section === 'expiry'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-bold text-gray-900">Péremptions à venir</h2>
                 <div class="mt-5 flex items-end gap-4 border-b border-gray-200 pb-0" style="height: 180px">
                     <div v-for="b in expiryChart" :key="b.label" class="flex flex-1 flex-col items-center justify-end" style="height: 100%">
@@ -84,8 +93,8 @@ function barHeight(count) {
                 <p class="mt-2 text-xs text-gray-400">Lots regroupés par échéance (FEFO). Rouge = périmé, orange = sous {{ alertDays }} jours.</p>
             </div>
 
-            <!-- À réapprovisionner -->
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <!-- À réapprovisionner -->
+        <div v-show="section === 'restock'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-sm font-bold text-gray-900">À réapprovisionner</h2>
                     <Link href="/pharmacy" class="text-xs font-semibold text-[var(--brand)] hover:underline">Tout voir ›</Link>
@@ -114,10 +123,9 @@ function barHeight(count) {
                     </tbody>
                 </table>
             </div>
-        </div>
 
         <!-- Sorties récentes -->
-        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div v-show="section === 'recent'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-sm font-bold text-gray-900">Sorties récentes (consommations véhicules)</h2>
                 <Link href="/activity" class="text-xs font-semibold text-[var(--brand)] hover:underline">Journal complet ›</Link>
