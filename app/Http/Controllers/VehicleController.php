@@ -107,6 +107,7 @@ class VehicleController extends Controller
                 'type' => $vehicle->type,
                 'callsign' => $vehicle->callsign,
                 'registration' => $vehicle->registration,
+                'telematics_imei' => $vehicle->telematics_imei,
                 'status' => $vehicle->status->value,
                 'status_label' => $vehicle->status->label(),
                 'mileage' => $vehicle->mileage,
@@ -300,6 +301,7 @@ class VehicleController extends Controller
                 'vehicle_motorization_id' => $v->vehicle_motorization_id,
                 'callsign' => $v->callsign,
                 'registration' => $v->registration,
+                'telematics_imei' => $v->telematics_imei,
                 'site' => $v->site?->name,
                 'site_id' => $v->site_id,
                 'status' => $v->status->value,
@@ -368,7 +370,7 @@ class VehicleController extends Controller
 
     public function update(Request $request, Vehicle $vehicle): RedirectResponse
     {
-        $vehicle->update($this->validated($request));
+        $vehicle->update($this->validated($request, $vehicle));
 
         return back()->with('status', 'Véhicule mis à jour.');
     }
@@ -503,7 +505,7 @@ class VehicleController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Vehicle $current = null): array
     {
         $orgId = $this->tenant->id();
 
@@ -515,6 +517,8 @@ class VehicleController extends Controller
             'vehicle_motorization_id' => ['nullable', Rule::exists('vehicle_motorizations', 'id')->where('organisation_id', $orgId)],
             'callsign' => ['nullable', 'string', 'max:50'],
             'registration' => ['nullable', 'string', 'max:50'],
+            // IMEI du boîtier télématique (15 chiffres en général) — unique dans l'organisation.
+            'telematics_imei' => ['nullable', 'string', 'max:20', Rule::unique('vehicles', 'telematics_imei')->where('organisation_id', $orgId)->whereNull('deleted_at')->ignore($current?->id)],
             'status' => ['required', Rule::enum(VehicleStatus::class)],
             'commissioned_at' => ['nullable', 'date'],
             'mileage' => ['nullable', 'integer', 'min:0'],

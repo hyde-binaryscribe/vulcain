@@ -26,6 +26,7 @@ class Vehicle extends Model
         'vehicle_motorization_id',
         'callsign',
         'registration',
+        'telematics_imei',
         'photo_path',
         'status',
         'commissioned_at',
@@ -44,6 +45,12 @@ class Vehicle extends Model
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);
+    }
+
+    /** Positions télématiques (géoloc + OBD), les plus récentes d'abord. */
+    public function positions(): HasMany
+    {
+        return $this->hasMany(VehiclePosition::class)->latest('device_time');
     }
 
     public function vehicleModel(): BelongsTo

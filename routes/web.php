@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\TelematicsController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\RegistrationController;
@@ -22,6 +23,12 @@ Route::get('/cron/echeances', [CronController::class, 'echeances'])
     ->middleware('throttle:12,1')->name('cron.echeances');
 Route::get('/cron/echeances/{token}', [CronController::class, 'echeances'])
     ->middleware('throttle:12,1')->name('cron.echeances.token');
+
+// Ingestion télématique (positions transférées par Traccar), tous hôtes.
+// Jeton dans le chemin ou en query. Débit élevé (une position par véhicule
+// toutes les quelques secondes en flotte).
+Route::post('/ingest/traccar/{token?}', [TelematicsController::class, 'ingest'])
+    ->middleware('throttle:600,1')->name('ingest.traccar');
 
 // ————————————————————————————————————————————————————————————————
 // ESPACE CLIENT — hôte applicatif (app.vulkain.eu) UNIQUEMENT.

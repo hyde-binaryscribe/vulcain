@@ -42,4 +42,16 @@ return [
         'token' => env('CRON_TOKEN'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ingestion télématique (positions transférées par Traccar)
+    |--------------------------------------------------------------------------
+    | Jeton secret exigé sur le webhook /ingest/traccar/{token}. Traccar (en
+    | bordure, sur le VPS) transfère chaque position décodée à cette URL.
+    | Laisser vide désactive l'endpoint (404).
+    */
+    'telematics' => [
+        'token' => env('TELEMATICS_INGEST_TOKEN'),
+    ],
+
 ];
