@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import HistoryList from '@/Components/HistoryList.vue';
@@ -29,6 +29,26 @@ const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche
 const viewLabel = (v) => viewLabels[v] ?? v;
 
 const showQr = ref(false);
+
+// --- Onglets : la fiche est découpée en vues pour éviter le scroll géant. ---
+const openAnomalies = computed(() => (props.body.damages || []).filter((d) => d.status === 'ouverte').length);
+const materialAlerts = computed(() => (props.alerts.expired || 0) + (props.alerts.below_threshold || 0));
+const tabs = computed(() => [
+    { key: 'overview', label: "Vue d'ensemble" },
+    ...(props.body.enabled ? [{ key: 'body', label: 'Carrosserie', badge: openAnomalies.value || null }] : []),
+    { key: 'disinfection', label: 'Désinfection', dot: props.disinfection.severity === 'critical' },
+    { key: 'maintenance', label: 'Entretien', dot: props.maintenance.severity === 'critical' },
+    { key: 'materials', label: 'Matériel', badge: materialAlerts.value || null },
+    { key: 'documents', label: 'Documents' },
+    { key: 'history', label: 'Historique' },
+]);
+
+// Onglet actif, mémorisé dans l'URL (#onglet) pour survivre aux envois de formulaire.
+const hashTab = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+const tab = ref(tabs.value.some((t) => t.key === hashTab) ? hashTab : 'overview');
+watch(tab, (v) => {
+    if (typeof window !== 'undefined') history.replaceState(null, '', `#${v}`);
+});
 
 // --- Documents véhicule ---
 const docCategories = ['Agrément', 'Contrôle technique', 'Carte grise', 'Assurance', 'Autre'];
@@ -263,8 +283,27 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             </div>
         </div>
 
+        <!-- Onglets -->
+        <div class="mt-4 -mx-1 overflow-x-auto">
+            <nav class="flex gap-1 border-b border-gray-200 px-1">
+                <button
+                    v-for="t in tabs"
+                    :key="t.key"
+                    type="button"
+                    class="flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition"
+                    :class="tab === t.key ? 'border-[var(--brand)] text-gray-900 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-800'"
+                    @click="tab = t.key"
+                >
+                    {{ t.label }}
+                    <span v-if="t.badge" class="rounded-full bg-red-100 px-1.5 text-xs font-bold text-red-700">{{ t.badge }}</span>
+                    <span v-else-if="t.dot" class="h-2 w-2 rounded-full bg-red-500"></span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- ONGLET : Vue d'ensemble -->
         <!-- Alertes -->
-        <div class="mt-4 grid gap-3 sm:grid-cols-4">
+        <div v-show="tab === 'overview'" class="mt-4 grid gap-3 sm:grid-cols-4">
             <div class="rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm">
                 <p class="text-2xl font-bold text-red-700">{{ alerts.expired }}</p>
                 <p class="text-xs text-gray-500">Lots périmés</p>
@@ -283,8 +322,40 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             </div>
         </div>
 
+        <!-- Résumé des statuts (raccourcis vers les onglets) -->
+        <div v-show="tab === 'overview'" class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <button type="button" class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-gray-300" @click="tab = 'disinfection'">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-gray-500">Désinfection</p>
+                    <p class="mt-0.5 text-xs text-gray-400">{{ disinfection.due_at ? 'Échéance ' + disinfection.due_at : 'Dernière ' + (disinfection.last_at || 'jamais') }}</p>
+                </div>
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="disinfectionBadgeClass()">{{ disinfection.state_label }}</span>
+            </button>
+            <button type="button" class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-gray-300" @click="tab = 'maintenance'">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-gray-500">Entretien</p>
+                    <p class="mt-0.5 text-xs text-gray-400">{{ maintenance.next_due_at ? 'Échéance ' + maintenance.next_due_at : 'Aucune échéance' }}</p>
+                </div>
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="maintenanceBadgeClass()">{{ maintenance.state_label }}</span>
+            </button>
+            <button v-if="body.enabled" type="button" class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-gray-300" @click="tab = 'body'">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-gray-500">Carrosserie</p>
+                    <p class="mt-0.5 text-xs text-gray-400">{{ openAnomalies ? openAnomalies + ' anomalie(s) ouverte(s)' : 'Aucune anomalie' }}</p>
+                </div>
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="openAnomalies ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">{{ openAnomalies || 'OK' }}</span>
+            </button>
+            <button type="button" class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-gray-300" @click="tab = 'materials'">
+                <div>
+                    <p class="text-xs uppercase tracking-wide text-gray-500">Matériel</p>
+                    <p class="mt-0.5 text-xs text-gray-400">{{ materialAlerts ? materialAlerts + ' point(s) d\'attention' : 'Inventaire à jour' }}</p>
+                </div>
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="materialAlerts ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'">{{ materialAlerts || 'OK' }}</span>
+            </button>
+        </div>
+
         <!-- Tâches véhicule -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-show="tab === 'overview'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h3 class="text-base font-semibold text-gray-900">Tâches</h3>
                 <p class="mt-0.5 text-sm text-gray-500">Tâches persistantes assignées au véhicule ; l'agent les coche depuis le terrain.</p>
@@ -324,7 +395,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </section>
 
         <!-- Carrosserie -->
-        <section v-if="body.enabled" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-if="body.enabled" v-show="tab === 'body'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex items-center gap-2 border-b border-gray-100 px-6 py-4">
                 <Icon name="vehicle" :size="18" class="text-gray-500" />
                 <h3 class="text-base font-semibold text-gray-900">Carrosserie</h3>
@@ -348,7 +419,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </section>
 
         <!-- Documents véhicule -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-show="tab === 'documents'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h3 class="text-base font-semibold text-gray-900">Documents</h3>
                 <p class="mt-0.5 text-sm text-gray-500">Agrément, contrôle technique, carte grise… Consultables par l'agent en service (avec motif).</p>
@@ -395,7 +466,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
 
 
         <!-- Désinfection / nettoyage -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-show="tab === 'disinfection'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <div class="flex items-center gap-3">
                     <h3 class="text-base font-semibold text-gray-900">Désinfection</h3>
@@ -538,7 +609,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </section>
 
         <!-- Suivi mécanique -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-show="tab === 'maintenance'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <div class="flex items-center gap-3">
                     <h3 class="text-base font-semibold text-gray-900">Suivi mécanique</h3>
@@ -637,7 +708,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </section>
 
         <!-- Carburant (si le suivi est activé) -->
-        <section v-if="fuel" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section v-if="fuel" v-show="tab === 'maintenance'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <h3 class="text-base font-semibold text-gray-900">Carburant &amp; consommation</h3>
                 <div class="flex gap-2 text-sm">
@@ -701,7 +772,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </section>
 
         <!-- Matériel par emplacement -->
-        <div class="mt-6 space-y-6">
+        <div v-show="tab === 'materials'" class="mt-6 space-y-6">
             <section v-for="loc in locations" :key="loc.id">
                 <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ loc.name }}</h3>
                 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -741,7 +812,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </div>
 
         <!-- Historique -->
-        <section class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <section v-show="tab === 'history'" class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <h3 class="text-base font-semibold text-gray-900">Historique</h3>
             <div class="mt-3"><HistoryList :logs="history" dense /></div>
         </section>
