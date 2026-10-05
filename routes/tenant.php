@@ -94,6 +94,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('vehicules/{vehicle}/binome', [TerrainController::class, 'changePartner'])->name('partner');
         Route::post('vehicules/{vehicle}/consommation', [MaterialConsumptionController::class, 'store'])->name('consume');
         Route::post('vehicules/{vehicle}/rearmement', [MaterialConsumptionController::class, 'restock'])->name('restock');
+        // Scellés (plomb numéroté) sur un emplacement scellable.
+        Route::post('vehicules/{vehicle}/emplacements/{location}/sceller', [TerrainController::class, 'sealLocation'])->name('seal');
+        Route::post('vehicules/{vehicle}/emplacements/{location}/rompre-scelle', [TerrainController::class, 'breakSeal'])->name('seal.break');
         Route::get('vehicules/{vehicle}', [TerrainController::class, 'vehicle'])->name('vehicle');
         Route::get('vehicules/{vehicle}/s/{section}', [TerrainController::class, 'vehicle'])->name('vehicle.section');
     });

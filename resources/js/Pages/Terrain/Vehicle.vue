@@ -40,6 +40,26 @@ function submitConsume() {
     });
 }
 
+// Scellés (plomb numéroté) sur un emplacement scellable.
+const sealing = ref(null); // emplacement en cours de scellage
+const sealForm = useForm({ seal_number: '' });
+function openSeal(loc) {
+    sealing.value = loc;
+    sealForm.clearErrors();
+    sealForm.seal_number = '';
+}
+function submitSeal() {
+    sealForm.post(`/t/vehicules/${props.vehicle.id}/emplacements/${sealing.value.id}/sceller`, {
+        preserveScroll: true,
+        onSuccess: () => { sealing.value = null; },
+    });
+}
+function breakSeal(loc) {
+    if (confirm(`Signaler le scellé n°${loc.seal_number} rompu sur « ${loc.name} » ?\nUn événement sera créé et le contenu devra être recompté.`)) {
+        router.post(`/t/vehicules/${props.vehicle.id}/emplacements/${loc.id}/rompre-scelle`, {}, { preserveScroll: true });
+    }
+}
+
 // Navigation par page : chaque tuile ouvre une route dédiée.
 const secUrl = (key) => `/t/vehicules/${props.vehicle.id}/s/${key}`;
 const vehicleUrl = computed(() => `/t/vehicules/${props.vehicle.id}`);
@@ -604,25 +624,50 @@ function setConsent(v) {
         </h2>
         <div class="space-y-3">
             <div v-for="loc in locations" :key="loc.id" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <p class="border-b border-gray-100 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700">{{ loc.name }}</p>
-                <ul class="divide-y divide-gray-100">
-                    <li v-for="m in loc.materials" :key="m.id" class="px-4 py-2.5 text-sm">
-                        <div class="flex items-center gap-2">
-                            <span class="min-w-0 flex-1">
-                                <span class="block truncate text-gray-900">{{ m.name }}</span>
-                                <span class="block truncate text-xs text-gray-400">
-                                    <template v-if="m.theoretical_qty > 0">{{ m.stock }}/{{ m.theoretical_qty }}</template>
-                                    <template v-if="m.reference"><template v-if="m.theoretical_qty > 0"> · </template>{{ m.reference }}</template>
-                                </span>
-                            </span>
-                            <span v-if="m.missing > 0" class="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">manque {{ m.missing }}</span>
-                            <span v-else-if="m.below_threshold" class="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">stock bas</span>
-                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusChip[m.status] || 'bg-gray-100 text-gray-600'">{{ m.status_label }}</span>
-                            <button v-if="inventory.can_consume" type="button" class="shrink-0 rounded-lg border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openConsume(m)">Sortir</button>
+                <div class="flex items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2">
+                    <span class="text-sm font-semibold text-gray-700">{{ loc.name }}</span>
+                    <span v-if="loc.is_sealable && loc.sealed" class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800"><Icon name="check" :size="12" /> Scellé n°{{ loc.seal_number }}</span>
+                    <span v-else-if="loc.is_sealable" class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Scellé rompu</span>
+                </div>
+
+                <!-- Scellé intact : contenu réputé complet, pas de recomptage -->
+                <div v-if="loc.is_sealable && loc.sealed" class="px-4 py-3 text-sm">
+                    <p class="text-gray-600">Contenu réputé complet — vérifiez que le scellé <b>n°{{ loc.seal_number }}</b> est présent et intact.</p>
+                    <button v-if="inventory.can_consume" type="button" class="mt-2 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50" @click="breakSeal(loc)">Scellé rompu / ouvrir</button>
+                </div>
+
+                <!-- Scellable mais rompu (à re-sceller) OU emplacement normal : contenu affiché -->
+                <template v-else>
+                    <div v-if="loc.is_sealable" class="border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+                        Scellé rompu — recomptez le contenu, réarmez si besoin, puis posez un nouveau scellé.
+                        <div v-if="inventory.can_consume" class="mt-2">
+                            <div v-if="sealing && sealing.id === loc.id" class="flex items-center gap-2">
+                                <input v-model="sealForm.seal_number" type="text" placeholder="N° de scellé" class="w-36 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900" />
+                                <button type="button" :disabled="sealForm.processing || !sealForm.seal_number" class="rounded-lg bg-[var(--brand,#C6362B)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60" @click="submitSeal">Valider</button>
+                                <button type="button" class="text-xs text-gray-500" @click="sealing = null">Annuler</button>
+                            </div>
+                            <button v-else type="button" class="rounded-lg bg-[var(--brand,#C6362B)] px-3 py-1.5 text-xs font-semibold text-white" @click="openSeal(loc)">Poser un scellé</button>
                         </div>
-                    </li>
-                    <li v-if="loc.materials.length === 0" class="px-4 py-3 text-xs text-gray-400">Aucun matériel.</li>
-                </ul>
+                    </div>
+                    <ul class="divide-y divide-gray-100">
+                        <li v-for="m in loc.materials" :key="m.id" class="px-4 py-2.5 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-gray-900">{{ m.name }}</span>
+                                    <span class="block truncate text-xs text-gray-400">
+                                        <template v-if="m.theoretical_qty > 0">{{ m.stock }}/{{ m.theoretical_qty }}</template>
+                                        <template v-if="m.reference"><template v-if="m.theoretical_qty > 0"> · </template>{{ m.reference }}</template>
+                                    </span>
+                                </span>
+                                <span v-if="m.missing > 0" class="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">manque {{ m.missing }}</span>
+                                <span v-else-if="m.below_threshold" class="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">stock bas</span>
+                                <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusChip[m.status] || 'bg-gray-100 text-gray-600'">{{ m.status_label }}</span>
+                                <button v-if="inventory.can_consume" type="button" class="shrink-0 rounded-lg border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openConsume(m)">Sortir</button>
+                            </div>
+                        </li>
+                        <li v-if="loc.materials.length === 0" class="px-4 py-3 text-xs text-gray-400">Aucun matériel.</li>
+                    </ul>
+                </template>
             </div>
             <p v-if="locations.length === 0" class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
                 Aucun emplacement configuré.

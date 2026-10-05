@@ -216,6 +216,9 @@ class TerrainController extends Controller
         $grouped = $locations->map(fn (Location $l) => [
             'id' => $l->id,
             'name' => $l->name,
+            'is_sealable' => $l->is_sealable,
+            'sealed' => $l->isSealed(),
+            'seal_number' => $l->seal_number,
             'materials' => $materials->where('location_id', $l->id)->map($materialCard)->values(),
         ]);
 
@@ -715,6 +718,57 @@ class TerrainController extends Controller
             'vehicle_id' => $vehicle->id,
             'created_by' => $userId,
         ]);
+    }
+
+    /** Action terrain autorisée : équipage de la session ouverte OU gestionnaire. */
+    private function authorizeCrew(Request $request, Vehicle $vehicle): void
+    {
+        $user = $request->user();
+        if ($user->can('vehicles.manage')) {
+            return;
+        }
+        $open = VehicleSession::query()->open()->where('vehicle_id', $vehicle->id)->first();
+        abort_unless($open !== null && $open->involves($user->id), 403);
+    }
+
+    /** Pose (ou renouvelle) un scellé sur un emplacement scellable, après recomptage. */
+    public function sealLocation(Request $request, Vehicle $vehicle, Location $location): RedirectResponse
+    {
+        $this->authorizeCrew($request, $vehicle);
+        abort_unless($location->vehicle_id === $vehicle->id && $location->is_sealable, 404);
+
+        $validated = $request->validate(['seal_number' => ['required', 'string', 'max:60']]);
+
+        $location->update([
+            'seal_number' => $validated['seal_number'],
+            'sealed_at' => now(),
+            'sealed_by' => $request->user()->id,
+        ]);
+
+        return back()->with('status', 'Scellé posé (n°'.$validated['seal_number'].').');
+    }
+
+    /** Rompt le scellé : contenu à recompter, création d'un événement + traçabilité. */
+    public function breakSeal(Request $request, Vehicle $vehicle, Location $location): RedirectResponse
+    {
+        $this->authorizeCrew($request, $vehicle);
+        abort_unless($location->vehicle_id === $vehicle->id && $location->is_sealable, 404);
+
+        $previous = $location->seal_number;
+        $location->update(['seal_number' => null, 'sealed_at' => null, 'sealed_by' => null]);
+
+        Event::create([
+            'type' => EventType::ANOMALIE->value,
+            'title' => "Scellé rompu — {$location->name}",
+            'description' => 'Scellé '.($previous ? 'n°'.$previous.' ' : '')."rompu sur « {$location->name} » ({$vehicle->name}). Contenu à vérifier puis re-sceller.",
+            'priority' => 'normale',
+            'status' => EventStatus::A_TRAITER->value,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->tenant->organisation()),
+            'vehicle_id' => $vehicle->id,
+            'created_by' => $request->user()->id,
+        ]);
+
+        return back()->with('status', 'Scellé rompu — contenu à recompter puis re-sceller.');
     }
 
     /**

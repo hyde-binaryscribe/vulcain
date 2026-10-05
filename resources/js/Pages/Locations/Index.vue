@@ -16,7 +16,7 @@ const props = defineProps({
     kinds: { type: Array, default: () => [] },
 });
 
-const blank = { name: '', kind: 'mobile', vehicle_id: '', site_id: '', parent_id: '', holder_material_id: '', display_order: 0, is_active: true };
+const blank = { name: '', kind: 'mobile', vehicle_id: '', site_id: '', parent_id: '', holder_material_id: '', display_order: 0, is_active: true, is_sealable: false };
 const form = useForm({ ...blank });
 const editingId = ref(null);
 
@@ -40,6 +40,7 @@ function edit(l) {
         holder_material_id: l.holder_material_id ?? '',
         display_order: l.display_order,
         is_active: l.is_active,
+        is_sealable: l.is_sealable ?? false,
     });
 }
 function submit() {
@@ -97,6 +98,9 @@ function remove(l) {
                                 <td class="px-4 py-3">
                                     <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="{ 'bg-blue-100 text-blue-800': l.kind === 'mobile', 'bg-indigo-100 text-indigo-800': l.kind === 'sac', 'bg-amber-100 text-amber-800': l.kind === 'fixe' }">
                                         {{ l.kind_label }}
+                                    </span>
+                                    <span v-if="l.is_sealable" class="ml-1 rounded-full px-2 py-0.5 text-xs font-medium" :class="l.sealed ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'">
+                                        {{ l.sealed ? 'Scellé n°' + l.seal_number : 'Scellable' }}
                                     </span>
                                 </td>
                                 <td v-if="sites.length" class="px-4 py-3">
@@ -180,6 +184,10 @@ function remove(l) {
                     <label class="flex items-center gap-2 text-sm text-gray-700">
                         <input v-model="form.is_active" type="checkbox" class="rounded border-gray-300" />
                         Actif
+                    </label>
+                    <label class="flex items-start gap-2 text-sm text-gray-700">
+                        <input v-model="form.is_sealable" type="checkbox" class="mt-0.5 rounded border-gray-300" />
+                        <span>Scellable <span class="block text-xs text-gray-400">Vérification par n° de scellé au lieu du recomptage.</span></span>
                     </label>
                     <div class="flex gap-2">
                         <button type="submit" :disabled="form.processing" class="flex-1 rounded-lg bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60">

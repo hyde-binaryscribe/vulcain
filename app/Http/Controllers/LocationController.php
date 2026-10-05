@@ -42,6 +42,9 @@ class LocationController extends Controller
                 'holder_material_id' => $l->holder_material_id,
                 'display_order' => $l->display_order,
                 'is_active' => $l->is_active,
+                'is_sealable' => $l->is_sealable,
+                'seal_number' => $l->seal_number,
+                'sealed' => $l->isSealed(),
             ]);
 
         return Inertia::render('Locations/Index', [
@@ -115,6 +118,7 @@ class LocationController extends Controller
             ],
             'display_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'is_sealable' => ['boolean'],
         ]);
 
         // Un emplacement fixe (dépôt / pièce de stock) n'est jamais rattaché à un véhicule.
@@ -124,6 +128,7 @@ class LocationController extends Controller
 
         $data['display_order'] ??= 0;
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['is_sealable'] = $request->boolean('is_sealable', false);
 
         return $data;
     }

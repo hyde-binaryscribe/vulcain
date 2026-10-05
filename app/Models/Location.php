@@ -26,6 +26,10 @@ class Location extends Model
         'name',
         'display_order',
         'is_active',
+        'is_sealable',
+        'seal_number',
+        'sealed_at',
+        'sealed_by',
     ];
 
     protected function casts(): array
@@ -33,7 +37,21 @@ class Location extends Model
         return [
             'kind' => LocationKind::class,
             'is_active' => 'boolean',
+            'is_sealable' => 'boolean',
+            'sealed_at' => 'datetime',
         ];
+    }
+
+    /** Agent ayant posé le scellé courant. */
+    public function sealedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sealed_by');
+    }
+
+    /** Scellé posé et intact (numéro présent). */
+    public function isSealed(): bool
+    {
+        return $this->is_sealable && $this->seal_number !== null;
     }
 
     public function vehicle(): BelongsTo
