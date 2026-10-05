@@ -37,38 +37,26 @@ const navGroups = computed(() =>
                 { label: 'Application terrain', href: '/t', icon: 'vehicle', permission: null },
                 { label: 'Protocoles', href: '/protocols', icon: 'protocol', permission: 'protocols.perform' },
                 { label: 'Événements', href: '/events/tableau-de-bord', icon: 'events', permission: 'anomalies.manage' },
+                { label: 'Suivi de service', href: '/suivi-service', icon: 'clock', permission: 'vehicles.manage' },
             ],
         },
         {
-            label: 'Parc & stock',
+            label: 'Parc & véhicules',
             items: [
                 { label: 'Tableau de bord parc', href: '/parc', icon: 'dashboard', permission: 'vehicles.manage' },
-                { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: 'building', permission: 'sites.manage' },
                 { label: 'Véhicules', href: '/vehicles', icon: 'vehicle', permission: 'vehicles.manage' },
-                { label: 'Suivi de service', href: '/suivi-service', icon: 'clock', permission: 'vehicles.manage' },
+                { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: 'building', permission: 'sites.manage' },
+            ],
+        },
+        {
+            label: 'Matériel & pharmacie',
+            items: [
+                { label: 'Pharmacie', href: '/pharmacy/tableau-de-bord', icon: 'pharmacy', permission: 'pharmacy.manage' },
+                { label: 'Matériel', href: '/materials', icon: 'materials', permission: 'catalog.manage' },
                 { label: 'Emplacements', href: '/locations', icon: 'pin', permission: 'locations.manage' },
                 ...(tenant.value?.settings?.bags_enabled
                     ? [{ label: 'Sacs', href: '/sacs', icon: 'materials', permission: 'locations.manage' }]
                     : []),
-                { label: 'Matériel', href: '/materials', icon: 'materials', permission: 'catalog.manage' },
-                { label: 'Pharmacie', href: '/pharmacy/tableau-de-bord', icon: 'pharmacy', permission: 'pharmacy.manage' },
-            ],
-        },
-        {
-            label: 'Configuration',
-            items: [
-                { label: 'Modèles de protocole', href: '/templates', icon: 'template', permission: 'templates.manage' },
-                { label: 'Types de véhicule', href: '/vehicle-types', icon: 'tag', permission: 'vehicles.manage' },
-                { label: 'Modèles de véhicule', href: '/vehicle-models', icon: 'vehicle', permission: 'vehicles.manage' },
-                { label: 'Protocoles de service', href: '/protocoles-service', icon: 'clock', permission: 'vehicles.manage' },
-                // Protocoles de désinfection : réservé au secteur ambulance privée.
-                ...(profile.value?.sector === 'ambulance_privee'
-                    ? [{ label: 'Protocoles de désinfection', href: '/disinfection-protocols', icon: 'protocol', permission: 'vehicles.manage' }]
-                    : []),
-                { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
-                { label: 'Catégories de matériel', href: '/material-categories', icon: 'bookmark', permission: 'catalog.manage' },
-                { label: 'Utilisateurs', href: '/users', icon: 'users', permission: 'users.manage' },
-                { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
             ],
         },
         {
@@ -79,9 +67,31 @@ const navGroups = computed(() =>
             ],
         },
         {
-            label: 'Suivi',
+            label: 'Configuration',
             items: [
+                { label: 'Types de véhicule', href: '/vehicle-types', icon: 'tag', permission: 'vehicles.manage' },
+                { label: 'Modèles de véhicule', href: '/vehicle-models', icon: 'vehicle', permission: 'vehicles.manage' },
+                { label: 'Protocoles de service', href: '/protocoles-service', icon: 'clock', permission: 'vehicles.manage' },
+                // Protocoles de désinfection : réservé au secteur ambulance privée.
+                ...(profile.value?.sector === 'ambulance_privee'
+                    ? [{ label: 'Protocoles de désinfection', href: '/disinfection-protocols', icon: 'protocol', permission: 'vehicles.manage' }]
+                    : []),
+                { label: 'Modèles de protocole', href: '/templates', icon: 'template', permission: 'templates.manage' },
+                { label: 'Types de matériel', href: '/material-types', icon: 'tag', permission: 'catalog.manage' },
+                { label: 'Catégories de matériel', href: '/material-categories', icon: 'bookmark', permission: 'catalog.manage' },
+            ],
+        },
+        {
+            label: 'Administration',
+            items: [
+                { label: 'Utilisateurs', href: '/users', icon: 'users', permission: 'users.manage' },
+                { label: 'Réglages', href: '/settings', icon: 'settings', permission: 'settings.manage' },
                 { label: 'Historique', href: '/activity', icon: 'clock', permission: 'history.view' },
+            ],
+        },
+        {
+            label: 'Mon compte',
+            items: [
                 { label: 'Profil', href: '/profile', icon: 'user', permission: null },
             ],
         },
