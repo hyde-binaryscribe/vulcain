@@ -22,7 +22,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('course')->nullable();  // cap 0-359
             $table->integer('altitude')->nullable();             // m
             $table->boolean('valid')->default(true);             // fix GPS valide
-            $table->json('attributes')->nullable();              // attributs OBD bruts
+            $table->json('attrs')->nullable();                   // attributs OBD bruts (évite le conflit avec Model::$attributes)
             $table->timestamp('device_time')->nullable();        // horodatage boîtier
             $table->timestamp('server_time')->nullable();        // réception Traccar
             $table->timestamps();

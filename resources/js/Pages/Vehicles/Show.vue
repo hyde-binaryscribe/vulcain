@@ -6,6 +6,7 @@ import HistoryList from '@/Components/HistoryList.vue';
 import Icon from '@/Components/Icon.vue';
 import VehicleQr from '@/Components/VehicleQr.vue';
 import VehicleBodyMap from '@/Components/VehicleBodyMap.vue';
+import VehicleMap from '@/Components/VehicleMap.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
@@ -23,6 +24,7 @@ const props = defineProps({
     can_manage_documents: { type: Boolean, default: false },
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
     history: { type: Array, default: () => [] },
+    telematics: { type: Object, default: null },
 });
 
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
@@ -39,6 +41,7 @@ const tabs = computed(() => [
     { key: 'disinfection', label: 'Désinfection', dot: props.disinfection.severity === 'critical' },
     { key: 'maintenance', label: 'Entretien', dot: props.maintenance.severity === 'critical' },
     { key: 'materials', label: 'Matériel', badge: materialAlerts.value || null },
+    ...(props.telematics ? [{ key: 'telematics', label: 'Télématique', dot: (props.telematics.last?.fault_count || 0) > 0 }] : []),
     { key: 'documents', label: 'Documents' },
     { key: 'history', label: 'Historique' },
 ]);
@@ -810,6 +813,44 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 Aucun emplacement pour ce véhicule. Ajoutez-en dans le menu « Emplacements ».
             </p>
         </div>
+
+        <!-- Télématique -->
+        <section v-if="telematics" v-show="tab === 'telematics'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-6 py-4">
+                <h3 class="text-base font-semibold text-gray-900">Télématique</h3>
+                <span class="text-xs text-gray-400">IMEI {{ telematics.imei }}</span>
+            </div>
+            <div class="p-6">
+                <template v-if="telematics.last">
+                    <div class="mb-4 grid gap-3 sm:grid-cols-4">
+                        <div class="rounded-xl border border-gray-200 p-3">
+                            <p class="text-xs uppercase tracking-wide text-gray-500">Dernière position</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900">{{ telematics.last.ago }}</p>
+                            <p class="text-xs text-gray-400">{{ telematics.last.device_time }}</p>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 p-3">
+                            <p class="text-xs uppercase tracking-wide text-gray-500">Vitesse</p>
+                            <p class="mt-1 text-sm font-semibold text-gray-900">{{ telematics.last.speed != null ? telematics.last.speed + ' km/h' : '—' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-gray-200 p-3">
+                            <p class="text-xs uppercase tracking-wide text-gray-500">Défauts OBD</p>
+                            <p class="mt-1 text-sm font-semibold" :class="telematics.last.fault_count > 0 ? 'text-red-600' : 'text-green-600'">{{ telematics.last.fault_count > 0 ? telematics.last.fault_count + ' code(s)' : 'Aucun' }}</p>
+                            <p v-if="telematics.last.dtcs" class="text-xs text-red-500">{{ telematics.last.dtcs }}</p>
+                        </div>
+                        <a :href="`https://www.openstreetmap.org/?mlat=${telematics.last.lat}&mlon=${telematics.last.lon}#map=15/${telematics.last.lat}/${telematics.last.lon}`" target="_blank" class="flex flex-col justify-center rounded-xl border border-gray-200 p-3 hover:border-[var(--brand)]/40">
+                            <p class="text-xs uppercase tracking-wide text-gray-500">Coordonnées</p>
+                            <p class="mt-1 text-sm font-semibold text-[var(--brand)]">Ouvrir la carte ›</p>
+                            <p class="text-xs text-gray-400">{{ Number(telematics.last.lat).toFixed(5) }}, {{ Number(telematics.last.lon).toFixed(5) }}</p>
+                        </a>
+                    </div>
+                    <VehicleMap :positions="telematics.positions" />
+                    <p class="mt-2 text-xs text-gray-400">Trace des {{ telematics.positions.length }} dernières positions reçues · fond de carte © OpenStreetMap.</p>
+                </template>
+                <p v-else class="rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+                    Boîtier rattaché (IMEI {{ telematics.imei }}) — en attente de la première position.
+                </p>
+            </div>
+        </section>
 
         <!-- Historique -->
         <section v-show="tab === 'history'" class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">

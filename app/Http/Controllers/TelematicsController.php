@@ -66,7 +66,7 @@ class TelematicsController extends Controller
                 'course' => isset($position['course']) ? (int) round((float) $position['course']) : null,
                 'altitude' => isset($position['altitude']) ? (int) round((float) $position['altitude']) : null,
                 'valid' => (bool) ($position['valid'] ?? true),
-                'attributes' => $attributes ?: null,
+                'attrs' => $attributes ?: null,
                 'device_time' => $this->parseTime($position['deviceTime'] ?? $position['fixTime'] ?? null),
                 'server_time' => $this->parseTime($position['serverTime'] ?? null) ?? Carbon::now(),
             ]);

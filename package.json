@@ -17,6 +17,7 @@
         "vue": "^3.5.39"
     },
     "dependencies": {
+        "leaflet": "^1.9.4",
         "qrcode": "^1.5.4"
     }
 }

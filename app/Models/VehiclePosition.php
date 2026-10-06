@@ -22,7 +22,7 @@ class VehiclePosition extends Model
         'course',
         'altitude',
         'valid',
-        'attributes',
+        'attrs',
         'device_time',
         'server_time',
     ];
@@ -36,7 +36,7 @@ class VehiclePosition extends Model
             'course' => 'integer',
             'altitude' => 'integer',
             'valid' => 'boolean',
-            'attributes' => 'array',
+            'attrs' => 'array',
             'device_time' => 'datetime',
             'server_time' => 'datetime',
         ];

@@ -20,6 +20,7 @@ use App\Models\Material;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehiclePosition;
 use App\Models\VehicleModel;
 use App\Models\VehicleMotorization;
 use App\Models\VehicleType;
@@ -233,8 +234,53 @@ class VehicleController extends Controller
                 ->limit(30)
                 ->get()
                 ->map(fn (ActivityLog $l) => ActivityController::format($l)),
+            'telematics' => $this->telematics($vehicle),
             'status' => session('status'),
         ]);
+    }
+
+    /**
+     * Données télématiques pour la fiche : dernière position connue, trace
+     * récente et état OBD (codes défaut). Nul si aucun boîtier rattaché.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function telematics(Vehicle $vehicle): ?array
+    {
+        if ($vehicle->telematics_imei === null) {
+            return null;
+        }
+
+        $positions = $vehicle->positions()->limit(50)->get();
+        $last = $positions->first();
+
+        $lastPayload = null;
+        if ($last !== null) {
+            $attrs = $last->attrs ?? [];
+            $faultCount = (int) ($attrs['faultCount'] ?? 0);
+            $dtcs = trim((string) ($attrs['dtcs'] ?? ''));
+            $lastPayload = [
+                'lat' => $last->latitude,
+                'lon' => $last->longitude,
+                'speed' => $last->speed,
+                'course' => $last->course,
+                'device_time' => $last->device_time?->format('d/m/Y H:i:s'),
+                'ago' => $last->device_time?->diffForHumans(),
+                'fault_count' => $faultCount,
+                'dtcs' => $dtcs !== '' ? $dtcs : null,
+            ];
+        }
+
+        return [
+            'imei' => $vehicle->telematics_imei,
+            'last' => $lastPayload,
+            'positions' => $positions->map(fn (VehiclePosition $p) => [
+                'lat' => $p->latitude,
+                'lon' => $p->longitude,
+                'speed' => $p->speed,
+                'device_time' => $p->device_time?->format('d/m/Y H:i'),
+            ])->values(),
+        ];
     }
 
     /**
