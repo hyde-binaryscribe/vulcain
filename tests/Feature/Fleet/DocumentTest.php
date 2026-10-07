@@ -95,6 +95,29 @@ class DocumentTest extends TestCase
         });
     }
 
+    public function test_partner_of_open_session_can_consult_vehicle_document(): void
+    {
+        Storage::fake('local');
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$partner, $docId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $driver = User::factory()->create(['organisation_id' => $org->id]);
+            $driver->assignRole(Rbac::VERIFIER);
+            $partner = User::factory()->create(['organisation_id' => $org->id]);
+            $partner->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $doc = $vehicle->documents()->create([
+                'category' => 'Carte grise', 'title' => 'CG', 'file_path' => UploadedFile::fake()->create('cg.pdf', 10, 'application/pdf')->store('documents/'.$org->id, 'local'),
+            ]);
+            // Session ouverte par le conducteur, le binôme est l'équipier.
+            VehicleSession::create(['vehicle_id' => $vehicle->id, 'user_id' => $driver->id, 'partner_user_id' => $partner->id, 'opened_at' => now()]);
+
+            return [$partner, $doc->id];
+        });
+
+        $this->actingAs($partner)->get("http://caserne.localhost/documents/{$docId}/file")->assertOk();
+    }
+
     public function test_agent_without_session_cannot_consult_vehicle_document(): void
     {
         Storage::fake('local');

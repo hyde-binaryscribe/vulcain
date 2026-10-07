@@ -239,12 +239,15 @@ const consulting = ref(null);
 const reason = ref('Contrôle routier');
 const reasonPresets = ['Contrôle routier', 'Contrôle ARS', 'Contrôle interne', 'Autre'];
 function openConsult(doc) { consulting.value = doc; reason.value = 'Contrôle routier'; }
-function confirmConsult() {
+// L'ouverture du fichier se fait via un vrai lien <a> DANS le geste de l'agent
+// (sinon bloquée en PWA standalone / iOS). Ici on ne fait que tracer le motif.
+function logConsult() {
     const doc = consulting.value;
     if (!doc || !reason.value) return;
     router.post(`/documents/${doc.id}/consult`, { reason: reason.value }, {
         preserveScroll: true,
-        onSuccess: () => { consulting.value = null; window.open(`/documents/${doc.id}/file`, '_blank'); },
+        preserveState: true,
+        onFinish: () => { consulting.value = null; },
     });
 }
 function setConsent(v) {
@@ -815,7 +818,13 @@ function setConsent(v) {
                 </div>
                 <div class="mt-5 flex gap-2">
                     <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="consulting = null">Annuler</button>
-                    <button type="button" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110" @click="confirmConsult">Ouvrir le document</button>
+                    <a
+                        :href="`/documents/${consulting.id}/file`"
+                        target="_blank"
+                        rel="noopener"
+                        :class="['flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-center text-sm font-semibold text-white hover:brightness-110', reason ? '' : 'pointer-events-none opacity-60']"
+                        @click="logConsult"
+                    >Ouvrir le document</a>
                 </div>
             </div>
         </div>

@@ -117,9 +117,10 @@ class DocumentController extends Controller
                 return true;
             }
 
+            // Équipage de la session ouverte : ouvreur OU binôme (mêmes droits).
             return VehicleSession::query()->open()
                 ->where('vehicle_id', $document->documentable_id)
-                ->where('user_id', $user->id)
+                ->forActor($user->id)
                 ->exists();
         }
 
