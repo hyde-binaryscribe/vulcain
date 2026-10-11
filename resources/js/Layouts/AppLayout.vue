@@ -45,6 +45,7 @@ const navGroups = computed(() =>
             items: [
                 { label: 'Tableau de bord parc', href: '/parc', icon: 'dashboard', permission: 'vehicles.manage' },
                 { label: 'Véhicules', href: '/vehicles', icon: 'vehicle', permission: 'vehicles.manage' },
+                { label: 'Suivi flotte', href: '/suivi-flotte', icon: 'pin', permission: 'vehicles.manage' },
                 { label: profile.value?.site_label_plural || 'Sites', href: '/sites', icon: 'building', permission: 'sites.manage' },
             ],
         },

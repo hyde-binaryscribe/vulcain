@@ -78,6 +78,28 @@ ss -ltnp | grep -E '40119|40118|5127'
 Attendu : **40119 intact (même PID qu'avant)**, 40118 (Traccar web) et 5127
 (boîtiers) présents. Pare-feu : ouvrir **5127/TCP** (+ 443 pour le proxy).
 
+### 1quater. Branding Vulkain (reskin léger)
+
+**Logos** — déposer dans `/opt/traccar/override/` (créé automatiquement, aucune
+clé à ajouter — c'est la valeur par défaut de `web.override`). Comme `/opt` est
+root, le plus simple sur le shell root est de créer les fichiers directement
+(pas de FTP) :
+```bash
+mkdir -p /opt/traccar/override
+# coller le contenu de chaque SVG (fournis par Vulkain) :
+nano /opt/traccar/override/logo.svg
+nano /opt/traccar/override/logo-inverted.svg
+nano /opt/traccar/override/favicon.svg
+systemctl restart traccar     # puis vider le cache navigateur (Ctrl+F5)
+```
+
+**Nom & couleur** — PAS de fichier : Traccar lit les attributs **Server**
+(`OverrideTextFilter`). Dans l'interface web (admin) → **Paramètres → Serveur →
+Attributs**, ajouter :
+- `title` = `Vulkain Télémétrie`  (titre d'onglet + nom PWA)
+- `description` = `Supervision télématique des véhicules`
+- `colorPrimary` = `#F0833A`  (orange Vulkain ; défaut Traccar = `#1a237e`)
+
 ## 2. Configurer le FMC003 (Teltonika Configurator)
 
 Brancher le boîtier en USB, « Connect ».

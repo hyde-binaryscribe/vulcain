@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\BagController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DisinfectionController;
+use App\Http\Controllers\FleetMapController;
 use App\Http\Controllers\DisinfectionProtocolController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ExportController;
@@ -134,6 +135,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::middleware('permission:vehicles.manage')->group(function () {
         // Tableau de bord Parc véhicules (page dédiée).
         Route::get('parc', [DashboardController::class, 'parc'])->name('fleet.dashboard');
+
+        // Suivi flotte : carte des dernières positions télématiques.
+        Route::get('suivi-flotte', [FleetMapController::class, 'index'])->name('fleet.map');
 
         Route::get('vehicles', [VehicleController::class, 'index'])->name('vehicles.index');
         Route::get('vehicles/{vehicle}', [VehicleController::class, 'show'])->name('vehicles.show');
