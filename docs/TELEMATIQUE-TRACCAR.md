@@ -11,8 +11,10 @@ FMC003 (SIM Orange, 4G) ──TCP:5027──► Traccar (VPS) ──HTTPS forwar
 
 ## 0. Prérequis
 
-- Un **VPS** Linux (Debian/Ubuntu) avec IP publique et le **port 5027/TCP** ouvert
-  (protocole Teltonika dans Traccar). Un petit VPS (1 vCPU / 1–2 Go) suffit.
+- Un **VPS** Linux (Debian/Ubuntu) avec IP publique, sous le domaine
+  **telemetrie.vulkain.eu** (enregistrement DNS A → IP du VPS), et le **port
+  42118/TCP** ouvert (port retenu pour les boîtiers Teltonika). Un petit VPS
+  (1 vCPU / 2 Go) suffit largement.
 - La **SIM Orange Multi-SIM** activée et insérée dans le FMC003.
 - Un **PC Windows + câble USB** + **Teltonika Configurator** (gratuit, site Teltonika).
 - Le **jeton d'ingestion** Vulkain (voir §4).
@@ -30,9 +32,11 @@ systemctl enable --now traccar
 ```
 
 - Interface web : `http://<IP_VPS>:8082` (créer le compte admin à la 1ʳᵉ visite).
-- Le port **5027** écoute les boîtiers Teltonika dès le démarrage.
-- Conseil : mettre un reverse-proxy HTTPS (nginx/Caddy) devant le 8082, et
-  restreindre l'accès web ; **laisser 5027 ouvert** pour les boîtiers.
+- Par défaut Traccar écoute les boîtiers Teltonika sur **5027** ; on force le
+  **port 42118** via `teltonika.port` dans `traccar.xml` (voir §3).
+- Reverse-proxy HTTPS (nginx/Caddy) devant le 8082 → l'interface web en
+  **https://telemetrie.vulkain.eu**. Ouvrir **42118/TCP** au pare-feu pour les
+  boîtiers ; le 8082 peut rester fermé de l'extérieur (seulement via le proxy).
 
 ## 2. Configurer le FMC003 (Teltonika Configurator)
 
@@ -41,8 +45,8 @@ Brancher le boîtier en USB, « Connect ».
 - **GPRS / APN** : APN de la SIM Orange. Selon l'offre M2M c'est en général
   `orange` ou `orange.m2m` (user/pass vides). ⚠️ **À confirmer avec Orange** pour
   ta Multi-SIM — une mauvaise APN = pas de data.
-- **GPRS / Server settings** : `Domain` = IP publique du VPS, `Port` = **5027**,
-  `Protocol` = **TCP**.
+- **GPRS / Server settings** : `Domain` = **telemetrie.vulkain.eu**, `Port` =
+  **42118**, `Protocol` = **TCP**.
 - **System / Data Acquisition** : régler la fréquence d'envoi (ex. toutes les
   30 s en roulant, plus espacé à l'arrêt).
 - **I/O** : activer les éléments OBD qu'on exploite :
@@ -55,19 +59,34 @@ Brancher le boîtier en USB, « Connect ».
 Dans Traccar : ajouter le device avec son **IMEI** (ou il s'enregistre seul au
 premier contact selon la config).
 
-## 3. Activer le transfert Traccar → Vulkain
+## 3. Config `traccar.xml` (port custom + transfert vers Vulkain)
 
 Éditer `/opt/traccar/conf/traccar.xml`, ajouter dans `<properties>` :
 
 ```xml
-<entry key='forward.enable'>true</entry>
+<!-- Port d'écoute des boîtiers Teltonika (au lieu du 5027 par défaut) -->
+<entry key='teltonika.port'>42118</entry>
+
+<!-- Transfert des positions vers Vulkain (le forward s'active dès que
+     forward.url est défini — il n'existe PAS de clé forward.enable) -->
 <entry key='forward.type'>json</entry>
 <entry key='forward.url'>https://app.vulkain.eu/ingest/traccar/REMPLACER_PAR_LE_JETON</entry>
+
+<!-- Fiabilité : ré-essaie si Vulkain est momentanément indisponible -->
+<entry key='forward.retry.enable'>true</entry>
 ```
 
 Puis `systemctl restart traccar`. Traccar POSTe alors un JSON
 `{ "device": { "uniqueId": "<IMEI>" }, "position": { "latitude":…, "longitude":…,
-"speed":…, "attributes": { "faultCount":…, "dtcs":"…" } } }` à chaque position.
+"speed":…(nœuds), "course":…, "deviceTime":…, "attributes": { "faultCount":…,
+"dtcs":"…" } } }` à chaque position — format déjà géré par le webhook Vulkain
+(vitesse convertie nœuds → km/h côté Vulkain).
+
+> **Rétention des positions** : cette version de Traccar n'a pas de purge
+> automatique par simple clé de config. Quand le volume grossira, prévois un
+> **job SQL nocturne** (cron) qui supprime les positions anciennes — ex. sur
+> MariaDB : `DELETE FROM tc_positions WHERE fixtime < NOW() - INTERVAL 90 DAY;`.
+> Avec le H2 embarqué et quelques boîtiers, ce n'est pas urgent.
 
 ## 4. Côté Vulkain
 
