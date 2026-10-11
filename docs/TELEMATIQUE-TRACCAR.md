@@ -12,9 +12,11 @@ FMC003 (SIM Orange, 4G) ──TCP:5027──► Traccar (VPS) ──HTTPS forwar
 ## 0. Prérequis
 
 - Un **VPS** Linux (Debian/Ubuntu) avec IP publique, sous le domaine
-  **telemetrie.vulkain.eu** (enregistrement DNS A → IP du VPS), et le **port
-  42118/TCP** ouvert (port retenu pour les boîtiers Teltonika). Un petit VPS
-  (1 vCPU / 2 Go) suffit largement.
+  **telemetrie.vulkain.eu** (enregistrement DNS A → IP du VPS). Ports retenus
+  (coexistence avec une autre appli sur le VPS, port 40119) :
+  - **5127/TCP** pour les boîtiers Teltonika (dans la plage réservée 5100-5300),
+  - **40118** pour l'interface web Traccar.
+  Un petit VPS (1 vCPU / 2 Go) suffit largement.
 - La **SIM Orange Multi-SIM** activée et insérée dans le FMC003.
 - Un **PC Windows + câble USB** + **Teltonika Configurator** (gratuit, site Teltonika).
 - Le **jeton d'ingestion** Vulkain (voir §4).
@@ -31,12 +33,50 @@ unzip traccar-linux-64-latest.zip
 systemctl enable --now traccar
 ```
 
-- Interface web : `http://<IP_VPS>:8082` (créer le compte admin à la 1ʳᵉ visite).
+- Par défaut l'interface web écoute sur **8082** ; on la place sur **40118**
+  via `web.port` (§3). Compte admin à créer à la 1ʳᵉ visite.
 - Par défaut Traccar écoute les boîtiers Teltonika sur **5027** ; on force le
-  **port 42118** via `teltonika.port` dans `traccar.xml` (voir §3).
-- Reverse-proxy HTTPS (nginx/Caddy) devant le 8082 → l'interface web en
-  **https://telemetrie.vulkain.eu**. Ouvrir **42118/TCP** au pare-feu pour les
-  boîtiers ; le 8082 peut rester fermé de l'extérieur (seulement via le proxy).
+  **port 5127** via `teltonika.port` (§3) — dans la plage 5100-5300.
+- Reverse-proxy HTTPS (nginx/Caddy) devant le 40118 → interface en
+  **https://telemetrie.vulkain.eu**. Ouvrir **5127/TCP** au pare-feu pour les
+  boîtiers ; le 40118 peut rester fermé de l'extérieur (accès via le proxy).
+- ⚠️ Vérifier que **40118 est libre** (l'autre appli est sur 40119) :
+  `ss -ltnp | grep -E '4011[89]'`.
+
+### 1bis. Interface web en HTTPS (telemetrie.vulkain.eu)
+
+Deux cas :
+
+- **Un reverse-proxy existe déjà** (pour l'autre appli) → y **ajouter un vhost**,
+  ne surtout pas installer un 2ᵉ serveur web (conflit 80/443).
+  - nginx :
+    ```nginx
+    server {
+        listen 443 ssl;
+        server_name telemetrie.vulkain.eu;
+        # ssl_certificate ... (certbot)
+        location / { proxy_pass http://127.0.0.1:40118; proxy_set_header Host $host; }
+    }
+    ```
+  - Caddy (HTTPS auto) : ajouter au `Caddyfile`
+    ```
+    telemetrie.vulkain.eu { reverse_proxy 127.0.0.1:40118 }
+    ```
+- **Aucun proxy** → le plus simple est Caddy (Let's Encrypt automatique) :
+  ```bash
+  apt install -y caddy
+  echo 'telemetrie.vulkain.eu { reverse_proxy 127.0.0.1:40118 }' > /etc/caddy/Caddyfile
+  systemctl reload caddy
+  ```
+
+### 1ter. Vérification (ne rien casser)
+
+Après `systemctl restart traccar`, confirmer :
+```bash
+ss -ltnp | grep -E '40119|40118|5127'
+```
+Attendu : **40119 intact (même PID qu'avant)**, 40118 (Traccar web) et 5127
+(boîtiers) présents. Pare-feu : ouvrir **5127/TCP** (+ 443 pour le proxy).
 
 ## 2. Configurer le FMC003 (Teltonika Configurator)
 
@@ -46,7 +86,9 @@ Brancher le boîtier en USB, « Connect ».
   `orange` ou `orange.m2m` (user/pass vides). ⚠️ **À confirmer avec Orange** pour
   ta Multi-SIM — une mauvaise APN = pas de data.
 - **GPRS / Server settings** : `Domain` = **telemetrie.vulkain.eu**, `Port` =
-  **42118**, `Protocol` = **TCP**.
+  **5127**, `Protocol` = **TCP**. (Tous les boîtiers Teltonika partagent ce
+  même port — Traccar les distingue par leur IMEI, ce n'est pas un port par
+  appareil.)
 - **System / Data Acquisition** : régler la fréquence d'envoi (ex. toutes les
   30 s en roulant, plus espacé à l'arrêt).
 - **I/O** : activer les éléments OBD qu'on exploite :
@@ -64,8 +106,12 @@ premier contact selon la config).
 Éditer `/opt/traccar/conf/traccar.xml`, ajouter dans `<properties>` :
 
 ```xml
-<!-- Port d'écoute des boîtiers Teltonika (au lieu du 5027 par défaut) -->
-<entry key='teltonika.port'>42118</entry>
+<!-- Interface web Traccar (au lieu du 8082 par défaut) -->
+<entry key='web.port'>40118</entry>
+
+<!-- Port d'écoute des boîtiers Teltonika (au lieu du 5027), dans 5100-5300.
+     UN SEUL port pour toute la flotte Teltonika (identification par IMEI). -->
+<entry key='teltonika.port'>5127</entry>
 
 <!-- Transfert des positions vers Vulkain (le forward s'active dès que
      forward.url est défini — il n'existe PAS de clé forward.enable) -->
