@@ -21,6 +21,7 @@ use App\Http\Controllers\PharmacyController;
 use App\Http\Controllers\ProtocolController;
 use App\Http\Controllers\ProtocolTemplateController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StockLotController;
@@ -257,6 +258,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     Route::middleware('permission:settings.manage')->group(function () {
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::patch('settings', [SettingsController::class, 'update'])->name('settings.update');
+        // Lien Itineris : jetons d'accès à l'API v1.
+        Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+        Route::delete('settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
     });
 
     // Modèles de protocole.
