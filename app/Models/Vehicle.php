@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class Vehicle extends Model
 {
@@ -26,6 +28,7 @@ class Vehicle extends Model
         'vehicle_motorization_id',
         'callsign',
         'registration',
+        'vin',
         'telematics_imei',
         'photo_path',
         'status',
@@ -34,11 +37,42 @@ class Vehicle extends Model
         'observations',
     ];
 
+    /**
+     * Champs partagés avec Itineris : leur modification incrémente `version`
+     * (concurrence optimiste du lien, voir docs/LIEN-ITINERIS.md). Le
+     * kilométrage, mis à jour en continu par la télématique, n'en fait pas partie.
+     */
+    public const SHARED_FIELDS = [
+        'name', 'type', 'callsign', 'registration', 'vin', 'telematics_imei',
+        'commissioned_at', 'vehicle_model_id', 'status', 'deleted_at',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Vehicle $vehicle) {
+            $vehicle->uuid ??= (string) Str::uuid();
+            $vehicle->version ??= 1;
+        });
+
+        // Incrément hors Eloquent : pas d'entrée parasite dans le journal d'activité.
+        static::updated(function (Vehicle $vehicle) {
+            if ($vehicle->wasChanged(self::SHARED_FIELDS)) {
+                $row = DB::table('vehicles')->where('id', $vehicle->id);
+                $row->increment('version');
+                $vehicle->setRawAttributes(
+                    array_merge($vehicle->getAttributes(), ['version' => (int) $row->value('version')]),
+                    true,
+                );
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
             'status' => VehicleStatus::class,
             'commissioned_at' => 'date',
+            'version' => 'integer',
         ];
     }
 

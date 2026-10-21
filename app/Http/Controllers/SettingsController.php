@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ApiToken;
 use App\Models\KanbanBoard;
 use App\Models\KanbanColumn;
 use App\Support\Tenancy\TenantContext;
@@ -40,6 +41,21 @@ class SettingsController extends Controller
                     'id' => $c->id,
                     'label' => ($c->board?->name ? $c->board->name.' — ' : '').$c->name,
                 ]),
+            // Lien Itineris (transport sanitaire seulement) : jetons, jamais leur valeur.
+            'itineris' => ApiTokenController::available($this->tenant) ? [
+                'tokens' => ApiToken::query()->with('creator:id,name')->latest()->get()
+                    ->map(fn (ApiToken $t) => [
+                        'id' => $t->id,
+                        'name' => $t->name,
+                        'last_four' => $t->last_four,
+                        'created_by' => $t->creator?->name,
+                        'created_at' => $t->created_at?->toIso8601String(),
+                        'last_used_at' => $t->last_used_at?->toIso8601String(),
+                        'revoked_at' => $t->revoked_at?->toIso8601String(),
+                    ]),
+                'new_token' => session('api_token_plain'),
+                'api_url' => url('/api/v1'),
+            ] : null,
             'status' => session('status'),
         ]);
     }

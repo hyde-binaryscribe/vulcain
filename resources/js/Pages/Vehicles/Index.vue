@@ -41,7 +41,7 @@ const statusStyles = {
 const showForm = ref(false);
 const editingId = ref(null);
 const form = useForm({
-    name: '', type: '', vehicle_model_id: '', vehicle_motorization_id: '', callsign: '', registration: '', telematics_imei: '', site_id: '',
+    name: '', type: '', vehicle_model_id: '', vehicle_motorization_id: '', callsign: '', registration: '', vin: '', telematics_imei: '', site_id: '',
     status: 'disponible', commissioned_at: '', mileage: '', observations: '',
 });
 
@@ -61,7 +61,7 @@ function openEdit(v) {
     editingId.value = v.id;
     form.clearErrors();
     Object.assign(form, {
-        name: v.name, type: v.type ?? '', vehicle_model_id: v.vehicle_model_id ?? '', vehicle_motorization_id: v.vehicle_motorization_id ?? '', callsign: v.callsign ?? '', registration: v.registration ?? '', telematics_imei: v.telematics_imei ?? '',
+        name: v.name, type: v.type ?? '', vehicle_model_id: v.vehicle_model_id ?? '', vehicle_motorization_id: v.vehicle_motorization_id ?? '', callsign: v.callsign ?? '', registration: v.registration ?? '', vin: v.vin ?? '', telematics_imei: v.telematics_imei ?? '',
         site_id: v.site_id ?? '', status: v.status, commissioned_at: v.commissioned_at ?? '',
         mileage: v.mileage ?? '', observations: v.observations ?? '',
     });
@@ -234,6 +234,12 @@ function saveAssign() {
                         <InputLabel value="Immatriculation" />
                         <PlateInput v-model="form.registration" />
                         <InputError :message="form.errors.registration" />
+                    </div>
+                    <div>
+                        <InputLabel value="Numéro de série (VIN)" />
+                        <TextInput v-model="form.vin" maxlength="17" class="font-mono uppercase" placeholder="VF1MA000000000000" />
+                        <p class="mt-1 text-xs text-gray-400">Optionnel — 17 caractères, sert au rapprochement avec Itineris.</p>
+                        <InputError :message="form.errors.vin" />
                     </div>
                     <div>
                         <InputLabel value="IMEI boîtier télématique" />

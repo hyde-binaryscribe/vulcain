@@ -108,6 +108,7 @@ class VehicleController extends Controller
                 'type' => $vehicle->type,
                 'callsign' => $vehicle->callsign,
                 'registration' => $vehicle->registration,
+                'vin' => $vehicle->vin,
                 'telematics_imei' => $vehicle->telematics_imei,
                 'status' => $vehicle->status->value,
                 'status_label' => $vehicle->status->label(),
@@ -347,6 +348,7 @@ class VehicleController extends Controller
                 'vehicle_motorization_id' => $v->vehicle_motorization_id,
                 'callsign' => $v->callsign,
                 'registration' => $v->registration,
+                'vin' => $v->vin,
                 'telematics_imei' => $v->telematics_imei,
                 'site' => $v->site?->name,
                 'site_id' => $v->site_id,
@@ -563,6 +565,8 @@ class VehicleController extends Controller
             'vehicle_motorization_id' => ['nullable', Rule::exists('vehicle_motorizations', 'id')->where('organisation_id', $orgId)],
             'callsign' => ['nullable', 'string', 'max:50'],
             'registration' => ['nullable', 'string', 'max:50'],
+            // Numéro de série (VIN) : 17 caractères, sans I, O ni Q — sert au lien avec Itineris.
+            'vin' => ['nullable', 'string', 'size:17', 'regex:/^[A-HJ-NPR-Z0-9]{17}$/i'],
             // IMEI du boîtier télématique (15 chiffres en général) — unique dans l'organisation.
             'telematics_imei' => ['nullable', 'string', 'max:20', Rule::unique('vehicles', 'telematics_imei')->where('organisation_id', $orgId)->whereNull('deleted_at')->ignore($current?->id)],
             'status' => ['required', Rule::enum(VehicleStatus::class)],
@@ -570,6 +574,10 @@ class VehicleController extends Controller
             'mileage' => ['nullable', 'integer', 'min:0'],
             'observations' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if (! empty($validated['vin'])) {
+            $validated['vin'] = strtoupper($validated['vin']);
+        }
 
         // La motorisation doit appartenir au modèle choisi (sinon on l'ignore).
         if (! empty($validated['vehicle_motorization_id'])) {

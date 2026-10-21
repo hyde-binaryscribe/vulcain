@@ -1,11 +1,32 @@
 <script setup>
-import { useForm, Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { useForm, Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     settings: { type: Object, default: () => ({ track_expiry_in_mobile: true }) },
     kanbanColumns: { type: Array, default: () => [] },
+    // Lien Itineris : null hors transport sanitaire.
+    itineris: { type: Object, default: null },
 });
+
+// Lien Itineris : jetons d'accès à l'API v1 (valeur montrée une seule fois).
+const tokenForm = useForm({ name: 'Itineris' });
+const copied = ref(false);
+function createToken() {
+    tokenForm.post('/settings/api-tokens', { preserveScroll: true });
+}
+function revokeToken(t) {
+    if (!confirm(`Révoquer le jeton « ${t.name} » ? Itineris ne pourra plus lire les véhicules avec ce jeton.`)) return;
+    router.delete(`/settings/api-tokens/${t.id}`, { preserveScroll: true });
+}
+async function copyToken() {
+    await navigator.clipboard?.writeText(props.itineris.new_token);
+    copied.value = true;
+}
+function fmt(iso) {
+    return iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+}
 
 const form = useForm({
     track_expiry_in_mobile: props.settings.track_expiry_in_mobile,
@@ -222,6 +243,65 @@ function save() {
                         Enregistrer
                     </button>
                 </div>
+            </section>
+
+            <section v-if="itineris" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="text-base font-semibold text-gray-900">Lien Itineris</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Itineris (régulation) lit vos véhicules pour savoir qu'il parle des mêmes que Vulkain.
+                    Créez un jeton, puis collez-le dans Itineris › Paramètres › Vulkain avec l'adresse ci-dessous.
+                </p>
+                <p class="mt-3 text-sm text-gray-700">Adresse de l'API : <code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs">{{ itineris.api_url }}</code></p>
+
+                <div v-if="itineris.new_token" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                    <p class="text-sm font-semibold text-amber-900">Copiez ce jeton maintenant : il ne sera plus affiché.</p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <code class="break-all rounded bg-white px-2 py-1 font-mono text-xs text-gray-900">{{ itineris.new_token }}</code>
+                        <button type="button" class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50" @click="copyToken">
+                            {{ copied ? 'Copié' : 'Copier' }}
+                        </button>
+                    </div>
+                </div>
+
+                <table v-if="itineris.tokens.length" class="mt-5 w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-xs uppercase tracking-wide text-gray-500">
+                            <th class="py-2 pr-3 font-semibold">Nom</th>
+                            <th class="py-2 pr-3 font-semibold">Fin</th>
+                            <th class="py-2 pr-3 font-semibold">Créé</th>
+                            <th class="py-2 pr-3 font-semibold">Dernier usage</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="t in itineris.tokens" :key="t.id" class="border-t border-gray-100" :class="t.revoked_at ? 'text-gray-400' : 'text-gray-800'">
+                            <td class="py-2 pr-3">{{ t.name }}</td>
+                            <td class="py-2 pr-3 font-mono text-xs">…{{ t.last_four }}</td>
+                            <td class="py-2 pr-3 font-mono text-xs">{{ fmt(t.created_at) }}<span v-if="t.created_by" class="font-sans"> · {{ t.created_by }}</span></td>
+                            <td class="py-2 pr-3 font-mono text-xs">{{ fmt(t.last_used_at) }}</td>
+                            <td class="py-2 text-right">
+                                <span v-if="t.revoked_at" class="text-xs">Révoqué</span>
+                                <button v-else type="button" class="text-xs font-semibold text-red-700 hover:underline" @click="revokeToken(t)">Révoquer</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-5 flex flex-wrap items-end gap-3">
+                    <label class="block">
+                        <span class="block text-sm font-medium text-gray-900">Nom du jeton</span>
+                        <input v-model="tokenForm.name" type="text" maxlength="100" class="mt-1 block w-64 rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                    </label>
+                    <button
+                        type="button"
+                        :disabled="tokenForm.processing || !tokenForm.name.trim()"
+                        class="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60"
+                        @click="createToken"
+                    >
+                        Créer un jeton
+                    </button>
+                </div>
+                <p v-if="tokenForm.errors.name" class="mt-1 text-xs text-red-700">{{ tokenForm.errors.name }}</p>
             </section>
         </div>
     </AppLayout>
