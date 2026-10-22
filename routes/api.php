@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CheckController;
 use App\Http\Controllers\Api\V1\VehicleController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Facades\Route;
@@ -12,5 +13,6 @@ Route::prefix('v1')
     ->middleware([AuthenticateApiToken::class, 'throttle:120,1'])
     ->group(function () {
         Route::get('vehicles', [VehicleController::class, 'index']);
+        Route::get('vehicles/checks', [CheckController::class, 'index']);
         Route::get('vehicles/{uuid}', [VehicleController::class, 'show'])->whereUuid('uuid');
     });
