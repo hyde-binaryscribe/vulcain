@@ -215,7 +215,7 @@ const oxyStatusPill = {
 // Résumé pour la tuile : plus basse bouteille + alerte si une est à remplacer.
 const oxygenTile = computed(() => {
     const bottles = props.oxygen?.bottles ?? [];
-    if (!bottles.length) return null;
+    if (!bottles.length) return { dot: neutralClasses.dot, text: neutralClasses.text, label: 'À renseigner' };
     const needs = bottles.some((b) => b.status === 'a_remplacer' || b.status === 'hors_service');
     const percents = bottles.map((b) => b.percent).filter((p) => p != null);
     const lowest = percents.length ? Math.min(...percents) : null;
@@ -652,6 +652,10 @@ function setConsent(v) {
 
         <!-- Oxygène -->
         <section v-if="section === 'oxygen' && oxygen" class="mt-3 space-y-3">
+            <p v-if="!oxygen.bottles.length" class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+                Aucune bouteille déclarée pour ce véhicule.
+                <template v-if="oxygen.can_manage"><br />Déclarez la dotation sur la <Link :href="`/vehicles/${vehicle.id}#oxygen`" class="font-semibold text-[var(--brand,#C6362B)]">fiche véhicule</Link>.</template>
+            </p>
             <div v-for="b in oxygen.bottles" :key="b.id" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
@@ -696,7 +700,7 @@ function setConsent(v) {
                     </ul>
                 </details>
             </div>
-            <p v-if="!oxygen.can_edit" class="px-1 text-xs text-gray-400">Ouvrez le service sur ce véhicule pour ajuster les niveaux et pointer un changement.</p>
+            <p v-if="oxygen.bottles.length && !oxygen.can_edit" class="px-1 text-xs text-gray-400">Ouvrez le service sur ce véhicule pour ajuster les niveaux et pointer un changement.</p>
         </section>
 
         <!-- Carrosserie -->

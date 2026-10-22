@@ -273,8 +273,9 @@ class TerrainController extends Controller
         $fuel = $fuelEnabled ? FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(30)->get()) : null;
 
         // Oxygène embarqué : dotation du véhicule + historique récent par bouteille.
+        // Tuile toujours présente (équipement standard) ; liste vide si rien de déclaré.
         $oxygenBottles = $vehicle->oxygenBottles()->with(['logs' => fn ($q) => $q->with('user:id,name')->limit(8)])->get();
-        $oxygen = $oxygenBottles->isEmpty() ? null : [
+        $oxygen = [
             'can_edit' => $mine || $user->can('vehicles.manage'),
             'can_manage' => $user->can('vehicles.manage'),
             'bottles' => $oxygenBottles->map(fn (OxygenBottle $b) => [
