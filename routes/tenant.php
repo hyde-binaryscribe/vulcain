@@ -148,6 +148,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Suivi flotte : carte des dernières positions télématiques.
         Route::get('suivi-flotte', [FleetMapController::class, 'index'])->name('fleet.map');
 
+        // Tableau de bord Oxygène (vue flotte).
+        Route::get('oxygene/tableau-de-bord', [OxygenBottleController::class, 'dashboard'])->name('oxygen.dashboard');
+
         Route::get('vehicles', [VehicleController::class, 'index'])->name('vehicles.index');
         Route::get('vehicles/{vehicle}', [VehicleController::class, 'show'])->name('vehicles.show');
         Route::post('vehicles', [VehicleController::class, 'store'])->name('vehicles.store');

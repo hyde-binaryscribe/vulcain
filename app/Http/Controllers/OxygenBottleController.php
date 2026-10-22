@@ -10,6 +10,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * Oxygène embarqué. Le gestionnaire déclare la dotation (emplacements de
@@ -18,6 +20,89 @@ use Illuminate\Validation\Rule;
  */
 class OxygenBottleController extends Controller
 {
+    /** Tableau de bord Oxygène (vue flotte, gestionnaire). */
+    public function dashboard(): Response
+    {
+        $bottles = OxygenBottle::query()->with('vehicle:id,name,callsign')->get();
+        $enService = $bottles->where('status', OxygenBottle::STATUS_EN_SERVICE);
+
+        $percents = $enService->map(fn (OxygenBottle $b) => $b->percent())->filter(fn ($p) => $p !== null);
+        $low = $enService->filter(fn (OxygenBottle $b) => ($p = $b->percent()) !== null && $p < 25)->count();
+
+        $kpis = [
+            'vehicles_equipped' => $bottles->pluck('vehicle_id')->unique()->count(),
+            'bottles' => $bottles->count(),
+            'low' => $low,
+            'to_replace' => $bottles->where('status', OxygenBottle::STATUS_A_REMPLACER)->count(),
+            'out_of_service' => $bottles->where('status', OxygenBottle::STATUS_HORS_SERVICE)->count(),
+            'avg_fill' => $percents->isNotEmpty() ? (int) round($percents->avg()) : null,
+        ];
+
+        // Répartition par tranche de remplissage (bouteilles en service, avec niveau).
+        $bands = [
+            ['label' => '0–25 %', 'count' => 0, 'tone' => 'critical'],
+            ['label' => '25–50 %', 'count' => 0, 'tone' => 'serious'],
+            ['label' => '50–75 %', 'count' => 0, 'tone' => 'warning'],
+            ['label' => '75–100 %', 'count' => 0, 'tone' => 'series'],
+        ];
+        foreach ($enService as $b) {
+            $p = $b->percent();
+            if ($p === null) {
+                continue;
+            }
+            $i = $p < 25 ? 0 : ($p < 50 ? 1 : ($p < 75 ? 2 : 3));
+            $bands[$i]['count']++;
+        }
+
+        $row = fn (OxygenBottle $b) => [
+            'id' => $b->id,
+            'vehicle_id' => $b->vehicle_id,
+            'vehicle' => $b->vehicle?->callsign ?: $b->vehicle?->name,
+            'label' => $b->label,
+            'serial_number' => $b->serial_number,
+            'pressure' => $b->current_pressure,
+            'percent' => $b->percent(),
+            'status' => $b->status,
+            'status_label' => $b->statusLabel(),
+            'last_checked_at' => $b->last_checked_at?->fr('d/m/Y H:i'),
+        ];
+
+        // À surveiller : hors service, à remplacer, ou niveau < 50 %. Trié par gravité.
+        $statusRank = fn (OxygenBottle $b): int => match ($b->status) {
+            OxygenBottle::STATUS_A_REMPLACER => 0,
+            OxygenBottle::STATUS_HORS_SERVICE => 1,
+            default => 2,
+        };
+        $attention = $bottles
+            ->filter(fn (OxygenBottle $b) => $b->status !== OxygenBottle::STATUS_EN_SERVICE
+                || (($p = $b->percent()) !== null && $p < 50))
+            ->sortBy(fn (OxygenBottle $b) => $statusRank($b) * 1000 + ($b->percent() ?? 999))
+            ->map($row)->values();
+
+        $recent = OxygenBottleLog::query()
+            ->with(['user:id,name', 'bottle:id,label', 'bottle.vehicle:id,name,callsign'])
+            ->latest('recorded_at')->limit(20)->get()
+            ->map(fn (OxygenBottleLog $l) => [
+                'action' => $l->action,
+                'action_label' => $l->actionLabel(),
+                'vehicle' => $l->bottle?->vehicle?->callsign ?: $l->bottle?->vehicle?->name,
+                'bottle' => $l->bottle?->label,
+                'pressure' => $l->pressure,
+                'percent' => $l->percent,
+                'serial_number' => $l->serial_number,
+                'previous_serial' => $l->previous_serial,
+                'by' => $l->user?->name,
+                'at' => $l->recorded_at?->fr('d/m/Y H:i'),
+            ]);
+
+        return Inertia::render('Oxygen/Dashboard', [
+            'kpis' => $kpis,
+            'bands' => $bands,
+            'attention' => $attention,
+            'recent' => $recent,
+        ]);
+    }
+
     // --- Gestionnaire : dotation (déclaration des emplacements) ---------------
 
     public function store(Request $request, Vehicle $vehicle): RedirectResponse

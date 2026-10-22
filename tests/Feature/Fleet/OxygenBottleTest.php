@@ -149,6 +149,34 @@ class OxygenBottleTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_dashboard_aggregates_fleet_oxygen(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $admin = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $a = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $b = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            OxygenBottle::create(['vehicle_id' => $a->id, 'label' => 'Pleine', 'pressure_min' => 0, 'pressure_max' => 200, 'current_pressure' => 200]);
+            OxygenBottle::create(['vehicle_id' => $a->id, 'label' => 'Basse', 'pressure_min' => 0, 'pressure_max' => 200, 'current_pressure' => 40]);
+            OxygenBottle::create(['vehicle_id' => $b->id, 'label' => 'HS', 'pressure_min' => 0, 'pressure_max' => 200, 'current_pressure' => 100, 'status' => OxygenBottle::STATUS_A_REMPLACER]);
+
+            return $admin;
+        });
+
+        $this->actingAs($admin)->get('http://caserne.localhost/oxygene/tableau-de-bord')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Oxygen/Dashboard')
+                ->where('kpis.vehicles_equipped', 2)
+                ->where('kpis.bottles', 3)
+                ->where('kpis.low', 1)          // 40/200 = 20 %
+                ->where('kpis.to_replace', 1)
+                ->where('kpis.avg_fill', 60)     // moyenne des en service : (100 + 20) / 2
+                ->has('attention', 2));          // la basse + la « à remplacer »
+    }
+
     public function test_terrain_vehicle_page_exposes_oxygen_bottles(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();
