@@ -49,9 +49,7 @@ class FuelController extends Controller
         ]);
 
         // Le relevé met à jour le compteur du véhicule (déclenche les alertes km).
-        if ($validated['mileage'] > (int) $vehicle->mileage) {
-            $vehicle->update(['mileage' => $validated['mileage']]);
-        }
+        $vehicle->recordMileage((int) $validated['mileage'], 'plein', $request->user()?->name);
 
         return back()->with('status', 'Plein enregistré.');
     }

@@ -52,6 +52,8 @@ class VehicleController extends Controller
             'site' => $v->site?->name,
             'commissioned_at' => $v->commissioned_at?->toDateString(),
             'mileage' => $v->mileage,
+            'mileage_at' => $v->mileage_at?->toIso8601String(),
+            'mileage_source' => $v->mileage_source,
             'telematics_imei' => $v->telematics_imei,
             'status' => $v->status?->value,
             'deleted' => $v->trashed(),

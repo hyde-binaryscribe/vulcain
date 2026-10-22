@@ -579,9 +579,7 @@ class TerrainController extends Controller
         });
 
         // Le relevé met à jour le compteur du véhicule (déclenche les alertes km).
-        if (! empty($validated['mileage']) && $validated['mileage'] > (int) $vehicle->mileage) {
-            $vehicle->update(['mileage' => $validated['mileage']]);
-        }
+        $vehicle->recordMileage(isset($validated['mileage']) ? (int) $validated['mileage'] : null, 'prise_de_service', $request->user()?->name);
 
         return redirect()->route('terrain.vehicle', $vehicle)->with('status', 'Service ouvert.');
     }
@@ -663,9 +661,7 @@ class TerrainController extends Controller
             'close_reason' => VehicleSession::REASON_MANUAL,
         ]);
 
-        if (! empty($validated['mileage']) && $validated['mileage'] > (int) $vehicle->mileage) {
-            $vehicle->update(['mileage' => $validated['mileage']]);
-        }
+        $vehicle->recordMileage(isset($validated['mileage']) ? (int) $validated['mileage'] : null, 'fin_de_service', $request->user()?->name);
 
         // Manquements restants (non réarmés) : alerte admin + visibles pour le suivant.
         $this->flagUnrestocked($vehicle, $request->user()->id);

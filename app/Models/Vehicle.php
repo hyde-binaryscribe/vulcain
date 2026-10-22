@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\Events\EventStatus;
+use App\Domain\Events\EventType;
 use App\Domain\Fleet\VehicleStatus;
 use App\Models\Concerns\BelongsToOrganisation;
 use App\Models\Concerns\RecordsActivity;
@@ -11,7 +13,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -34,6 +38,9 @@ class Vehicle extends Model
         'status',
         'commissioned_at',
         'mileage',
+        'mileage_at',
+        'mileage_source',
+        'mileage_by',
         'observations',
     ];
 
@@ -47,8 +54,99 @@ class Vehicle extends Model
         'commissioned_at', 'vehicle_model_id', 'status', 'deleted_at',
     ];
 
+    /**
+     * Saut maximal accepté d'un relevé à l'autre (décision du porteur) : au-delà, le relevé est
+     * mis en alerte « à vérifier » et le compteur n'est pas modifié.
+     */
+    public const MILEAGE_JUMP_ALERT_KM = 2000;
+
+    /** Libellés des sources de relevé kilométrique. */
+    public const MILEAGE_SOURCES = [
+        'prise_de_service' => 'prise de service',
+        'fin_de_service' => 'fin de service',
+        'plein' => 'plein',
+        'entretien' => 'entretien',
+        'fiche' => 'fiche véhicule',
+    ];
+
+    /** Vrai pendant recordMileage() : la source posée n'est pas remplacée par « fiche ». */
+    private bool $recordingMileage = false;
+
+    /**
+     * Relevé kilométrique venant du terrain (prise ou fin de service, plein, entretien).
+     * Le compteur ne recule jamais (décision du porteur) : un relevé plus bas est ignoré
+     * (il reste dans sa saisie). Un saut de plus de MILEAGE_JUMP_ALERT_KM crée un
+     * événement « relevé à vérifier » au lieu d'être appliqué.
+     *
+     * @return bool vrai si le compteur a été mis à jour
+     */
+    public function recordMileage(?int $km, string $source, ?string $by = null): bool
+    {
+        if ($km === null || $km <= 0) {
+            return false;
+        }
+        $current = $this->mileage !== null ? (int) $this->mileage : null;
+        if ($current !== null && $km <= $current) {
+            return false;
+        }
+        if ($current !== null && $current > 0 && $km - $current > self::MILEAGE_JUMP_ALERT_KM) {
+            $this->flagMileageJump($km, $current, $source, $by);
+
+            return false;
+        }
+
+        $this->recordingMileage = true;
+        try {
+            $this->update(['mileage' => $km, 'mileage_at' => now(), 'mileage_source' => $source, 'mileage_by' => $by]);
+        } finally {
+            $this->recordingMileage = false;
+        }
+
+        return true;
+    }
+
+    /** Événement « relevé à vérifier » (un seul ouvert par véhicule, mis à jour au relevé suivant). */
+    private function flagMileageJump(int $km, int $current, string $source, ?string $by): void
+    {
+        $label = self::MILEAGE_SOURCES[$source] ?? $source;
+        $description = sprintf(
+            'Relevé de %s km (%s%s, %s) : +%s km depuis le compteur actuel (%s km). Compteur non mis à jour : corrigez-le dans la fiche du véhicule si le relevé est juste.',
+            number_format($km, 0, ',', ' '), $label, $by ? ', '.$by : '', now()->format('d/m/Y H:i'),
+            number_format($km - $current, 0, ',', ' '), number_format($current, 0, ',', ' '),
+        );
+        $sourceKey = 'mileage-jump:'.$this->id;
+        $open = Event::query()->where('source_key', $sourceKey)
+            ->whereIn('status', [EventStatus::A_TRAITER->value, EventStatus::EN_COURS->value])
+            ->first();
+        if ($open !== null) {
+            $open->update(['description' => $description]);
+
+            return;
+        }
+        Event::create([
+            'type' => EventType::ANOMALIE->value,
+            'source_key' => $sourceKey,
+            'title' => "Relevé kilométrique à vérifier — {$this->name}",
+            'description' => $description,
+            'priority' => 'normale',
+            'status' => EventStatus::A_TRAITER->value,
+            'kanban_column_id' => KanbanBoard::entryColumnId($this->organisation),
+            'vehicle_id' => $this->id,
+            'created_by' => null,
+        ]);
+    }
+
     protected static function booted(): void
     {
+        // Kilométrage corrigé à la main (fiche, administration) : relevé daté, source « fiche ».
+        static::saving(function (Vehicle $vehicle) {
+            if ($vehicle->isDirty('mileage') && ! $vehicle->recordingMileage && $vehicle->mileage !== null) {
+                $vehicle->mileage_at = now();
+                $vehicle->mileage_source = 'fiche';
+                $vehicle->mileage_by = Auth::user()?->name;
+            }
+        });
+
         static::creating(function (Vehicle $vehicle) {
             $vehicle->uuid ??= (string) Str::uuid();
             $vehicle->version ??= 1;
@@ -72,6 +170,7 @@ class Vehicle extends Model
         return [
             'status' => VehicleStatus::class,
             'commissioned_at' => 'date',
+            'mileage_at' => 'datetime',
             'version' => 'integer',
         ];
     }
@@ -136,7 +235,7 @@ class Vehicle extends Model
     }
 
     /** Documents du véhicule (agrément, CT, carte grise…). */
-    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable')->orderBy('category')->orderBy('title');
     }
