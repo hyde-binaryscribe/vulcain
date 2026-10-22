@@ -42,6 +42,32 @@ class ServiceProtocolField extends Model
     }
 
     /**
+     * Pourcentage d'une jauge pour une valeur saisie, d'après min/max de la
+     * config. Renvoie un entier 0–100, ou null si non calculable.
+     */
+    public function percentFor(mixed $value): ?int
+    {
+        if ($this->type !== ProtocolFieldType::GAUGE || $value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        $config = is_array($this->config) ? $this->config : [];
+        if (! isset($config['min'], $config['max'])) {
+            return null;
+        }
+
+        $min = (float) $config['min'];
+        $max = (float) $config['max'];
+        if ($max === $min) {
+            return null;
+        }
+
+        $percent = (((float) $value) - $min) / ($max - $min) * 100;
+
+        return (int) round(max(0, min(100, $percent)));
+    }
+
+    /**
      * Évalue la réponse fournie et renvoie l'alerte déclenchée, ou null.
      *
      * @param  mixed  $value  valeur saisie (nombre, 'ok'|'nok', bool…)
@@ -61,7 +87,16 @@ class ServiceProtocolField extends Model
             if ($value === null || $value === '' || ! is_numeric($value)) {
                 return null;
             }
-            $v = (float) $value;
+            // Pour une jauge, l'alerte peut porter sur la valeur brute ou sur le %.
+            if ($this->type === ProtocolFieldType::GAUGE && ($alert['basis'] ?? 'value') === 'percent') {
+                $percent = $this->percentFor($value);
+                if ($percent === null) {
+                    return null;
+                }
+                $v = (float) $percent;
+            } else {
+                $v = (float) $value;
+            }
             $t = (float) ($alert['threshold'] ?? 0);
             $triggered = match ($operator) {
                 'lt' => $v < $t,

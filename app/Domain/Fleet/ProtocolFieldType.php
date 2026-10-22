@@ -7,6 +7,7 @@ namespace App\Domain\Fleet;
  */
 enum ProtocolFieldType: string
 {
+    case SECTION = 'section';   // titre de section (pas de saisie, regroupe les champs suivants)
     case TEXT = 'text';         // saisie libre
     case NUMBER = 'number';     // valeur chiffrée
     case GAUGE = 'gauge';       // jauge (curseur min/max, ex. niveau O2, carburant)
@@ -17,6 +18,7 @@ enum ProtocolFieldType: string
     public function label(): string
     {
         return match ($this) {
+            self::SECTION => 'Titre de section',
             self::TEXT => 'Texte libre',
             self::NUMBER => 'Valeur chiffrée',
             self::GAUGE => 'Jauge',
@@ -32,13 +34,20 @@ enum ProtocolFieldType: string
         return $this === self::NUMBER || $this === self::GAUGE;
     }
 
-    /** @return list<array{value:string,label:string,numeric:bool}> */
+    /** Le champ attend une réponse de l'agent (une section n'est qu'un titre). */
+    public function isInput(): bool
+    {
+        return $this !== self::SECTION;
+    }
+
+    /** @return list<array{value:string,label:string,numeric:bool,input:bool}> */
     public static function options(): array
     {
         return array_map(fn (self $t) => [
             'value' => $t->value,
             'label' => $t->label(),
             'numeric' => $t->isNumeric(),
+            'input' => $t->isInput(),
         ], self::cases());
     }
 }

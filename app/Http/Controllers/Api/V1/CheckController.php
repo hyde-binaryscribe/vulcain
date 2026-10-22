@@ -105,6 +105,7 @@ class CheckController extends Controller
                 'label' => (string) $r['label'],
                 'type' => $r['type'] ?? null,
                 'value' => ($r['type'] ?? null) === 'photo' ? null : ($r['value'] ?? null),
+                'percent' => $r['percent'] ?? null,
                 'alert' => isset($r['alert']['severity']) ? [
                     'severity' => (string) $r['alert']['severity'],
                     'message' => (string) ($r['alert']['message'] ?? ''),

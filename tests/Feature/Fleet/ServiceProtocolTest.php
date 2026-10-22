@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Fleet;
 
+use App\Domain\Fleet\ProtocolPhase;
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
 use App\Models\Event;
@@ -9,6 +10,7 @@ use App\Models\Organisation;
 use App\Models\ServiceProtocol;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleModel;
 use App\Models\VehicleSession;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -105,6 +107,112 @@ class ServiceProtocolTest extends TestCase
             // La réponse est bien stockée sur la session.
             $session = VehicleSession::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
             $this->assertNotNull($session->open_responses);
+        });
+    }
+
+    public function test_resolution_follows_vehicle_model_type_default_cascade(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $this->tenant()->runFor($org, function () use ($org) {
+            $model = VehicleModel::create(['name' => 'Master L2H2', 'is_active' => true]);
+            $vehicle = Vehicle::factory()->create([
+                'organisation_id' => $org->id, 'type' => 'VSL', 'vehicle_model_id' => $model->id,
+            ]);
+
+            $make = function (array $scope, string $label) {
+                $p = ServiceProtocol::create($scope + ['phase' => 'ouverture', 'is_active' => true]);
+                $p->fields()->create(['label' => $label, 'type' => 'tristate', 'config' => [], 'alert' => ['enabled' => false], 'display_order' => 0]);
+
+                return $p;
+            };
+
+            // Défaut uniquement.
+            $make(['vehicle_type' => null, 'vehicle_model_id' => null, 'vehicle_id' => null], 'DEFAUT');
+            $this->assertSame('DEFAUT', ServiceProtocol::resolveFor($vehicle, ProtocolPhase::OUVERTURE)->fields->first()->label);
+
+            // Le type l'emporte sur le défaut.
+            $make(['vehicle_type' => 'VSL', 'vehicle_model_id' => null, 'vehicle_id' => null], 'TYPE');
+            $this->assertSame('TYPE', ServiceProtocol::resolveFor($vehicle, ProtocolPhase::OUVERTURE)->fields->first()->label);
+
+            // Le modèle l'emporte sur le type.
+            $make(['vehicle_type' => null, 'vehicle_model_id' => $model->id, 'vehicle_id' => null], 'MODELE');
+            $this->assertSame('MODELE', ServiceProtocol::resolveFor($vehicle, ProtocolPhase::OUVERTURE)->fields->first()->label);
+
+            // Le véhicule précis l'emporte sur tout.
+            $make(['vehicle_type' => null, 'vehicle_model_id' => null, 'vehicle_id' => $vehicle->id], 'VEHICULE');
+            $this->assertSame('VEHICULE', ServiceProtocol::resolveFor($vehicle, ProtocolPhase::OUVERTURE)->fields->first()->label);
+        });
+    }
+
+    public function test_opening_stores_gauge_percent_uppercases_text_and_skips_section(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            $protocol = ServiceProtocol::create(['vehicle_type' => null, 'phase' => 'ouverture', 'is_active' => true]);
+            $protocol->fields()->create(['label' => 'Oxygène', 'type' => 'section', 'config' => [], 'alert' => ['enabled' => false], 'display_order' => 0]);
+            $protocol->fields()->create(['label' => 'Niveau O₂', 'type' => 'gauge', 'config' => ['min' => 0, 'max' => 200, 'unit' => 'bar'], 'alert' => ['enabled' => false], 'display_order' => 1]);
+            $protocol->fields()->create(['label' => 'N° série', 'type' => 'text', 'config' => ['uppercase' => true], 'alert' => ['enabled' => false], 'display_order' => 2]);
+
+            return [$agent, $vehicle];
+        });
+
+        $fields = $this->tenant()->runFor($org, fn () => ServiceProtocol::query()->where('phase', 'ouverture')->with('fields')->firstOrFail()->fields);
+        $gauge = $fields->firstWhere('label', 'Niveau O₂');
+        $serial = $fields->firstWhere('label', 'N° série');
+
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'responses' => [(string) $gauge->id => 150, (string) $serial->id => 'ab12cd'],
+        ])->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}");
+
+        $this->tenant()->runFor($org, function () use ($vehicle) {
+            $session = VehicleSession::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+            $responses = collect($session->open_responses);
+
+            // La section n'apparaît pas dans les réponses.
+            $this->assertNull($responses->firstWhere('type', 'section'));
+
+            // La jauge stocke le pourcentage (150 sur 0–200 = 75 %).
+            $gaugeRow = $responses->firstWhere('label', 'Niveau O₂');
+            $this->assertSame(150, $gaugeRow['value']);
+            $this->assertSame(75, $gaugeRow['percent']);
+
+            // Le numéro de série est stocké en majuscules.
+            $serialRow = $responses->firstWhere('label', 'N° série');
+            $this->assertSame('AB12CD', $serialRow['value']);
+        });
+    }
+
+    public function test_gauge_alert_can_trigger_on_percentage(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle, $gaugeId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+
+            $protocol = ServiceProtocol::create(['vehicle_type' => null, 'phase' => 'ouverture', 'is_active' => true]);
+            $gauge = $protocol->fields()->create([
+                'label' => 'Niveau O₂', 'type' => 'gauge', 'config' => ['min' => 0, 'max' => 200, 'unit' => 'bar'],
+                'alert' => ['enabled' => true, 'operator' => 'lt', 'threshold' => 25, 'basis' => 'percent', 'severity' => 'warning', 'message' => 'O₂ sous 25 %'],
+                'display_order' => 0,
+            ]);
+
+            return [$agent, $vehicle, $gauge->id];
+        });
+
+        // 40 sur 0–200 = 20 % < 25 % → alerte déclenchée.
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'responses' => [(string) $gaugeId => 40],
+        ])->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}");
+
+        $this->tenant()->runFor($org, function () use ($vehicle) {
+            $this->assertDatabaseHas('events', ['type' => 'anomalie', 'vehicle_id' => $vehicle->id]);
         });
     }
 }

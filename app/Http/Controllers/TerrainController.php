@@ -825,7 +825,7 @@ class TerrainController extends Controller
      */
     private function protocolFields(Vehicle $vehicle, ProtocolPhase $phase): array
     {
-        $protocol = ServiceProtocol::resolve($vehicle->type, $phase);
+        $protocol = ServiceProtocol::resolveFor($vehicle, $phase);
 
         if ($protocol !== null) {
             return $protocol->fields->map(fn (ServiceProtocolField $f) => [
@@ -857,13 +857,23 @@ class TerrainController extends Controller
     private function processResponses(Request $request, Vehicle $vehicle, ProtocolPhase $phase): array
     {
         $inputs = (array) $request->input('responses', []);
-        $protocol = ServiceProtocol::resolve($vehicle->type, $phase);
+        $protocol = ServiceProtocol::resolveFor($vehicle, $phase);
         $rows = [];
 
         if ($protocol !== null) {
             foreach ($protocol->fields as $f) {
+                // Un titre de section ne porte pas de réponse.
+                if (! $f->type->isInput()) {
+                    continue;
+                }
+
                 $key = (string) $f->id;
                 $value = $inputs[$key] ?? null;
+
+                // Majuscules imposées sur les champs texte configurés ainsi.
+                if ($f->type === ProtocolFieldType::TEXT && ! empty($f->config['uppercase']) && is_string($value)) {
+                    $value = mb_strtoupper($value);
+                }
 
                 $photoPath = null;
                 if ($f->type === ProtocolFieldType::PHOTO && $request->hasFile("photos.$key")) {
@@ -875,6 +885,7 @@ class TerrainController extends Controller
                     'label' => $f->label,
                     'type' => $f->type->value,
                     'value' => $f->type === ProtocolFieldType::PHOTO ? null : $value,
+                    'percent' => $f->type === ProtocolFieldType::GAUGE ? $f->percentFor($value) : null,
                     'photo_path' => $photoPath,
                     'alert' => $alert,
                 ];

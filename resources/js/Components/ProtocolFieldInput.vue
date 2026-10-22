@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Icon from '@/Components/Icon.vue';
 
 const props = defineProps({
@@ -17,10 +17,39 @@ function onFile(e) {
 }
 
 const cfg = props.field.config || {};
+
+// Texte : majuscules imposées si configuré.
+function onText(e) {
+    const raw = e.target.value;
+    set(cfg.uppercase ? raw.toUpperCase() : raw);
+}
+
+// Jauge : pourcentage d'après min/max, et couleur associée.
+const percent = computed(() => {
+    const v = props.modelValue;
+    if (v === null || v === '' || isNaN(v)) return null;
+    const min = Number(cfg.min ?? 0);
+    const max = Number(cfg.max ?? 100);
+    if (max === min) return null;
+    return Math.round(Math.max(0, Math.min(100, ((Number(v) - min) / (max - min)) * 100)));
+});
+const percentColor = computed(() => {
+    const p = percent.value;
+    if (p === null) return '#9ca3af';
+    if (p < 25) return '#d03b3b';
+    if (p < 50) return '#e08a2b';
+    return '#15a34a';
+});
 </script>
 
 <template>
-    <div>
+    <!-- Titre de section : simple intertitre, pas de saisie -->
+    <div v-if="field.type === 'section'" class="flex items-center gap-2 border-t border-gray-100 pt-3 first:border-0 first:pt-0">
+        <span class="text-xs font-bold uppercase tracking-wide text-[var(--brand,#C6362B)]">{{ field.label }}</span>
+        <span class="h-px flex-1 bg-gray-100"></span>
+    </div>
+
+    <div v-else>
         <label class="flex items-center justify-between text-sm font-medium text-gray-800">
             <span>{{ field.label }}<span v-if="field.required" class="text-red-500"> *</span></span>
         </label>
@@ -37,11 +66,17 @@ const cfg = props.field.config || {};
             Conforme
         </label>
 
-        <!-- Jauge -->
+        <!-- Jauge (valeur + pourcentage + barre) -->
         <div v-else-if="field.type === 'gauge'" class="mt-1.5">
             <div class="flex items-center gap-3">
                 <input type="range" :min="cfg.min ?? 0" :max="cfg.max ?? 100" :step="cfg.step ?? 1" :value="modelValue ?? cfg.min ?? 0" class="h-2 flex-1 accent-[var(--brand,#C6362B)]" @input="set(Number($event.target.value))" />
                 <span class="w-16 text-right text-sm font-semibold text-gray-900">{{ modelValue ?? cfg.min ?? 0 }}<span v-if="cfg.unit" class="ml-0.5 text-xs text-gray-400">{{ cfg.unit }}</span></span>
+            </div>
+            <div class="mt-2 flex items-center gap-2">
+                <div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                    <div class="h-full rounded-full transition-all" :style="{ width: (percent ?? 0) + '%', background: percentColor }"></div>
+                </div>
+                <span class="w-10 text-right text-xs font-bold" :style="{ color: percentColor }">{{ percent ?? '—' }}%</span>
             </div>
         </div>
 
@@ -62,8 +97,8 @@ const cfg = props.field.config || {};
             </label>
         </div>
 
-        <!-- Texte libre -->
-        <textarea v-else-if="field.type === 'text' && cfg.multiline" rows="2" :value="modelValue ?? ''" class="mt-1.5 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" @input="set($event.target.value)"></textarea>
-        <input v-else type="text" :value="modelValue ?? ''" class="mt-1.5 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" @input="set($event.target.value)" />
+        <!-- Texte libre (majuscules imposées si configuré) -->
+        <textarea v-else-if="field.type === 'text' && cfg.multiline" rows="2" :value="modelValue ?? ''" :class="['mt-1.5 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white', cfg.uppercase ? 'uppercase' : '']" @input="onText"></textarea>
+        <input v-else type="text" :value="modelValue ?? ''" :class="['mt-1.5 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white', cfg.uppercase ? 'uppercase' : '']" @input="onText" />
     </div>
 </template>

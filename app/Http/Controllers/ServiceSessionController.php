@@ -64,10 +64,14 @@ class ServiceSessionController extends Controller
 
         return collect($raw)->map(function ($r) {
             $value = $r['value'] ?? null;
+            $percent = $r['percent'] ?? null;
             $display = match (true) {
                 ($r['type'] ?? null) === 'tristate' => $value === 'ok' ? 'OK' : ($value === 'nok' ? 'NOK' : '—'),
                 ($r['type'] ?? null) === 'checkbox' => $value ? 'Oui' : 'Non',
                 ($r['type'] ?? null) === 'photo' => null,
+                ($r['type'] ?? null) === 'gauge' => ($value === null || $value === '')
+                    ? '—'
+                    : ((string) $value.($percent !== null ? " ({$percent} %)" : '')),
                 default => ($value === null || $value === '') ? '—' : (string) $value,
             };
 
