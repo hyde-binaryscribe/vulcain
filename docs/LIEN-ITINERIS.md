@@ -24,6 +24,9 @@ Authentification : `Authorization: Bearer vk_…`. Jeton inconnu, révoqué ou o
 |---|---|
 | `GET /api/v1/vehicles` | `{ data: Vehicle[] }`, véhicules actifs de l'organisation du jeton |
 | `GET /api/v1/vehicles/{uuid}` | `{ data: Vehicle }`, y compris un véhicule supprimé (`deleted: true`) ; 404 sinon |
+| `GET /api/v1/vehicles/checks` | `{ data: Checks[] }`, vérifications de tout le parc en une requête |
+
+`Checks` : `uuid` ; `service` (dernière prise de service : `open`, `opened_at`, `opened_by`, `partner`, `closed_at`, `closed_by`, `checks` et `end_checks` = contrôles `{ label, type, value, alert: { severity, message } | null }`, jamais de photo) ; `disinfection` (`state` none / ok / soon / overdue / never, `label`, `due_at`, `last` = dernière opération par nature avec `label`, `performed_at`, `by`, `protocol`) ; `anomalies` ouvertes (`title`, `priority`, `status`, `created_at`).
 
 `Vehicle` : `uuid`, `version`, `name`, `callsign`, `type`, `registration`, `vin`, `model`, `site`, `commissioned_at`, `mileage`, `mileage_at`, `mileage_source` (`prise_de_service`, `fin_de_service`, `plein`, `entretien`, `fiche`), `telematics_imei`, `status`, `deleted`, `updated_at`.
 
