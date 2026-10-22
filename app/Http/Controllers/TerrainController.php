@@ -882,10 +882,14 @@ class TerrainController extends Controller
 
                 $alert = $f->evaluateAlert($value);
                 $rows[] = [
+                    'field_id' => $f->id,
                     'label' => $f->label,
                     'type' => $f->type->value,
                     'value' => $f->type === ProtocolFieldType::PHOTO ? null : $value,
                     'percent' => $f->type === ProtocolFieldType::GAUGE ? $f->percentFor($value) : null,
+                    // Unité et partage avec Itineris (niveau d'oxygène), relus par l'API v1.
+                    'unit' => is_array($f->config) ? ($f->config['unit'] ?? null) : null,
+                    'share' => is_array($f->config) ? ($f->config['share'] ?? null) : null,
                     'photo_path' => $photoPath,
                     'alert' => $alert,
                 ];

@@ -189,6 +189,10 @@ class ServiceProtocolController extends Controller
                 if ($unit !== '') {
                     $config['unit'] = mb_substr($unit, 0, 16);
                 }
+                // Valeur transmise à Itineris (lien Itineris) : niveau d'oxygène.
+                if (($rawConfig['share'] ?? null) === 'o2') {
+                    $config['share'] = 'o2';
+                }
             } elseif ($typeEnum === ProtocolFieldType::TEXT) {
                 $config['multiline'] = ! empty($rawConfig['multiline']);
                 $config['uppercase'] = ! empty($rawConfig['uppercase']);

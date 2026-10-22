@@ -8,6 +8,7 @@ use App\Domain\Fleet\VehicleDisinfection;
 use App\Http\Controllers\Controller;
 use App\Models\DisinfectionRecord;
 use App\Models\Event;
+use App\Models\ServiceProtocolField;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
 use Illuminate\Http\JsonResponse;
@@ -19,8 +20,17 @@ use Illuminate\Http\JsonResponse;
  */
 class CheckController extends Controller
 {
+    /** Champs de protocole de l'organisation, par id et par libellé (contrôles saisis avant l'enregistrement de l'id). */
+    private array $fieldsById = [];
+
+    private array $fieldsByLabel = [];
+
     public function index(): JsonResponse
     {
+        $fields = ServiceProtocolField::query()->get(['id', 'label', 'type', 'config']);
+        $this->fieldsById = $fields->keyBy('id')->all();
+        $this->fieldsByLabel = $fields->keyBy(fn ($f) => mb_strtolower(trim($f->label)))->all();
+
         $vehicles = Vehicle::query()->get(['id', 'uuid']);
         $ids = $vehicles->pluck('id');
 
@@ -52,6 +62,9 @@ class CheckController extends Controller
             $s = $sessions->get($v->id);
             $status = $statuses[$v->id] ?? null;
 
+            $checks = $s ? $this->checks($s->open_responses ?? $s->open_steps ?? []) : [];
+            $endChecks = $s ? $this->checks($s->close_responses ?? []) : [];
+
             return [
                 'uuid' => $v->uuid,
                 'service' => $s ? [
@@ -61,9 +74,11 @@ class CheckController extends Controller
                     'partner' => $s->partner?->name,
                     'closed_at' => $s->closed_at?->toIso8601String(),
                     'closed_by' => $s->closer?->name,
-                    'checks' => $this->checks($s->open_responses ?? $s->open_steps ?? []),
-                    'end_checks' => $this->checks($s->close_responses ?? []),
+                    'checks' => $checks,
+                    'end_checks' => $endChecks,
                 ] : null,
+                // Dernier niveau d'oxygène : fin de service si elle en contient un, sinon prise de service.
+                'o2' => $s ? ($this->o2($endChecks, $s->closed_at) ?? $this->o2($checks, $s->opened_at)) : null,
                 'disinfection' => [
                     'state' => $status?->state,
                     'label' => $status?->label(),
@@ -101,15 +116,56 @@ class CheckController extends Controller
     {
         return collect($rows)
             ->filter(fn ($r) => is_array($r) && isset($r['label']))
-            ->map(fn (array $r) => [
-                'label' => (string) $r['label'],
-                'type' => $r['type'] ?? null,
-                'value' => ($r['type'] ?? null) === 'photo' ? null : ($r['value'] ?? null),
-                'percent' => $r['percent'] ?? null,
-                'alert' => isset($r['alert']['severity']) ? [
-                    'severity' => (string) $r['alert']['severity'],
-                    'message' => (string) ($r['alert']['message'] ?? ''),
-                ] : null,
-            ])->values()->all();
+            ->map(function (array $r) {
+                $field = $this->fieldsById[$r['field_id'] ?? 0] ?? $this->fieldsByLabel[mb_strtolower(trim((string) $r['label']))] ?? null;
+                $config = $field && is_array($field->config) ? $field->config : [];
+                $value = ($r['type'] ?? null) === 'photo' ? null : ($r['value'] ?? null);
+
+                return [
+                    'label' => (string) $r['label'],
+                    'type' => $r['type'] ?? null,
+                    'value' => $value,
+                    'percent' => $r['percent'] ?? $field?->percentFor($value),
+                    'unit' => $r['unit'] ?? $config['unit'] ?? null,
+                    'key' => $this->keyOf($r, $config),
+                    'alert' => isset($r['alert']['severity']) ? [
+                        'severity' => (string) $r['alert']['severity'],
+                        'message' => (string) ($r['alert']['message'] ?? ''),
+                    ] : null,
+                ];
+            })->values()->all();
+    }
+
+    /**
+     * Donnée partagée avec Itineris : celle choisie sur le champ (« Transmis à Itineris »),
+     * sinon reconnue au libellé d'une jauge ou d'un nombre (« oxygène », « O2 »).
+     */
+    private function keyOf(array $row, array $config): ?string
+    {
+        $share = $row['share'] ?? $config['share'] ?? null;
+        if ($share !== null) {
+            return (string) $share;
+        }
+        $numeric = in_array($row['type'] ?? null, ['gauge', 'number'], true);
+
+        return $numeric && preg_match('/oxyg|\bo2\b/iu', (string) $row['label']) ? 'o2' : null;
+    }
+
+    /** Niveau d'oxygène parmi des contrôles, avec l'heure du relevé. */
+    private function o2(array $checks, $at): ?array
+    {
+        $c = collect($checks)->first(fn ($k) => $k['key'] === 'o2' && $k['value'] !== null && $k['value'] !== '');
+        if ($c === null) {
+            return null;
+        }
+
+        return [
+            'label' => $c['label'],
+            'value' => (string) $c['value'],
+            'unit' => $c['unit'],
+            'percent' => $c['percent'],
+            'alert' => $c['alert'],
+            'at' => $at?->toIso8601String(),
+        ];
     }
 }

@@ -75,6 +75,12 @@ class ChecksTest extends TestCase
             ->assertJsonCount(1, 'data.0.anomalies')
             ->assertJsonPath('data.0.anomalies.0.title', 'Bruit train avant');
 
+        // Niveau d'oxygène reconnu au libellé de la jauge (aucun réglage), relevé de la prise de service.
+        $response->assertJsonPath('data.0.service.checks.0.key', 'o2')
+            ->assertJsonPath('data.0.o2.value', '80')
+            ->assertJsonPath('data.0.o2.label', 'Oxygène');
+        $this->assertNotNull($response->json('data.0.o2.at'));
+
         // Jamais de photo ni de chemin de fichier.
         $this->assertStringNotContainsString('protocols/', $response->getContent());
     }
@@ -82,5 +88,28 @@ class ChecksTest extends TestCase
     public function test_checks_require_a_token(): void
     {
         $this->getJson('/api/v1/vehicles/checks')->assertUnauthorized();
+    }
+
+    public function test_o2_marked_on_a_field_wins_and_end_of_service_is_more_recent(): void
+    {
+        $org = Organisation::factory()->slug('ambu')->sector(Sector::AMBULANCE_PRIVEE)->create();
+        $tenant = app(TenantContext::class);
+        $plain = $tenant->runFor($org, function () use ($org) {
+            $user = User::factory()->create(['organisation_id' => $org->id]);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            VehicleSession::create([
+                'vehicle_id' => $vehicle->id, 'user_id' => $user->id, 'opened_at' => now()->subHours(10), 'closed_at' => now(), 'closed_by' => $user->id,
+                'open_responses' => [['label' => 'Bouteille B15', 'type' => 'gauge', 'value' => '180', 'percent' => 90, 'unit' => 'bar', 'share' => 'o2']],
+                'close_responses' => [['label' => 'Bouteille B15', 'type' => 'gauge', 'value' => '60', 'percent' => 30, 'unit' => 'bar', 'share' => 'o2']],
+            ]);
+
+            return ApiToken::issue('Itineris', null)[1];
+        });
+
+        $this->getJson('/api/v1/vehicles/checks', ['Authorization' => "Bearer {$plain}"])
+            ->assertOk()
+            ->assertJsonPath('data.0.o2.value', '60')
+            ->assertJsonPath('data.0.o2.percent', 30)
+            ->assertJsonPath('data.0.o2.unit', 'bar');
     }
 }
