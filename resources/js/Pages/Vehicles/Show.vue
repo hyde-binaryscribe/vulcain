@@ -25,6 +25,7 @@ const props = defineProps({
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
     history: { type: Array, default: () => [] },
     telematics: { type: Object, default: null },
+    oxygen: { type: Array, default: () => [] },
 });
 
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
@@ -41,6 +42,7 @@ const tabs = computed(() => [
     { key: 'disinfection', label: 'Désinfection', dot: props.disinfection.severity === 'critical' },
     { key: 'maintenance', label: 'Entretien', dot: props.maintenance.severity === 'critical' },
     { key: 'materials', label: 'Matériel', badge: materialAlerts.value || null },
+    { key: 'oxygen', label: 'Oxygène' },
     ...(props.telematics ? [{ key: 'telematics', label: 'Télématique', dot: (props.telematics.last?.fault_count || 0) > 0 }] : []),
     { key: 'documents', label: 'Documents' },
     { key: 'history', label: 'Historique' },
@@ -52,6 +54,31 @@ const tab = ref(tabs.value.some((t) => t.key === hashTab) ? hashTab : 'overview'
 watch(tab, (v) => {
     if (typeof window !== 'undefined') history.replaceState(null, '', `#${v}`);
 });
+
+// --- Oxygène (dotation, gestionnaire) ---
+const oxygenRows = ref((props.oxygen ?? []).map((b) => ({ ...b })));
+watch(() => props.oxygen, (v) => { oxygenRows.value = (v ?? []).map((b) => ({ ...b })); });
+const newBottle = useForm({ label: '', serial_number: '', capacity_l: '', pressure_min: 0, pressure_max: 200 });
+const nullIfEmpty = (v) => (v === '' || v == null ? null : v);
+function addBottle() {
+    newBottle.transform((d) => ({ ...d, capacity_l: nullIfEmpty(d.capacity_l), serial_number: d.serial_number || null }))
+        .post(`/vehicles/${props.vehicle.id}/oxygen-bottles`, { preserveScroll: true, onSuccess: () => newBottle.reset() });
+}
+function saveBottle(b) {
+    router.patch(`/vehicles/${props.vehicle.id}/oxygen-bottles/${b.id}`, {
+        label: b.label,
+        serial_number: b.serial_number || null,
+        capacity_l: nullIfEmpty(b.capacity_l),
+        pressure_min: b.pressure_min,
+        pressure_max: b.pressure_max,
+        is_active: b.is_active,
+    }, { preserveScroll: true });
+}
+function removeBottle(b) {
+    if (confirm(`Retirer la bouteille « ${b.label} » de la dotation ?`)) {
+        router.delete(`/vehicles/${props.vehicle.id}/oxygen-bottles/${b.id}`, { preserveScroll: true });
+    }
+}
 
 // --- Documents véhicule ---
 const docCategories = ['Agrément', 'Contrôle technique', 'Carte grise', 'Assurance', 'Autre'];
@@ -815,6 +842,50 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </div>
 
         <!-- Télématique -->
+        <!-- Oxygène : dotation (gestionnaire) -->
+        <section v-show="tab === 'oxygen'" class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 class="flex items-center gap-2 text-base font-semibold text-gray-900">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600"><Icon name="pharmacy" :size="17" /></span>
+                Oxygène — dotation
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">Déclarez les bouteilles embarquées. En service, l'équipage ajuste les niveaux et pointe les changements de bouteille.</p>
+
+            <div v-if="oxygenRows.length" class="mt-4 space-y-3">
+                <div v-for="b in oxygenRows" :key="b.id" class="rounded-xl border border-gray-200 p-3">
+                    <div class="grid gap-2 sm:grid-cols-12">
+                        <div class="sm:col-span-3"><label class="text-xs text-gray-500">Libellé</label><input v-model="b.label" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-3"><label class="text-xs text-gray-500">N° de série</label><input v-model="b.serial_number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Capacité (L)</label><input v-model="b.capacity_l" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Min (bar)</label><input v-model.number="b.pressure_min" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Max (bar)</label><input v-model.number="b.pressure_max" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-xs text-gray-400">Niveau : {{ b.pressure != null ? b.pressure + ' bar' : '—' }}<template v-if="b.percent != null"> ({{ b.percent }} %)</template> · {{ b.status_label }}<template v-if="b.last_checked_at"> · relevé {{ b.last_checked_at }}</template></span>
+                        <div class="flex items-center gap-2">
+                            <label class="flex items-center gap-1.5 text-xs text-gray-600"><input v-model="b.is_active" type="checkbox" class="rounded border-gray-300" /> Active</label>
+                            <button type="button" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50" @click="saveBottle(b)">Enregistrer</button>
+                            <button type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Retirer" @click="removeBottle(b)"><Icon name="x" :size="15" /></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p v-else class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">Aucune bouteille déclarée pour ce véhicule.</p>
+
+            <!-- Ajouter une bouteille -->
+            <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <p class="text-xs font-semibold text-gray-600">Ajouter une bouteille</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-12">
+                    <input v-model="newBottle.label" placeholder="Libellé (ex. Principale)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" />
+                    <input v-model="newBottle.serial_number" placeholder="N° de série" class="rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase sm:col-span-3" />
+                    <input v-model="newBottle.capacity_l" type="number" placeholder="Capacité L" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
+                    <input v-model.number="newBottle.pressure_min" type="number" placeholder="Min" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
+                    <input v-model.number="newBottle.pressure_max" type="number" placeholder="Max" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
+                </div>
+                <p v-if="newBottle.errors.label || newBottle.errors.pressure_max" class="mt-1 text-xs text-red-600">{{ newBottle.errors.label || newBottle.errors.pressure_max }}</p>
+                <button type="button" :disabled="newBottle.processing || !newBottle.label" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="addBottle"><Icon name="plus" :size="15" /> Ajouter</button>
+            </div>
+        </section>
+
         <section v-if="telematics" v-show="tab === 'telematics'" class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-6 py-4">
                 <h3 class="text-base font-semibold text-gray-900">Télématique</h3>

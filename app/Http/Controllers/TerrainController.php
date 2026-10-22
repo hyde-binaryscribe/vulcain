@@ -20,6 +20,8 @@ use App\Models\Event;
 use App\Models\KanbanBoard;
 use App\Models\Location;
 use App\Models\Material;
+use App\Models\OxygenBottle;
+use App\Models\OxygenBottleLog;
 use App\Models\ServiceProtocol;
 use App\Models\ServiceProtocolField;
 use App\Models\User;
@@ -169,7 +171,7 @@ class TerrainController extends Controller
     public function vehicle(Request $request, Vehicle $vehicle, ?string $section = null): Response|RedirectResponse
     {
         $user = $request->user();
-        $allowedSections = ['material', 'body', 'disinfection', 'fuel', 'maintenance', 'docs', 'mydocs', 'anomalies'];
+        $allowedSections = ['material', 'body', 'disinfection', 'fuel', 'oxygen', 'maintenance', 'docs', 'mydocs', 'anomalies'];
         $section = in_array($section, $allowedSections, true) ? $section : null;
         $openSession = VehicleSession::query()->open()->with(['user:id,name', 'partner:id,name'])->where('vehicle_id', $vehicle->id)->first();
         $mine = $openSession !== null && $openSession->involves($user->id);
@@ -270,6 +272,37 @@ class TerrainController extends Controller
         $fuelEnabled = $this->tenant->organisation()->fuelTrackingEnabled();
         $fuel = $fuelEnabled ? FuelConsumption::summary($vehicle->fuelRecords()->with('user:id,name')->limit(30)->get()) : null;
 
+        // Oxygène embarqué : dotation du véhicule + historique récent par bouteille.
+        $oxygenBottles = $vehicle->oxygenBottles()->with(['logs' => fn ($q) => $q->with('user:id,name')->limit(8)])->get();
+        $oxygen = $oxygenBottles->isEmpty() ? null : [
+            'can_edit' => $mine || $user->can('vehicles.manage'),
+            'can_manage' => $user->can('vehicles.manage'),
+            'bottles' => $oxygenBottles->map(fn (OxygenBottle $b) => [
+                'id' => $b->id,
+                'label' => $b->label,
+                'serial_number' => $b->serial_number,
+                'capacity_l' => $b->capacity_l !== null ? (float) $b->capacity_l : null,
+                'pressure' => $b->current_pressure,
+                'pressure_min' => $b->pressure_min,
+                'pressure_max' => $b->pressure_max,
+                'percent' => $b->percent(),
+                'status' => $b->status,
+                'status_label' => $b->statusLabel(),
+                'last_checked_at' => $b->last_checked_at?->fr('d/m/Y H:i'),
+                'logs' => $b->logs->map(fn (OxygenBottleLog $l) => [
+                    'action' => $l->action,
+                    'action_label' => $l->actionLabel(),
+                    'pressure' => $l->pressure,
+                    'percent' => $l->percent,
+                    'serial_number' => $l->serial_number,
+                    'previous_serial' => $l->previous_serial,
+                    'note' => $l->note,
+                    'by' => $l->user?->name,
+                    'at' => $l->recorded_at?->fr('d/m/Y H:i'),
+                ])->values(),
+            ])->values(),
+        ];
+
         $tasks = $vehicle->tasks()->open()->with('creator:id,name')->get()
             ->map(fn ($t) => ['id' => $t->id, 'title' => $t->title, 'notes' => $t->notes, 'by' => $t->creator?->name]);
 
@@ -290,6 +323,7 @@ class TerrainController extends Controller
                 'records' => array_slice($fuel['records'], 0, 5),
                 'can_delete' => $request->user()->can('vehicles.manage'),
             ],
+            'oxygen' => $oxygen,
             'session' => $openSession === null ? null : [
                 'holder' => $openSession->user?->name,
                 'is_mine' => $mine,

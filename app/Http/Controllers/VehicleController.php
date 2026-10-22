@@ -17,6 +17,7 @@ use App\Models\DisinfectionRecord;
 use App\Models\Location;
 use App\Models\MaintenanceRecord;
 use App\Models\Material;
+use App\Models\OxygenBottle;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -236,6 +237,20 @@ class VehicleController extends Controller
                 ->get()
                 ->map(fn (ActivityLog $l) => ActivityController::format($l)),
             'telematics' => $this->telematics($vehicle),
+            'oxygen' => $vehicle->oxygenBottles()->get()->map(fn (OxygenBottle $b) => [
+                'id' => $b->id,
+                'label' => $b->label,
+                'serial_number' => $b->serial_number,
+                'capacity_l' => $b->capacity_l !== null ? (float) $b->capacity_l : null,
+                'pressure_min' => $b->pressure_min,
+                'pressure_max' => $b->pressure_max,
+                'pressure' => $b->current_pressure,
+                'percent' => $b->percent(),
+                'status' => $b->status,
+                'status_label' => $b->statusLabel(),
+                'is_active' => $b->is_active,
+                'last_checked_at' => $b->last_checked_at?->fr('d/m/Y H:i'),
+            ])->values(),
             'status' => session('status'),
         ]);
     }

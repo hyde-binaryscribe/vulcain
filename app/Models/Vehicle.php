@@ -228,6 +228,12 @@ class Vehicle extends Model
         return $this->hasMany(FuelRecord::class)->latest('mileage');
     }
 
+    /** Dotation d'oxygène : bouteilles embarquées, dans l'ordre d'affichage. */
+    public function oxygenBottles(): HasMany
+    {
+        return $this->hasMany(OxygenBottle::class)->orderBy('display_order')->orderBy('id');
+    }
+
     /** Tâches persistantes du véhicule (à faire d'abord, puis les plus récentes). */
     public function tasks(): HasMany
     {

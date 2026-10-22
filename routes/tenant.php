@@ -29,6 +29,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\BodyDamageController;
 use App\Http\Controllers\FuelController;
+use App\Http\Controllers\OxygenBottleController;
 use App\Http\Controllers\MaterialConsumptionController;
 use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\ServiceSessionController;
@@ -58,6 +59,13 @@ Route::middleware(['auth', 'tenant'])->group(function () {
     // Enregistrement d'un plein de carburant : accessible à tout agent connecté
     // (le personnel de terrain fait le plein). Suppression réservée (voir ci-dessus).
     Route::post('vehicles/{vehicle}/fuel', [FuelController::class, 'store'])->name('vehicles.fuel.store');
+
+    // Oxygène — actions en service (équipage de la session ouverte ou gestionnaire,
+    // contrôle fait dans le contrôleur) : relevé de niveau, changement de bouteille,
+    // changement de statut. La déclaration des bouteilles est réservée (voir plus bas).
+    Route::post('vehicles/{vehicle}/oxygen-bottles/{bottle}/releve', [OxygenBottleController::class, 'reading'])->name('vehicles.oxygen.reading');
+    Route::post('vehicles/{vehicle}/oxygen-bottles/{bottle}/remplacer', [OxygenBottleController::class, 'replace'])->name('vehicles.oxygen.replace');
+    Route::post('vehicles/{vehicle}/oxygen-bottles/{bottle}/statut', [OxygenBottleController::class, 'status'])->name('vehicles.oxygen.status');
 
     // Réalisation d'une tâche véhicule : accessible à tout agent connecté (terrain).
     Route::post('vehicles/{vehicle}/tasks/{task}/complete', [VehicleTaskController::class, 'complete'])->name('vehicles.tasks.complete');
@@ -159,6 +167,11 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::delete('vehicles/{vehicle}/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('vehicles.maintenances.destroy');
         // Suppression d'un plein (correction) : réservée aux gestionnaires.
         Route::delete('vehicles/{vehicle}/fuel/{fuel}', [FuelController::class, 'destroy'])->name('vehicles.fuel.destroy');
+
+        // Dotation d'oxygène : déclaration/édition/retrait des emplacements de bouteille.
+        Route::post('vehicles/{vehicle}/oxygen-bottles', [OxygenBottleController::class, 'store'])->name('vehicles.oxygen.store');
+        Route::patch('vehicles/{vehicle}/oxygen-bottles/{bottle}', [OxygenBottleController::class, 'update'])->name('vehicles.oxygen.update');
+        Route::delete('vehicles/{vehicle}/oxygen-bottles/{bottle}', [OxygenBottleController::class, 'destroy'])->name('vehicles.oxygen.destroy');
         // Suppression d'une anomalie carrosserie (correction) : réservée aux gestionnaires.
         Route::delete('vehicles/{vehicle}/body-damages/{bodyDamage}', [BodyDamageController::class, 'destroy'])->name('vehicles.body-damages.destroy');
 

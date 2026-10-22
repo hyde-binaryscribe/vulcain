@@ -14,6 +14,7 @@ const props = defineProps({
     tasks: { type: Array, default: () => [] },
     documents: { type: Object, default: () => ({ vehicle: [], mine: [], consent: false }) },
     fuel: { type: Object, default: null },
+    oxygen: { type: Object, default: null },
     anomalies: { type: Array, default: () => [] },
     can_report_anomaly: { type: Boolean, default: false },
     body: { type: Object, default: () => ({ enabled: false, damages: [], schematics: {}, can_delete: false }) },
@@ -65,7 +66,7 @@ const secUrl = (key) => `/t/vehicules/${props.vehicle.id}/s/${key}`;
 const vehicleUrl = computed(() => `/t/vehicules/${props.vehicle.id}`);
 const sectionLabels = {
     material: 'Matériel', body: 'Carrosserie', disinfection: 'Désinfection',
-    fuel: 'Carburant', maintenance: 'Entretien', docs: 'Documents',
+    fuel: 'Carburant', oxygen: 'Oxygène', maintenance: 'Entretien', docs: 'Documents',
     mydocs: 'Mes documents', anomalies: 'Anomalies',
 };
 const sectionTitle = computed(() => sectionLabels[props.section] ?? '');
@@ -190,6 +191,68 @@ function deleteFuel(id) {
     if (confirm('Supprimer ce plein ?')) {
         router.delete(`/vehicles/${props.vehicle.id}/fuel/${id}`, { preserveScroll: true });
     }
+}
+
+// --- Oxygène ---
+// Couleur d'une jauge de bouteille selon le pourcentage (bas = rouge).
+function oxyBar(p) {
+    if (p == null) return '#9ca3af';
+    if (p < 25) return '#d03b3b';
+    if (p < 50) return '#e08a2b';
+    return '#15a34a';
+}
+function oxyClasses(p) {
+    if (p == null) return neutralClasses;
+    if (p < 25) return { dot: 'bg-red-500', text: 'text-red-700' };
+    if (p < 50) return { dot: 'bg-orange-500', text: 'text-orange-700' };
+    return okClasses;
+}
+const oxyStatusPill = {
+    en_service: 'bg-green-100 text-green-700',
+    a_remplacer: 'bg-red-100 text-red-700',
+    hors_service: 'bg-gray-200 text-gray-600',
+};
+// Résumé pour la tuile : plus basse bouteille + alerte si une est à remplacer.
+const oxygenTile = computed(() => {
+    const bottles = props.oxygen?.bottles ?? [];
+    if (!bottles.length) return null;
+    const needs = bottles.some((b) => b.status === 'a_remplacer' || b.status === 'hors_service');
+    const percents = bottles.map((b) => b.percent).filter((p) => p != null);
+    const lowest = percents.length ? Math.min(...percents) : null;
+    if (needs) return { dot: 'bg-red-500', text: 'text-red-700', label: 'À remplacer' };
+    const c = oxyClasses(lowest);
+    return { dot: c.dot, text: c.text, label: lowest != null ? `${lowest} %` : `${bottles.length} bouteille(s)` };
+});
+// Pourcentage en direct dans une modale (valeur ↔ plage min/max).
+function livePercent(bottle, pressure) {
+    if (!bottle || pressure === '' || pressure == null || isNaN(pressure)) return null;
+    if (bottle.pressure_max === bottle.pressure_min) return null;
+    return Math.round(Math.max(0, Math.min(100, (Number(pressure) - bottle.pressure_min) / (bottle.pressure_max - bottle.pressure_min) * 100)));
+}
+
+const adjusting = ref(null); // bouteille en cours d'ajustement
+const readingForm = useForm({ pressure: null, note: '' });
+function openReading(b) { adjusting.value = b; readingForm.clearErrors(); readingForm.pressure = b.pressure ?? b.pressure_max; readingForm.note = ''; }
+const readingPercent = computed(() => livePercent(adjusting.value, readingForm.pressure));
+function submitReading() {
+    readingForm.post(`/vehicles/${props.vehicle.id}/oxygen-bottles/${adjusting.value.id}/releve`, {
+        preserveScroll: true,
+        onSuccess: () => { adjusting.value = null; },
+    });
+}
+
+const replacing = ref(null); // bouteille en cours de changement
+const replaceForm = useForm({ serial_number: '', pressure: null, note: '' });
+function openReplace(b) { replacing.value = b; replaceForm.clearErrors(); replaceForm.serial_number = ''; replaceForm.pressure = b.pressure_max; replaceForm.note = ''; }
+const replacePercent = computed(() => livePercent(replacing.value, replaceForm.pressure));
+function submitReplace() {
+    replaceForm.post(`/vehicles/${props.vehicle.id}/oxygen-bottles/${replacing.value.id}/remplacer`, {
+        preserveScroll: true,
+        onSuccess: () => { replacing.value = null; },
+    });
+}
+function setOxygenStatus(b, status) {
+    router.post(`/vehicles/${props.vehicle.id}/oxygen-bottles/${b.id}/statut`, { status }, { preserveScroll: true });
 }
 
 // --- Carrosserie ---
@@ -406,6 +469,13 @@ function setConsent(v) {
                 <span class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="fuel.average ? neutralClasses.text : okClasses.text"><span class="h-2 w-2 rounded-full" :class="fuel.average ? neutralClasses.dot : okClasses.dot"></span>{{ fuel.average ? fuel.average + ' L/100' : 'Plein' }}</span>
             </button>
 
+            <!-- Oxygène -->
+            <button v-if="oxygen" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'oxygen' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('oxygen'))">
+                <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600"><Icon name="pharmacy" :size="24" /></span>
+                <span class="text-base font-bold leading-tight text-gray-900">Oxygène</span>
+                <span v-if="oxygenTile" class="mt-1.5 flex items-center gap-1.5 text-sm font-semibold" :class="oxygenTile.text"><span class="h-2 w-2 rounded-full" :class="oxygenTile.dot"></span>{{ oxygenTile.label }}</span>
+            </button>
+
             <!-- Documents -->
             <button v-if="documents.vehicle.length" type="button" class="relative flex flex-col rounded-2xl border p-4 text-left shadow-sm" :class="section === 'docs' ? 'border-[var(--brand,#C6362B)] ring-1 ring-[var(--brand,#C6362B)] bg-white' : 'border-gray-200 bg-white'" @click="router.visit(secUrl('docs'))">
                 <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><Icon name="template" :size="24" /></span>
@@ -578,6 +648,55 @@ function setConsent(v) {
             <button type="button" class="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" @click="showFuel = true">
                 Enregistrer un plein
             </button>
+        </section>
+
+        <!-- Oxygène -->
+        <section v-if="section === 'oxygen' && oxygen" class="mt-3 space-y-3">
+            <div v-for="b in oxygen.bottles" :key="b.id" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-gray-900">{{ b.label }}</p>
+                        <p class="text-xs text-gray-500">
+                            <template v-if="b.serial_number">N° {{ b.serial_number }}</template>
+                            <template v-else>Aucun n° de série</template>
+                            <template v-if="b.capacity_l"> · {{ b.capacity_l }} L</template>
+                        </p>
+                    </div>
+                    <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold" :class="oxyStatusPill[b.status] || oxyStatusPill.en_service">{{ b.status_label }}</span>
+                </div>
+
+                <!-- Jauge -->
+                <div class="mt-3 flex items-center gap-2">
+                    <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full transition-all" :style="{ width: (b.percent ?? 0) + '%', background: oxyBar(b.percent) }"></div>
+                    </div>
+                    <span class="w-16 text-right text-sm font-semibold text-gray-700">{{ b.pressure != null ? b.pressure + ' bar' : '—' }}</span>
+                    <span class="w-10 text-right text-sm font-bold" :style="{ color: oxyBar(b.percent) }">{{ b.percent ?? '—' }}%</span>
+                </div>
+                <p v-if="b.last_checked_at" class="mt-1 text-right text-xs text-gray-400">Relevé {{ b.last_checked_at }}</p>
+
+                <!-- Actions en service -->
+                <div v-if="oxygen.can_edit" class="mt-3 flex flex-wrap gap-2">
+                    <button type="button" class="rounded-lg border border-[var(--brand,#C6362B)]/40 px-3 py-1.5 text-xs font-semibold text-[var(--brand,#C6362B)] hover:bg-[var(--brand,#C6362B)]/10" @click="openReading(b)">Ajuster le niveau</button>
+                    <button type="button" class="rounded-lg bg-[var(--brand,#C6362B)] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110" @click="openReplace(b)">Changer la bouteille</button>
+                    <button v-if="b.status !== 'a_remplacer'" type="button" class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50" @click="setOxygenStatus(b, 'a_remplacer')">Signaler à remplacer</button>
+                    <button v-else type="button" class="rounded-lg border border-green-300 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50" @click="setOxygenStatus(b, 'en_service')">Remettre en service</button>
+                </div>
+
+                <!-- Historique -->
+                <details v-if="b.logs && b.logs.length" class="mt-3">
+                    <summary class="cursor-pointer text-xs font-medium text-gray-500">Historique ({{ b.logs.length }})</summary>
+                    <ul class="mt-2 space-y-1.5">
+                        <li v-for="(l, i) in b.logs" :key="i" class="text-xs text-gray-600">
+                            <span class="font-medium text-gray-800">{{ l.action_label }}</span>
+                            <template v-if="l.action === 'releve' && l.percent != null"> — {{ l.pressure }} bar ({{ l.percent }} %)</template>
+                            <template v-else-if="l.action === 'remplacement'"> — {{ l.previous_serial || '—' }} → {{ l.serial_number || '—' }}</template>
+                            <span class="text-gray-400"> · {{ l.at }}<template v-if="l.by"> · {{ l.by }}</template></span>
+                        </li>
+                    </ul>
+                </details>
+            </div>
+            <p v-if="!oxygen.can_edit" class="px-1 text-xs text-gray-400">Ouvrez le service sur ce véhicule pour ajuster les niveaux et pointer un changement.</p>
         </section>
 
         <!-- Carrosserie -->
@@ -764,6 +883,67 @@ function setConsent(v) {
                 </div>
             </div>
         </div>
+        <!-- Modale : ajuster le niveau d'oxygène -->
+        <div v-if="adjusting" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="adjusting = null">
+            <div class="w-full rounded-t-3xl bg-white p-5" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+                <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300"></div>
+                <h3 class="text-lg font-bold text-gray-900">Ajuster le niveau — {{ adjusting.label }}</h3>
+                <p class="mt-0.5 text-xs text-gray-500">Pression actuelle de la bouteille (plage {{ adjusting.pressure_min }}–{{ adjusting.pressure_max }} bar).</p>
+
+                <label class="mt-4 block text-xs font-medium text-gray-600">Pression (bar)</label>
+                <input v-model.number="readingForm.pressure" type="number" inputmode="numeric" :min="0" :max="adjusting.pressure_max" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-lg font-semibold focus:bg-white" />
+                <p v-if="readingForm.errors.pressure" class="mt-1 text-xs text-red-600">{{ readingForm.errors.pressure }}</p>
+
+                <div class="mt-3 flex items-center gap-2">
+                    <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full transition-all" :style="{ width: (readingPercent ?? 0) + '%', background: oxyBar(readingPercent) }"></div>
+                    </div>
+                    <span class="w-10 text-right text-sm font-bold" :style="{ color: oxyBar(readingPercent) }">{{ readingPercent ?? '—' }}%</span>
+                </div>
+
+                <label class="mt-3 block text-xs font-medium text-gray-600">Note (optionnel)</label>
+                <input v-model="readingForm.note" type="text" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="adjusting = null">Annuler</button>
+                    <button type="button" :disabled="readingForm.processing || readingForm.pressure === '' || readingForm.pressure == null" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitReading">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modale : changer la bouteille -->
+        <div v-if="replacing" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="replacing = null">
+            <div class="w-full rounded-t-3xl bg-white p-5" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+                <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-300"></div>
+                <h3 class="text-lg font-bold text-gray-900">Changer la bouteille — {{ replacing.label }}</h3>
+                <p class="mt-0.5 text-xs text-gray-500">
+                    <template v-if="replacing.serial_number">Bouteille sortie : n° {{ replacing.serial_number }}.</template>
+                    Renseignez la nouvelle bouteille (remise à plein par défaut).
+                </p>
+
+                <label class="mt-4 block text-xs font-medium text-gray-600">N° de série de la nouvelle bouteille</label>
+                <input v-model="replaceForm.serial_number" type="text" placeholder="ex. AB-12345" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm uppercase focus:bg-white" @input="replaceForm.serial_number = replaceForm.serial_number.toUpperCase()" />
+                <p v-if="replaceForm.errors.serial_number" class="mt-1 text-xs text-red-600">{{ replaceForm.errors.serial_number }}</p>
+
+                <label class="mt-3 block text-xs font-medium text-gray-600">Pression de la bouteille neuve (bar)</label>
+                <input v-model.number="replaceForm.pressure" type="number" inputmode="numeric" :min="0" :max="replacing.pressure_max" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                <div class="mt-2 flex items-center gap-2">
+                    <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full transition-all" :style="{ width: (replacePercent ?? 0) + '%', background: oxyBar(replacePercent) }"></div>
+                    </div>
+                    <span class="w-10 text-right text-sm font-bold" :style="{ color: oxyBar(replacePercent) }">{{ replacePercent ?? '—' }}%</span>
+                </div>
+
+                <label class="mt-3 block text-xs font-medium text-gray-600">Note (optionnel)</label>
+                <input v-model="replaceForm.note" type="text" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="replacing = null">Annuler</button>
+                    <button type="button" :disabled="replaceForm.processing" class="flex-1 rounded-xl bg-[var(--brand,#C6362B)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitReplace">Enregistrer le changement</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Modale : nouvelle anomalie carrosserie -->
         <div v-if="bodyAdd" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click.self="bodyAdd = null">
             <div class="w-full rounded-t-3xl bg-white p-5" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
