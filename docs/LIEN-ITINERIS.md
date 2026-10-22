@@ -25,7 +25,11 @@ Authentification : `Authorization: Bearer vk_…`. Jeton inconnu, révoqué ou o
 | `GET /api/v1/vehicles` | `{ data: Vehicle[] }`, véhicules actifs de l'organisation du jeton |
 | `GET /api/v1/vehicles/{uuid}` | `{ data: Vehicle }`, y compris un véhicule supprimé (`deleted: true`) ; 404 sinon |
 
-`Vehicle` : `uuid`, `version`, `name`, `callsign`, `type`, `registration`, `vin`, `model`, `site`, `commissioned_at`, `mileage`, `telematics_imei`, `status`, `deleted`, `updated_at`.
+`Vehicle` : `uuid`, `version`, `name`, `callsign`, `type`, `registration`, `vin`, `model`, `site`, `commissioned_at`, `mileage`, `mileage_at`, `mileage_source` (`prise_de_service`, `fin_de_service`, `plein`, `entretien`, `fiche`), `telematics_imei`, `status`, `deleted`, `updated_at`.
+
+### Kilométrage (décision du porteur)
+
+Chaque relevé du terrain (prise et fin de service, plein, entretien) passe par `Vehicle::recordMileage()` : le compteur ne recule jamais (un relevé plus bas reste dans sa saisie sans toucher le compteur) ; un saut de plus de 2 000 km (`MILEAGE_JUMP_ALERT_KM`) n'est pas appliqué et ouvre un événement « Relevé kilométrique à vérifier » (un seul ouvert par véhicule). Une correction dans la fiche s'applique telle quelle (source `fiche`). Date, source et auteur du dernier relevé : `mileage_at`, `mileage_source`, `mileage_by`.
 
 Limite : 120 requêtes par minute.
 

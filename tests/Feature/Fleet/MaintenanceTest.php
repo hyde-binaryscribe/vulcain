@@ -69,7 +69,7 @@ class MaintenanceTest extends TestCase
     public function test_operator_can_record_maintenance_and_updates_mileage(): void
     {
         [$org, $admin] = $this->orgWithAdmin();
-        $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'mileage' => 50000]);
+        $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'mileage' => 61000]);
 
         $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/maintenances", [
             'type' => 'vidange',

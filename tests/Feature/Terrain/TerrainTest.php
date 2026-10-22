@@ -141,7 +141,7 @@ class TerrainTest extends TestCase
             app(RoleProvisioner::class)->provision($org);
             $agent = User::factory()->create(['organisation_id' => $org->id]);
             $agent->assignRole(Rbac::VERIFIER); // pas de droit vehicles.manage
-            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'mileage' => 100]);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'mileage' => 11000]);
 
             return [$agent, $vehicle];
         });

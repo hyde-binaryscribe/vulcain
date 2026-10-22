@@ -38,9 +38,7 @@ class MaintenanceController extends Controller
         ]);
 
         // Met à jour le compteur du véhicule si le relevé est plus récent (plus élevé).
-        if (! empty($validated['mileage']) && $validated['mileage'] > (int) $vehicle->mileage) {
-            $vehicle->update(['mileage' => $validated['mileage']]);
-        }
+        $vehicle->recordMileage(isset($validated['mileage']) ? (int) $validated['mileage'] : null, 'entretien', $request->user()?->name);
 
         return back()->with('status', 'Opération d’entretien enregistrée.');
     }
