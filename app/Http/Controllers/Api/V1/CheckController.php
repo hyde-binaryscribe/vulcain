@@ -8,6 +8,8 @@ use App\Domain\Fleet\VehicleDisinfection;
 use App\Http\Controllers\Controller;
 use App\Models\DisinfectionRecord;
 use App\Models\Event;
+use App\Models\OxygenBottle;
+use App\Models\OxygenBottleLog;
 use App\Models\ServiceProtocolField;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
@@ -16,7 +18,8 @@ use Illuminate\Http\JsonResponse;
 /**
  * API v1 — vérifications des véhicules (lien Itineris, lecture seule) : dernière
  * prise de service et ses contrôles, désinfection (statut et dernières opérations),
- * anomalies ouvertes. Une seule requête pour tout le parc. Jamais de photo.
+ * anomalies ouvertes, oxygène embarqué (bouteilles de la dotation et derniers relevés).
+ * Une seule requête pour tout le parc. Jamais de photo.
  */
 class CheckController extends Controller
 {
@@ -58,7 +61,17 @@ class CheckController extends Controller
             ->get(['id', 'vehicle_id', 'title', 'priority', 'status', 'created_at'])
             ->groupBy('vehicle_id');
 
-        $data = $vehicles->map(function (Vehicle $v) use ($sessions, $disinfections, $statuses, $anomalies) {
+        // Dotation d'oxygène (bouteilles actives) et derniers mouvements de chaque bouteille.
+        $bottles = OxygenBottle::query()
+            ->whereIn('vehicle_id', $ids)->where('is_active', true)
+            ->orderBy('display_order')->orderBy('id')
+            ->get()->groupBy('vehicle_id');
+        $bottleLogs = OxygenBottleLog::query()
+            ->whereIn('vehicle_id', $ids)->where('recorded_at', '>=', now()->subDays(30))
+            ->with('user:id,name')->latest('recorded_at')->latest('id')
+            ->get()->groupBy('oxygen_bottle_id');
+
+        $data = $vehicles->map(function (Vehicle $v) use ($sessions, $disinfections, $statuses, $anomalies, $bottles, $bottleLogs) {
             $s = $sessions->get($v->id);
             $status = $statuses[$v->id] ?? null;
 
@@ -79,6 +92,9 @@ class CheckController extends Controller
                 ] : null,
                 // Dernier niveau d'oxygène : fin de service si elle en contient un, sinon prise de service.
                 'o2' => $s ? ($this->o2($endChecks, $s->closed_at) ?? $this->o2($checks, $s->opened_at)) : null,
+                'oxygen' => ($bottles->get($v->id) ?? collect())
+                    ->map(fn (OxygenBottle $b) => $this->bottle($b, $bottleLogs->get($b->id) ?? collect()))
+                    ->values()->all(),
                 'disinfection' => [
                     'state' => $status?->state,
                     'label' => $status?->label(),
@@ -166,6 +182,37 @@ class CheckController extends Controller
             'percent' => $c['percent'],
             'alert' => $c['alert'],
             'at' => $at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Bouteille de la dotation : niveau (bar et %), plage, statut, dernier relevé et
+     * les 5 derniers mouvements (30 jours) : relevé, changement de bouteille, statut.
+     */
+    private function bottle(OxygenBottle $b, $logs): array
+    {
+        return [
+            'label' => $b->label,
+            'serial_number' => $b->serial_number,
+            'capacity_l' => $b->capacity_l !== null ? (float) $b->capacity_l : null,
+            'pressure' => $b->current_pressure,
+            'pressure_min' => $b->pressure_min,
+            'pressure_max' => $b->pressure_max,
+            'percent' => $b->percent(),
+            'status' => $b->status,
+            'status_label' => $b->statusLabel(),
+            'checked_at' => $b->last_checked_at?->toIso8601String(),
+            'logs' => $logs->take(5)->map(fn (OxygenBottleLog $l) => [
+                'action' => $l->action,
+                'label' => $l->actionLabel(),
+                'pressure' => $l->pressure,
+                'percent' => $l->percent,
+                'serial_number' => $l->serial_number,
+                'previous_serial' => $l->previous_serial,
+                'note' => $l->note,
+                'by' => $l->user?->name,
+                'at' => $l->recorded_at?->toIso8601String(),
+            ])->values()->all(),
         ];
     }
 }

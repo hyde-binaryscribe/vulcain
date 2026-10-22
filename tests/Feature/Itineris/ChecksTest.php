@@ -7,6 +7,8 @@ use App\Models\ApiToken;
 use App\Models\DisinfectionRecord;
 use App\Models\Event;
 use App\Models\Organisation;
+use App\Models\OxygenBottle;
+use App\Models\OxygenBottleLog;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
@@ -111,5 +113,42 @@ class ChecksTest extends TestCase
             ->assertJsonPath('data.0.o2.value', '60')
             ->assertJsonPath('data.0.o2.percent', 30)
             ->assertJsonPath('data.0.o2.unit', 'bar');
+    }
+
+    public function test_oxygen_bottles_with_level_status_and_recent_logs(): void
+    {
+        $org = Organisation::factory()->slug('ambu')->sector(Sector::AMBULANCE_PRIVEE)->create();
+        $tenant = app(TenantContext::class);
+        $plain = $tenant->runFor($org, function () use ($org) {
+            $user = User::factory()->create(['organisation_id' => $org->id, 'name' => 'Julien D.']);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $main = $vehicle->oxygenBottles()->create([
+                'label' => 'Principale', 'serial_number' => 'B15-0042', 'capacity_l' => 15, 'pressure_min' => 0, 'pressure_max' => 200,
+                'current_pressure' => 50, 'status' => OxygenBottle::STATUS_A_REMPLACER, 'last_checked_at' => now(), 'display_order' => 1,
+            ]);
+            $vehicle->oxygenBottles()->create([
+                'label' => 'Portable', 'pressure_min' => 0, 'pressure_max' => 200, 'current_pressure' => 180, 'display_order' => 2,
+            ]);
+            $vehicle->oxygenBottles()->create(['label' => 'Retirée', 'pressure_min' => 0, 'pressure_max' => 200, 'is_active' => false, 'display_order' => 3]);
+            OxygenBottleLog::create([
+                'oxygen_bottle_id' => $main->id, 'vehicle_id' => $vehicle->id, 'user_id' => $user->id,
+                'action' => OxygenBottleLog::ACTION_RELEVE, 'pressure' => 50, 'percent' => 25, 'recorded_at' => now(),
+            ]);
+
+            return ApiToken::issue('Itineris', null)[1];
+        });
+
+        $this->getJson('/api/v1/vehicles/checks', ['Authorization' => "Bearer {$plain}"])
+            ->assertOk()
+            ->assertJsonCount(2, 'data.0.oxygen')
+            ->assertJsonPath('data.0.oxygen.0.label', 'Principale')
+            ->assertJsonPath('data.0.oxygen.0.pressure', 50)
+            ->assertJsonPath('data.0.oxygen.0.percent', 25)
+            ->assertJsonPath('data.0.oxygen.0.status', 'a_remplacer')
+            ->assertJsonPath('data.0.oxygen.0.status_label', 'À remplacer')
+            ->assertJsonPath('data.0.oxygen.0.logs.0.label', 'Relevé de niveau')
+            ->assertJsonPath('data.0.oxygen.0.logs.0.by', 'Julien D.')
+            ->assertJsonPath('data.0.oxygen.1.percent', 90)
+            ->assertJsonCount(0, 'data.0.oxygen.1.logs');
     }
 }
