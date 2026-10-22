@@ -1,8 +1,11 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
+
+// Lien Itineris (transport sanitaire) : un champ chiffré peut être transmis comme niveau d'oxygène.
+const itineris = computed(() => usePage().props.tenant?.profile?.sector === 'ambulance_privee');
 
 const props = defineProps({
     types: { type: Array, default: () => [] },
@@ -231,6 +234,13 @@ const scopeTabs = [
                             <span class="flex items-center gap-1 text-gray-500">Min <input v-model.number="f.config.min" type="number" class="w-16 rounded-md border-gray-300 px-1.5 py-1 text-xs" /></span>
                             <span class="flex items-center gap-1 text-gray-500">Max <input v-model.number="f.config.max" type="number" class="w-16 rounded-md border-gray-300 px-1.5 py-1 text-xs" /></span>
                             <span v-if="f.type === 'gauge'" class="text-gray-400">→ % calculé automatiquement</span>
+                            <span v-if="itineris" class="flex items-center gap-1 text-gray-500">
+                                Transmis à Itineris
+                                <select v-model="f.config.share" class="rounded-md border-gray-300 py-1 pl-1.5 pr-6 text-xs">
+                                    <option :value="undefined">— (reconnu au libellé « oxygène », « O2 »)</option>
+                                    <option value="o2">Niveau d'oxygène (O2)</option>
+                                </select>
+                            </span>
                         </template>
                         <template v-else-if="f.type === 'text'">
                             <label class="flex items-center gap-1.5 text-gray-600"><input v-model="f.config.multiline" type="checkbox" class="rounded border-gray-300" /> Multiligne</label>

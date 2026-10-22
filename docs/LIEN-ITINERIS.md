@@ -26,7 +26,9 @@ Authentification : `Authorization: Bearer vk_…`. Jeton inconnu, révoqué ou o
 | `GET /api/v1/vehicles/{uuid}` | `{ data: Vehicle }`, y compris un véhicule supprimé (`deleted: true`) ; 404 sinon |
 | `GET /api/v1/vehicles/checks` | `{ data: Checks[] }`, vérifications de tout le parc en une requête |
 
-`Checks` : `uuid` ; `service` (dernière prise de service : `open`, `opened_at`, `opened_by`, `partner`, `closed_at`, `closed_by`, `checks` et `end_checks` = contrôles `{ label, type, value, alert: { severity, message } | null }`, jamais de photo) ; `disinfection` (`state` none / ok / soon / overdue / never, `label`, `due_at`, `last` = dernière opération par nature avec `label`, `performed_at`, `by`, `protocol`) ; `anomalies` ouvertes (`title`, `priority`, `status`, `created_at`).
+`Checks` : `uuid` ; `service` (dernière prise de service : `open`, `opened_at`, `opened_by`, `partner`, `closed_at`, `closed_by`, `checks` et `end_checks` = contrôles `{ label, type, value, alert: { severity, message } | null }`, jamais de photo) ; `disinfection` (`state` none / ok / soon / overdue / never, `label`, `due_at`, `last` = dernière opération par nature avec `label`, `performed_at`, `by`, `protocol`) ; `anomalies` ouvertes (`title`, `priority`, `status`, `created_at`) ; `o2` = dernier niveau d'oxygène (`label`, `value`, `unit`, `percent` pour une jauge, `alert`, `at`), pris à la fin de service si elle en contient un, sinon à la prise de service. Chaque contrôle porte aussi `percent`, `unit` et `key` (`o2`).
+
+Niveau d'oxygène : le champ est choisi dans Protocoles de service (« Transmis à Itineris : Niveau d'oxygène ») ; sans réglage, une jauge ou un nombre dont le libellé contient « oxygène » ou « O2 » est reconnu. Les contrôles enregistrent désormais l'id du champ, l'unité et ce partage.
 
 `Vehicle` : `uuid`, `version`, `name`, `callsign`, `type`, `registration`, `vin`, `model`, `site`, `commissioned_at`, `mileage`, `mileage_at`, `mileage_source` (`prise_de_service`, `fin_de_service`, `plein`, `entretien`, `fiche`), `telematics_imei`, `status`, `deleted`, `updated_at`.
 
