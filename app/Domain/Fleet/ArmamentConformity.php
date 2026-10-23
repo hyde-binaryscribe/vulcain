@@ -36,13 +36,19 @@ class ArmamentConformity
             return ['type' => $vehicle->type, 'type_id' => $type->id, 'defined' => false, 'items' => [], 'summary' => null];
         }
 
-        // Stock embarqué agrégé par nom normalisé (pour le rapprochement matériel).
+        // Stock embarqué, agrégé par type de matériel (lien exact) et par nom
+        // normalisé (rapprochement best-effort pour les lignes non reliées).
         $locationIds = Location::query()->where('vehicle_id', $vehicle->id)->pluck('id');
         $stockByName = [];
+        $stockByType = [];
         foreach (Material::query()->whereIn('location_id', $locationIds)->with(['items', 'lots'])->get() as $m) {
+            $qty = $m->stockQuantity();
             $key = self::normalize($m->name);
             if ($key !== '') {
-                $stockByName[$key] = ($stockByName[$key] ?? 0) + $m->stockQuantity();
+                $stockByName[$key] = ($stockByName[$key] ?? 0) + $qty;
+            }
+            if ($m->material_type_id !== null) {
+                $stockByType[$m->material_type_id] = ($stockByType[$m->material_type_id] ?? 0) + $qty;
             }
         }
 
@@ -50,35 +56,40 @@ class ArmamentConformity
         $o2Total = (int) $vehicle->oxygenBottles()->where('is_active', true)->get()
             ->sum(fn (OxygenBottle $b) => $b->gasVolume() ?? 0);
 
-        $rows = $items->map(function (VehicleTypeEquipment $e) use ($stockByName, $o2Total) {
-            if ($e->volume_l !== null && $e->volume_l > 0) {
-                return [
-                    'category' => $e->category,
-                    'designation' => $e->designation,
-                    'quantity' => $e->quantity,
-                    'level' => $e->level->value,
-                    'note' => $e->note,
-                    'state' => $o2Total >= $e->volume_l ? 'present' : 'partiel',
-                    'stock' => null,
-                    'volume_required' => $e->volume_l,
-                    'volume_onboard' => $o2Total,
-                ];
-            }
-
-            $stock = self::matchStock($e->designation, $stockByName);
-            $state = $stock === null ? 'inconnu' : ($stock >= $e->quantity ? 'present' : 'partiel');
-
-            return [
+        $rows = $items->map(function (VehicleTypeEquipment $e) use ($stockByName, $stockByType, $o2Total) {
+            $base = [
                 'category' => $e->category,
                 'designation' => $e->designation,
                 'quantity' => $e->quantity,
                 'level' => $e->level->value,
                 'note' => $e->note,
-                'state' => $state,
-                'stock' => $stock,
+                'stock' => null,
                 'volume_required' => null,
                 'volume_onboard' => null,
             ];
+
+            // Ligne à volume (oxygène) : conformité exacte sur le volume total.
+            if ($e->volume_l !== null && $e->volume_l > 0) {
+                return array_merge($base, [
+                    'state' => $o2Total >= $e->volume_l ? 'present' : 'partiel',
+                    'volume_required' => $e->volume_l,
+                    'volume_onboard' => $o2Total,
+                ]);
+            }
+
+            // Ligne reliée au catalogue : conformité exacte sur le stock du type.
+            if ($e->material_type_id !== null) {
+                $stock = (int) ($stockByType[$e->material_type_id] ?? 0);
+                $state = $stock >= $e->quantity ? 'present' : ($stock > 0 ? 'partiel' : 'manquant');
+
+                return array_merge($base, ['state' => $state, 'stock' => $stock]);
+            }
+
+            // Sinon : rapprochement best-effort par nom.
+            $stock = self::matchStock($e->designation, $stockByName);
+            $state = $stock === null ? 'inconnu' : ($stock >= $e->quantity ? 'present' : 'partiel');
+
+            return array_merge($base, ['state' => $state, 'stock' => $stock]);
         })->values();
 
         $obligatoire = fn ($state) => $rows->filter(fn ($r) => $r['level'] === ArmamentLevel::OBLIGATOIRE->value && $r['state'] === $state)->count();
@@ -93,8 +104,10 @@ class ArmamentConformity
                 'obligatoire' => $rows->where('level', ArmamentLevel::OBLIGATOIRE->value)->count(),
                 'present' => $rows->where('state', 'present')->count(),
                 'partiel' => $rows->where('state', 'partiel')->count(),
+                'manquant' => $rows->where('state', 'manquant')->count(),
                 'inconnu' => $rows->where('state', 'inconnu')->count(),
                 'obligatoire_partiel' => $obligatoire('partiel'),
+                'obligatoire_manquant' => $obligatoire('manquant'),
                 'obligatoire_inconnu' => $obligatoire('inconnu'),
             ],
         ];

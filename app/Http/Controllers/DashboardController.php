@@ -237,8 +237,9 @@ class DashboardController extends Controller
         }
 
         $s = $arm['summary'];
-        if ($s['obligatoire_partiel'] > 0) {
-            return ['non_conforme', $s['obligatoire_partiel']];
+        $nonConforme = $s['obligatoire_partiel'] + ($s['obligatoire_manquant'] ?? 0);
+        if ($nonConforme > 0) {
+            return ['non_conforme', $nonConforme];
         }
         if ($s['obligatoire_inconnu'] > 0) {
             return ['a_verifier', 0];

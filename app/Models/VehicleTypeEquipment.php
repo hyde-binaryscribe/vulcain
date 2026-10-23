@@ -21,6 +21,7 @@ class VehicleTypeEquipment extends Model
         'vehicle_type_id',
         'category',
         'designation',
+        'material_type_id',
         'quantity',
         'volume_l',
         'level',
@@ -31,6 +32,7 @@ class VehicleTypeEquipment extends Model
     protected function casts(): array
     {
         return [
+            'material_type_id' => 'integer',
             'quantity' => 'integer',
             'volume_l' => 'integer',
             'level' => ArmamentLevel::class,
@@ -41,5 +43,10 @@ class VehicleTypeEquipment extends Model
     public function vehicleType(): BelongsTo
     {
         return $this->belongsTo(VehicleType::class);
+    }
+
+    public function materialType(): BelongsTo
+    {
+        return $this->belongsTo(MaterialType::class);
     }
 }

@@ -43,7 +43,7 @@ const tabs = computed(() => [
     { key: 'disinfection', label: 'Désinfection', dot: props.disinfection.severity === 'critical' },
     { key: 'maintenance', label: 'Entretien', dot: props.maintenance.severity === 'critical' },
     { key: 'materials', label: 'Matériel', badge: materialAlerts.value || null },
-    ...(props.armament ? [{ key: 'armament', label: 'Armement', dot: (props.armament.summary?.obligatoire_partiel || 0) > 0 }] : []),
+    ...(props.armament ? [{ key: 'armament', label: 'Armement', dot: ((props.armament.summary?.obligatoire_partiel || 0) + (props.armament.summary?.obligatoire_manquant || 0)) > 0 }] : []),
     { key: 'oxygen', label: 'Oxygène' },
     ...(props.telematics ? [{ key: 'telematics', label: 'Télématique', dot: (props.telematics.last?.fault_count || 0) > 0 }] : []),
     { key: 'documents', label: 'Documents' },
@@ -92,6 +92,7 @@ const armamentGroups = computed(() => {
 const armStateBadge = {
     present: { cls: 'bg-green-100 text-green-700', label: 'Présent' },
     partiel: { cls: 'bg-orange-100 text-orange-700', label: 'Partiel' },
+    manquant: { cls: 'bg-red-100 text-red-700', label: 'Manquant' },
     inconnu: { cls: 'bg-gray-100 text-gray-500', label: 'À vérifier' },
 };
 const armLevelBadge = {
@@ -873,6 +874,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     <span class="rounded-full bg-green-100 px-2 py-0.5 font-semibold text-green-700">{{ armament.summary.present }} présent(s)</span>
                     <span v-if="armament.summary.partiel" class="rounded-full bg-orange-100 px-2 py-0.5 font-semibold text-orange-700">{{ armament.summary.partiel }} partiel(s)</span>
+                    <span v-if="armament.summary.manquant" class="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">{{ armament.summary.manquant }} manquant(s)</span>
                     <span v-if="armament.summary.inconnu" class="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">{{ armament.summary.inconnu }} à vérifier</span>
                     <span class="text-gray-400">· {{ armament.summary.obligatoire }} obligatoire(s) sur {{ armament.summary.total }}</span>
                 </div>

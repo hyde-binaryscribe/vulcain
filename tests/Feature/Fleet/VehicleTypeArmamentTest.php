@@ -5,6 +5,7 @@ namespace Tests\Feature\Fleet;
 use App\Domain\Fleet\ArmamentLevel;
 use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
+use App\Models\MaterialType;
 use App\Models\Organisation;
 use App\Models\OxygenBottle;
 use App\Models\User;
@@ -136,6 +137,40 @@ class VehicleTypeArmamentTest extends TestCase
                 ->where('armament.items.0.volume_onboard', 4000) // 2000 + 2000
                 ->where('armament.items.0.volume_required', 3000)
                 ->where('armament.items.0.state', 'present')); // 4000 ≥ 3000
+    }
+
+    public function test_linked_material_without_stock_is_manquant(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicleId, $materialTypeId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $mt = MaterialType::create(['name' => 'Brancard principal', 'tracking_mode' => 'quantity', 'display_order' => 0]);
+            $type = VehicleType::create(['name' => 'Ambulance type A', 'display_order' => 0]);
+            $type->equipment()->create(['category' => 'Relevage', 'designation' => 'Brancard principal', 'material_type_id' => $mt->id, 'quantity' => 1, 'level' => 'obligatoire', 'display_order' => 0]);
+
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'type' => 'Ambulance type A']);
+
+            return [$admin, $vehicle->id, $mt->id];
+        });
+
+        // Aucun matériel de ce type embarqué → conformité exacte : manquant.
+        $this->actingAs($admin)->get("http://caserne.localhost/vehicles/{$vehicleId}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Vehicles/Show')
+                ->where('armament.items.0.state', 'manquant')
+                ->where('armament.summary.obligatoire_manquant', 1));
+
+        // Le lien est bien persisté par l'endpoint de sauvegarde.
+        $typeId = $this->tenant()->runFor($org, fn () => VehicleType::query()->where('name', 'Ambulance type A')->value('id'));
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicle-types/{$typeId}/armement", [
+            'items' => [['category' => 'Relevage', 'designation' => 'Brancard', 'material_type_id' => $materialTypeId, 'quantity' => 1, 'level' => 'obligatoire']],
+        ])->assertSessionHasNoErrors();
+        $this->tenant()->runFor($org, function () use ($typeId, $materialTypeId) {
+            $this->assertSame($materialTypeId, VehicleTypeEquipment::query()->where('vehicle_type_id', $typeId)->value('material_type_id'));
+        });
     }
 
     public function test_parc_dashboard_flags_non_conforme_armament(): void

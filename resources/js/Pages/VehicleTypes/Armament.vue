@@ -8,6 +8,7 @@ const props = defineProps({
     type: { type: Object, required: true },
     equipment: { type: Array, default: () => [] },
     levels: { type: Array, default: () => [] },
+    materialTypes: { type: Array, default: () => [] },
     templates: { type: Object, default: () => ({}) },
 });
 
@@ -26,7 +27,7 @@ const counts = computed(() => {
     return c;
 });
 
-function addItem() { current.items.push({ category: '', designation: '', quantity: 1, volume_l: null, level: 'obligatoire', note: '' }); }
+function addItem() { current.items.push({ category: '', designation: '', material_type_id: null, quantity: 1, volume_l: null, level: 'obligatoire', note: '' }); }
 function removeItem(i) { current.items.splice(i, 1); }
 function move(i, dir) {
     const j = i + dir;
@@ -39,7 +40,7 @@ function loadTemplate() {
     const t = props.templates[selTemplate.value];
     if (!t) return;
     if (current.items.length && !confirm(`Remplacer l'armement actuel par le modèle « ${t.label} » ?`)) return;
-    current.items = t.items.map((it) => ({ ...it, note: it.note ?? '' }));
+    current.items = t.items.map((it) => ({ ...it, material_type_id: it.material_type_id ?? null, note: it.note ?? '' }));
     selTemplate.value = '';
 }
 
@@ -104,6 +105,10 @@ function save() {
                     </select>
                 </div>
                 <div class="mt-1.5 flex items-center gap-1">
+                    <select v-model="it.material_type_id" title="Lier à un type de matériel du catalogue (conformité exacte)" class="w-48 shrink-0 rounded-md border-gray-300 px-2 py-1 text-xs" :class="it.material_type_id ? 'text-gray-900' : 'text-gray-400'">
+                        <option :value="null">— Matériel lié (conformité exacte) —</option>
+                        <option v-for="mt in materialTypes" :key="mt.id" :value="mt.id">{{ mt.name }}</option>
+                    </select>
                     <input v-model="it.note" type="text" placeholder="Note (optionnel)" class="min-w-0 flex-1 rounded-md border-gray-300 px-2 py-1 text-xs" />
                     <button type="button" class="rounded-md p-1 text-gray-300 hover:text-gray-600" title="Monter" @click="move(i, -1)"><Icon name="arrow-left" :size="13" class="-rotate-90" /></button>
                     <button type="button" class="rounded-md p-1 text-gray-300 hover:text-gray-600" title="Descendre" @click="move(i, 1)"><Icon name="arrow-right" :size="13" class="-rotate-90" /></button>
