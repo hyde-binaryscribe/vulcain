@@ -46,7 +46,8 @@ function openAddMaterial(loc) {
     matForm.minimum_qty = 0;
     matForm.serial_number = '';
 }
-// Choisir un type du catalogue pré-remplit le nom et impose son mode de suivi.
+// Choisir un type du catalogue pré-remplit le nom et le mode de suivi
+// (le mode reste modifiable ensuite).
 function onMatTypeChange() {
     const t = props.materialTypes.find((x) => x.id === Number(matForm.material_type_id));
     if (!t) return;
@@ -1139,9 +1140,9 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
 
                 <label class="mt-3 block text-xs font-medium text-gray-600">Mode de suivi</label>
                 <div class="mt-1 grid grid-cols-3 gap-2">
-                    <button v-for="m in [{v:'quantity',l:'Quantité'},{v:'lot',l:'Consommable (lot)'},{v:'serial',l:'Unitaire (n° série)'}]" :key="m.v" type="button" :disabled="!!matForm.material_type_id" class="rounded-lg border px-2 py-2 text-xs font-semibold disabled:opacity-50" :class="matForm.tracking_mode === m.v ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-gray-300 text-gray-600'" @click="matForm.tracking_mode = m.v">{{ m.l }}</button>
+                    <button v-for="m in [{v:'quantity',l:'Quantité'},{v:'lot',l:'Consommable (lot)'},{v:'serial',l:'Unitaire (n° série)'}]" :key="m.v" type="button" class="rounded-lg border px-2 py-2 text-xs font-semibold" :class="matForm.tracking_mode === m.v ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-gray-300 text-gray-600'" @click="matForm.tracking_mode = m.v">{{ m.l }}</button>
                 </div>
-                <p v-if="matForm.material_type_id" class="mt-1 text-[11px] text-gray-400">Mode imposé par le type du catalogue.</p>
+                <p v-if="matForm.material_type_id" class="mt-1 text-[11px] text-gray-400">Pré-rempli par le type du catalogue — modifiable.</p>
 
                 <div class="mt-3 grid grid-cols-2 gap-3">
                     <div>

@@ -79,14 +79,35 @@ class MaterialTypeTest extends TestCase
         $this->assertDatabaseMissing('material_categories', ['id' => $id]);
     }
 
-    public function test_type_imposes_its_tracking_mode_on_a_model(): void
+    public function test_type_mode_pre_fills_when_none_is_submitted(): void
     {
         [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
         $type = $this->tenant()->runFor($org, fn () => MaterialType::factory()->create([
             'organisation_id' => $org->id, 'name' => 'Compresse 5×5', 'tracking_mode' => 'lot',
         ]));
 
-        // On envoie volontairement un mode « serial » : le type doit primer.
+        // Aucun mode transmis : on reprend celui du type.
+        $this->actingAs($admin)->post('http://caserne.localhost/materials', [
+            'name' => 'Compresse stérile',
+            'brand' => 'Hartmann',
+            'material_type_id' => $type->id,
+            'status' => 'conforme',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('materials', [
+            'name' => 'Compresse stérile', 'brand' => 'Hartmann',
+            'material_type_id' => $type->id, 'tracking_mode' => 'lot',
+        ]);
+    }
+
+    public function test_submitted_tracking_mode_overrides_the_type_mode(): void
+    {
+        [$org, $admin] = $this->orgWithRole(Rbac::ADMIN);
+        $type = $this->tenant()->runFor($org, fn () => MaterialType::factory()->create([
+            'organisation_id' => $org->id, 'name' => 'Compresse 5×5', 'tracking_mode' => 'lot',
+        ]));
+
+        // Le mode choisi par l'opérateur prime sur celui du type.
         $this->actingAs($admin)->post('http://caserne.localhost/materials', [
             'name' => 'Compresse stérile',
             'brand' => 'Hartmann',
@@ -97,7 +118,7 @@ class MaterialTypeTest extends TestCase
 
         $this->assertDatabaseHas('materials', [
             'name' => 'Compresse stérile', 'brand' => 'Hartmann',
-            'material_type_id' => $type->id, 'tracking_mode' => 'lot',
+            'material_type_id' => $type->id, 'tracking_mode' => 'serial',
         ]);
     }
 

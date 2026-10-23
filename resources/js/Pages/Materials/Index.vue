@@ -17,11 +17,10 @@ const props = defineProps({
     search: { type: String, default: '' },
 });
 
-// Libellé du mode de suivi (série / lot / quantité) d'un type donné.
-const modeLabels = computed(() => Object.fromEntries(props.trackingModes.map((m) => [m.value, m.label])));
-function typeMode(id) {
-    const t = props.materialTypes.find((x) => x.id === id);
-    return t ? modeLabels.value[t.tracking_mode] ?? t.tracking_mode : null;
+// Choisir un type pré-remplit le mode de suivi du formulaire (modifiable ensuite).
+function applyTypeMode(form) {
+    const t = props.materialTypes.find((x) => x.id === Number(form.material_type_id));
+    if (t) form.tracking_mode = t.tracking_mode;
 }
 
 const canExport = computed(() => (usePage().props.auth?.user?.permissions || []).includes('exports.create'));
@@ -177,7 +176,7 @@ function remove(m) {
             <section class="space-y-6">
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                     <h2 class="text-base font-semibold text-gray-900">Nouveau matériel</h2>
-                    <p class="mt-1 text-xs text-gray-500">Un modèle = marque + modèle, rattaché à un type. Le type fixe le mode de suivi.</p>
+                    <p class="mt-1 text-xs text-gray-500">Un modèle = marque + modèle, rattaché à un type. Le type pré-remplit le mode de suivi (modifiable).</p>
                     <form class="mt-4 space-y-3" @submit.prevent="add">
                         <div>
                             <InputLabel value="Modèle" /><TextInput v-model="addForm.name" placeholder="ThermoScan 7, X Series…" /><InputError :message="addForm.errors.name" />
@@ -185,12 +184,11 @@ function remove(m) {
                         <div><InputLabel value="Marque" /><TextInput v-model="addForm.brand" placeholder="Braun, Zoll…" /></div>
                         <div>
                             <InputLabel value="Type de matériel" />
-                            <select v-model="addForm.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
+                            <select v-model="addForm.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5" @change="applyTypeMode(addForm)">
                                 <option value="">— (mode libre)</option>
                                 <option v-for="t in materialTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
                             </select>
-                            <p v-if="typeMode(addForm.material_type_id)" class="mt-1 text-xs text-gray-400">Suivi : {{ typeMode(addForm.material_type_id) }}</p>
-                            <p v-else class="mt-1 text-xs text-gray-400"><Link href="/material-types" class="text-[var(--brand)] hover:underline">Gérer les types</Link></p>
+                            <p class="mt-1 text-xs text-gray-400"><Link href="/material-types" class="text-[var(--brand)] hover:underline">Gérer les types</Link></p>
                         </div>
                         <div><InputLabel value="Référence" /><TextInput v-model="addForm.reference" /></div>
                         <div>
@@ -210,7 +208,7 @@ function remove(m) {
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <div v-if="!addForm.material_type_id">
+                            <div>
                                 <InputLabel value="Mode suivi" />
                                 <select v-model="addForm.tracking_mode" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
                                     <option v-for="t in trackingModes" :key="t.value" :value="t.value">{{ t.label }}</option>
@@ -249,13 +247,12 @@ function remove(m) {
                     <div><InputLabel value="Marque" /><TextInput v-model="editForm.brand" /></div>
                     <div>
                         <InputLabel value="Type de matériel" />
-                        <select v-model="editForm.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
+                        <select v-model="editForm.material_type_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5" @change="applyTypeMode(editForm)">
                             <option value="">— (mode libre)</option>
                             <option v-for="t in materialTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
                         </select>
-                        <p v-if="typeMode(editForm.material_type_id)" class="mt-1 text-xs text-gray-400">Suivi : {{ typeMode(editForm.material_type_id) }}</p>
                     </div>
-                    <div v-if="!editForm.material_type_id">
+                    <div>
                         <InputLabel value="Mode suivi" />
                         <select v-model="editForm.tracking_mode" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5">
                             <option v-for="t in trackingModes" :key="t.value" :value="t.value">{{ t.label }}</option>

@@ -257,12 +257,10 @@ class MaterialController extends Controller
             'observations' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        // Un type sélectionné impose son mode de suivi au modèle.
-        if (! empty($data['material_type_id'])) {
-            $mode = MaterialType::query()->whereKey($data['material_type_id'])->value('tracking_mode');
-            if ($mode !== null) {
-                $data['tracking_mode'] = $mode;
-            }
+        // Le type pré-remplit le mode de suivi mais ne l'impose plus : un mode
+        // explicitement transmis prime. À défaut, on reprend celui du type.
+        if (empty($data['tracking_mode']) && ! empty($data['material_type_id'])) {
+            $data['tracking_mode'] = MaterialType::query()->whereKey($data['material_type_id'])->value('tracking_mode');
         }
         $data['tracking_mode'] ??= Material::MODE_QUANTITY;
 
