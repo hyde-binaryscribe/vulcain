@@ -59,15 +59,15 @@ Une fois les véhicules publiés, envoie de préférence **`vehicle_ref`** (notr
       "opened_by": "HT", "partner": "MJM", "open_mileage": 117950, "...": "…"
     },
     "last_oxygen": [
-      { "position": 1, "serial_number": "F337F1L", "level_percent": 40, "source": "service" },
-      { "position": 2, "serial_number": "F35YA5H", "level_percent": 10, "source": "service" }
+      { "position": 1, "serial_number": "F337F1L", "pressure_bar": 80, "volume_l": null, "percent": 40, "source": "service" },
+      { "position": 2, "serial_number": "F35YA5H", "pressure_bar": null, "volume_l": 300, "percent": 30, "source": "service" }
     ]
   }
 }
 ```
 
 Usage :
-- **Prise de poste** : si `open_service` n'est pas `null`, afficher le bandeau « ⚠️ Session de {open_service.opened_by} non clôturée. » Préremplir les N° de série des bouteilles avec `last_oxygen` (par `position`).
+- **Prise de poste** : si `open_service` n'est pas `null`, afficher le bandeau « ⚠️ Session de {open_service.opened_by} non clôturée. » Préremplir les N° de série des bouteilles avec `last_oxygen` (par `position`) ; `pressure_bar` ou `volume_l` donnent le dernier niveau connu.
 - **Fin de service** : afficher le rappel « {opened_by} / {partner} — {vehicle.mileage} km ». Préremplir les N° de série avec `last_oxygen`.
 - Si Vulkain ne répond pas, le formulaire reste utilisable sans préremplissage. Ne bloque jamais la saisie.
 
@@ -85,8 +85,8 @@ Usage :
   "mileage": 118084,
   "fuel_percent": 100,
   "oxygen": [
-    { "position": 1, "serial_number": "F337F1L", "level_percent": 80, "sealed": true },
-    { "position": 2, "serial_number": "F35YA5H", "level_percent": null, "sealed": false }
+    { "position": 1, "serial_number": "F337F1L", "pressure_bar": 160, "sealed": true },
+    { "position": 2, "serial_number": "F35YA5H", "volume_l": 750, "capacity_l": 5, "sealed": false }
   ],
   "fluids": {
     "hot_engine": false,
@@ -105,7 +105,11 @@ Correspondance des champs du formulaire :
 - **Créateur de la session** → `opened_by` (initiales, obligatoire). **Équipier (binôme)** → `partner` (initiales ou nom, `null` si aucun).
 - **Kilométrage** → `mileage` (entier, km).
 - **Niveau de carburant** → `fuel_percent`, entier de 0 à 100 (le curseur en huitièmes : 1/8 → 13, 1/4 → 25, 1/2 → 50, 1 → 100).
-- **Matériel Oxygène**, une entrée par bouteille : `position` (1, 2…), `serial_number`, `level_percent` (0–100), `sealed` (case « Scellée »). Curseur resté sur « À SAISIR » → `level_percent: null`. **Il faut que le curseur des bouteilles soit converti en pourcentage** ; s'il est en bar ou en litres, dis-le-moi au lieu d'inventer une conversion.
+- **Matériel Oxygène**, une entrée par bouteille : `position` (1, 2…), `serial_number`, `sealed` (case « Scellée »), et le niveau **tel que le curseur l'affiche, sans conversion** :
+  - curseur en **bar** → `pressure_bar` (nombre) ;
+  - curseur en **litres** → `volume_l` (litres de gaz restants) et, si le formulaire la connaît, `capacity_l` = capacité en eau de la bouteille (5 pour une B5, 15 pour une B15…) ;
+  - curseur resté sur « À SAISIR » → ni `pressure_bar` ni `volume_l` (ou `null`).
+  Vulkain calcule lui-même le pourcentage et l'alerte. Publie aussi `capacity_l` dans le référentiel `oxygen-bottles` (1.0) : un volume pourra alors toujours être converti.
 - **Niveaux & Pneus** : « Véhicule chaud » → `fluids.hot_engine` ; « Liquide refroidissement » → `fluids.coolant_percent` ; « Niveau Huile » → `fluids.oil_percent` (0–100, `null` si « À SAISIR ») ; « Apport d'huile ? » → `fluids.oil_added` ; « Pression Pneus faite ? » → `fluids.tyre_pressure_done` (Oui = `true`, Non = `false`).
 - **Sac assigné** → `bag.name` ; **N° Scellé Sac/Malette** → `bag.seal_number`.
 - **Commentaires** → `comments` : liste de textes, y compris le commentaire en cours non « ajouté » (le formulaire l'enregistre déjà).
@@ -135,8 +139,8 @@ Réponse **201** :
   "closed_at": "2026-10-23T19:05:00+02:00",
   "mileage": 118190,
   "oxygen": [
-    { "position": 1, "serial_number": "F337F1L", "level_percent": 40, "sealed": false },
-    { "position": 2, "serial_number": "F35YA5H", "level_percent": 10, "sealed": false }
+    { "position": 1, "serial_number": "F337F1L", "pressure_bar": 80, "sealed": false },
+    { "position": 2, "serial_number": "F35YA5H", "volume_l": 300, "capacity_l": 5, "sealed": false }
   ],
   "comments": ["RAS"]
 }
@@ -212,4 +216,4 @@ const ok = t && Math.abs(Date.now() / 1000 - Number(t)) <= 300
 8. Vulkain coupé ou jeton faux → le formulaire intra-Chatel s'enregistre quand même, l'envoi est retenté puis signalé.
 9. Aucune de nos fiches de base (agents, véhicules, sacs, bouteilles) n'a changé après tous ces tests : vérifie-le en comparant la base avant et après.
 
-Livre : la liste des fichiers modifiés, l'URL finale du webhook, et les points où tu as dû supposer quelque chose (notamment l'unité du curseur des bouteilles).
+Livre : la liste des fichiers modifiés, l'URL finale du webhook, et les points où tu as dû supposer quelque chose (notamment comment le formulaire sait si un curseur est en bar ou en litres).

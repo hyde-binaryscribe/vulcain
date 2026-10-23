@@ -60,8 +60,9 @@ class ServicesApiTest extends TestCase
             'mileage' => 118084,
             'fuel_percent' => 100,
             'oxygen' => [
-                ['position' => 1, 'serial_number' => 'f337f1l', 'level_percent' => 80, 'sealed' => true],
-                ['position' => 2, 'serial_number' => 'F35YA5H', 'level_percent' => 20, 'sealed' => false],
+                // Curseur en bar (plage 0–200 par défaut) ou en litres (ramenés en bar par la capacité en eau).
+                ['position' => 1, 'serial_number' => 'f337f1l', 'pressure_bar' => 160, 'sealed' => true],
+                ['position' => 2, 'serial_number' => 'F35YA5H', 'volume_l' => 200, 'capacity_l' => 5, 'sealed' => false],
             ],
             'fluids' => ['hot_engine' => false, 'coolant_percent' => 60, 'oil_percent' => 50, 'oil_added' => false, 'tyre_pressure_done' => true],
             'bag' => ['name' => 'Sac 2', 'seal_number' => 'c2164894'],
@@ -91,8 +92,12 @@ class ServicesApiTest extends TestCase
         $this->assertSame(100, $checks['fuel_percent']['value']);
         $this->assertSame('F337F1L', $checks['oxygen.1.serial_number']['value']);
         $this->assertTrue($checks['oxygen.1.sealed']['value']);
-        $this->assertNull($checks['oxygen.1.level_percent']['alert']);
-        $this->assertSame('warning', $checks['oxygen.2.level_percent']['alert']['severity']);
+        $this->assertSame([160, 'bar', 80], [$checks['oxygen.1.pressure_bar']['value'], $checks['oxygen.1.pressure_bar']['unit'], $checks['oxygen.1.pressure_bar']['percent']]);
+        $this->assertNull($checks['oxygen.1.pressure_bar']['alert']);
+        // 200 L dans une bouteille de 5 L = 40 bar = 20 % : alerte.
+        $this->assertSame([200, 'L', 20], [$checks['oxygen.2.volume_l']['value'], $checks['oxygen.2.volume_l']['unit'], $checks['oxygen.2.volume_l']['percent']]);
+        $this->assertSame('warning', $checks['oxygen.2.volume_l']['alert']['severity']);
+        $this->assertArrayNotHasKey('oxygen.2.pressure_bar', $checks->all());
         $this->assertTrue($checks['fluids.tyre_pressure_done']['value']);
         $this->assertSame('C2164894', $checks['bag.seal_number']['value']);
 
@@ -142,8 +147,8 @@ class ServicesApiTest extends TestCase
             'closed_by' => 'AJ',
             'mileage' => 118190,
             'oxygen' => [
-                ['serial_number' => 'F337F1L', 'level_percent' => 40, 'sealed' => false],
-                ['serial_number' => 'F35YA5H', 'level_percent' => 10, 'sealed' => false],
+                ['serial_number' => 'F337F1L', 'pressure_bar' => 80, 'sealed' => false],
+                ['serial_number' => 'F35YA5H', 'pressure_bar' => 20, 'sealed' => false],
             ],
             'comments' => ['RAS'],
         ];
@@ -155,7 +160,8 @@ class ServicesApiTest extends TestCase
             ->assertJsonPath('data.close_mileage', 118190)
             ->assertJsonPath('data.close_notes', 'RAS')
             ->assertJsonPath('data.close_external_id', 'fds-1');
-        $this->assertSame('oxygen.2.level_percent', $response->json('data.close_checks.4.ref'));
+        $this->assertSame('oxygen.2.pressure_bar', $response->json('data.close_checks.4.ref'));
+        $this->assertSame(10, $response->json('data.close_checks.4.percent'));
         $this->assertSame(118190, $this->vehicle->fresh()->mileage);
 
         // Renvoi de la même fin de service : rien ne change.
@@ -182,8 +188,10 @@ class ServicesApiTest extends TestCase
             ->assertJsonPath('data.open_service.opened_by', 'AJ')
             ->assertJsonPath('data.open_service.partner', 'MJM')
             ->assertJsonPath('data.vehicle.mileage', 118084)
+            ->assertJsonPath('data.last_oxygen.0.pressure_bar', 160)
             ->assertJsonPath('data.last_oxygen.1.serial_number', 'F35YA5H')
-            ->assertJsonPath('data.last_oxygen.1.level_percent', 20)
+            ->assertJsonPath('data.last_oxygen.1.volume_l', 200)
+            ->assertJsonPath('data.last_oxygen.1.percent', 20)
             ->assertJsonPath('data.last_oxygen.1.source', 'service');
     }
 
@@ -209,8 +217,32 @@ class ServicesApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.service.opened_by', 'AJ')
             ->assertJsonPath('data.0.service.partner', 'MJM')
-            ->assertJsonPath('data.0.o2.value', '80')
-            ->assertJsonPath('data.0.o2.label', 'Bouteille O2 1 — niveau');
+            ->assertJsonPath('data.0.o2.value', '160')
+            ->assertJsonPath('data.0.o2.unit', 'bar')
+            ->assertJsonPath('data.0.o2.percent', 80)
+            ->assertJsonPath('data.0.o2.label', 'Bouteille O2 1 — pression');
+    }
+
+    public function test_bottle_level_uses_the_bottle_range_and_capacity(): void
+    {
+        // Bouteille Vulkain 0–300 bar ; capacité publiée par intra-Chatel (référence) : 15 L.
+        $this->tenant()->runFor($this->org, fn () => OxygenBottle::create([
+            'vehicle_id' => $this->vehicle->id, 'label' => 'B15', 'serial_number' => 'B15-01', 'capacity_l' => 5, 'pressure_max' => 300, 'is_active' => true,
+        ]));
+        $this->putJson('/api/v1/intra-chatel/oxygen-bottles', ['data' => [['id' => 7, 'serial_number' => 'b15-01', 'capacity_l' => 15]]], $this->headers)->assertOk();
+
+        $response = $this->postJson('/api/v1/services/open', ['oxygen' => [
+            ['position' => 1, 'serial_number' => 'B15-01', 'volume_l' => 2250],   // 150 bar sur 300 = 50 %
+            ['position' => 2, 'serial_number' => 'INCONNUE', 'volume_l' => 400],  // capacité inconnue
+            ['position' => 3, 'serial_number' => 'B15-01', 'pressure_bar' => 60], // 20 % de 300 bar
+        ]] + $this->openPayload(), $this->headers)->assertCreated();
+
+        $checks = collect($response->json('data.open_checks'))->keyBy('ref');
+        $this->assertSame(50, $checks['oxygen.1.volume_l']['percent']);
+        $this->assertNull($checks['oxygen.2.volume_l']['percent']);
+        $this->assertNull($checks['oxygen.2.volume_l']['alert']);
+        $this->assertSame(20, $checks['oxygen.3.pressure_bar']['percent']);
+        $this->assertSame('warning', $checks['oxygen.3.pressure_bar']['alert']['severity']);
     }
 
     public function test_errors(): void

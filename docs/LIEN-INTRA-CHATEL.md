@@ -33,7 +33,9 @@ Les champs deviennent des contrôles Vulkain (mêmes lignes que les protocoles d
 | Kilométrage | `mileage` (km) | — | `open_mileage` / `close_mileage` | — |
 | Niveau de carburant | `fuel_percent` (0–100 ; huitièmes arrondis : 1/8 → 13, 1/4 → 25) | `fuel_percent` | jauge % | ≤ 25 % |
 | Bouteille n — N° série | `oxygen[].serial_number` (mis en majuscules) | `oxygen.n.serial_number` | texte | — |
-| Bouteille n — niveau | `oxygen[].level_percent` (0–100, `null` = « À SAISIR ») | `oxygen.n.level_percent` | jauge % | ≤ 25 % |
+| Bouteille n — niveau en bar | `oxygen[].pressure_bar` (`null` = « À SAISIR ») | `oxygen.n.pressure_bar` | jauge bar + % | ≤ 25 % |
+| Bouteille n — niveau en litres | `oxygen[].volume_l` (gaz restant) | `oxygen.n.volume_l` | jauge L + % | ≤ 25 % |
+| Bouteille n — capacité en eau | `oxygen[].capacity_l` (facultatif : 5, 15…) | — | sert au calcul | — |
 | Bouteille n — Scellée | `oxygen[].sealed` | `oxygen.n.sealed` | case | — |
 | Véhicule chaud | `fluids.hot_engine` | `fluids.hot_engine` | case | — |
 | Liquide refroidissement | `fluids.coolant_percent` | `fluids.coolant_percent` | jauge % | ≤ 25 % |
@@ -43,6 +45,8 @@ Les champs deviennent des contrôles Vulkain (mêmes lignes que les protocoles d
 | Sac assigné | `bag.name` | `bag.name` | texte | — |
 | N° Scellé Sac/Malette | `bag.seal_number` (majuscules) | `bag.seal_number` | texte | — |
 | Commentaires | `comments[]` (réunis, une ligne chacun) | — | `open_notes` / `close_notes` | — |
+
+**Niveau des bouteilles** : le curseur d'intra-Chatel est en **bar** ou en **litres**. Chaque bouteille envoie `pressure_bar` ou `volume_l` (les deux si le formulaire les a). Le pourcentage, l'alerte (≤ 25 %) et la jauge d'Itineris se calculent sur la plage de pression de la bouteille : celle de la bouteille Vulkain associée (référentiel) ou de même n° de série, sinon 0–200 bar. Un volume est ramené en pression par la **capacité en eau** (volume de gaz ≈ capacité × pression : 1 000 L dans une B5 = 200 bar), prise dans cet ordre : `capacity_l` envoyé avec la bouteille, référentiel intra-Chatel, bouteille Vulkain. Capacité inconnue : le volume est gardé tel quel, sans pourcentage ni alerte.
 
 La fin de service ne porte que kilométrage, oxygène et commentaires. Bouteilles : 4 au plus ; `position` (1–4) vaut par défaut le rang dans la liste. Les alertes sont visibles dans les contrôles ; elles n'ouvrent pas d'anomalie (étape suivante si besoin).
 
@@ -60,7 +64,7 @@ Authentification : `Authorization: Bearer vk_…`, corps JSON. Erreurs : `{ erro
 
 Codes : 401 `unauthorized`, 404 `vehicle_not_found`, 409 `no_open_service`, 422 `validation_failed` / `ambiguous_vehicle` / `vehicle_not_linked`, 429 trop de requêtes.
 
-`current` : `vehicle` (`uuid`, `callsign`, `name`, `mileage`, `mileage_at`) ; `open_service` = service en cours ou `null` ; `last_oxygen` = bouteilles du dernier service intra-Chatel (`source: "service"`), sinon de la dotation Oxygène embarqué (`source: "dotation"`) : `position`, `serial_number`, `level_percent`.
+`current` : `vehicle` (`uuid`, `callsign`, `name`, `mileage`, `mileage_at`) ; `open_service` = service en cours ou `null` ; `last_oxygen` = bouteilles du dernier service intra-Chatel (`source: "service"`), sinon de la dotation Oxygène embarqué (`source: "dotation"`) : `position`, `serial_number`, `pressure_bar`, `volume_l`, `percent`.
 
 `Service` : `vehicle` (`uuid`, `callsign`, `name`), `source` (`vulkain` | `intra_chatel`), `external_id`, `close_external_id`, `open`, `opened_at`, `opened_by`, `partner`, `open_mileage`, `open_checks`, `open_notes`, `closed_at`, `closed_by`, `close_reason` (`manual` | `handover`), `close_mileage`, `close_checks`, `close_notes`, `updated_at`. Contrôle : `ref`, `label`, `type`, `value`, `percent`, `unit`, `alert` (`severity`, `message`) ou `null`. Jamais de photo ni d'id interne.
 

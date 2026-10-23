@@ -125,7 +125,7 @@ class ServiceController extends Controller
                         ]);
                     });
 
-                $rows = ServiceChecklist::openRows($input);
+                $rows = ServiceChecklist::openRows($input, $this->bottleSpecs());
 
                 return VehicleSession::create([
                     'vehicle_id' => $vehicle->id,
@@ -191,7 +191,7 @@ class ServiceController extends Controller
                 'closed_by' => $this->userIdFor($closedBy),
                 'closed_by_name' => $closedBy,
                 'close_mileage' => $input['mileage'] ?? null,
-                'close_responses' => ServiceChecklist::closeRows($input),
+                'close_responses' => ServiceChecklist::closeRows($input, $this->bottleSpecs()),
                 'close_notes' => ServiceChecklist::notes($input),
                 'close_reason' => VehicleSession::REASON_MANUAL,
             ]);
@@ -279,13 +279,21 @@ class ServiceController extends Controller
     private function lastOxygen(Vehicle $vehicle, ?VehicleSession $s): array
     {
         $rows = collect($s ? ($s->close_responses ?: $s->open_responses ?: []) : []);
+        $value = fn (int $n, string $field) => $rows->firstWhere('ref', "oxygen.{$n}.{$field}");
 
         $readings = $rows->filter(fn ($r) => preg_match('/^oxygen\.\d+\.serial_number$/', (string) ($r['ref'] ?? '')))
-            ->map(function ($r) use ($rows) {
+            ->map(function ($r) use ($value) {
                 $n = (int) explode('.', $r['ref'])[1];
-                $level = $rows->firstWhere('ref', "oxygen.{$n}.level_percent");
+                $level = $value($n, 'pressure_bar') ?? $value($n, 'volume_l');
 
-                return ['position' => $n, 'serial_number' => $r['value'] ?? null, 'level_percent' => $level['value'] ?? null, 'source' => 'service'];
+                return [
+                    'position' => $n,
+                    'serial_number' => $r['value'] ?? null,
+                    'pressure_bar' => $value($n, 'pressure_bar')['value'] ?? null,
+                    'volume_l' => $value($n, 'volume_l')['value'] ?? null,
+                    'percent' => $level['percent'] ?? null,
+                    'source' => 'service',
+                ];
             })->values();
         if ($readings->isNotEmpty()) {
             return $readings->all();
@@ -295,8 +303,41 @@ class ServiceController extends Controller
             ->orderBy('display_order')->orderBy('id')->limit(ServiceChecklist::MAX_BOTTLES)->get()
             ->values()
             ->map(fn (OxygenBottle $b, int $i) => [
-                'position' => $i + 1, 'serial_number' => $b->serial_number, 'level_percent' => $b->percent(), 'source' => 'dotation',
+                'position' => $i + 1,
+                'serial_number' => $b->serial_number,
+                'pressure_bar' => $b->current_pressure,
+                'volume_l' => null,
+                'percent' => $b->percent(),
+                'source' => 'dotation',
             ])->all();
+    }
+
+    /**
+     * Caractéristiques d'une bouteille pour calculer son niveau : capacité en eau (celle
+     * saisie, sinon celle publiée par intra-Chatel, qui fait référence, sinon celle de
+     * Vulkain) et plage de pression de la bouteille Vulkain associée (0–200 bar à défaut).
+     */
+    private function bottleSpecs(): callable
+    {
+        return function (?string $serial, array $bottle): array {
+            $record = $serial === null ? null : IntraChatelRecord::query()->where('kind', IntraChatelRecord::KIND_OXYGEN_BOTTLE)
+                ->whereNull('missing_since')->get()
+                ->first(fn (IntraChatelRecord $r) => mb_strtoupper(trim((string) ($r->data['serial_number'] ?? ''))) === $serial);
+
+            $vulkain = $record?->linked_id ? OxygenBottle::query()->find($record->linked_id) : null;
+            if ($vulkain === null && $serial !== null) {
+                $matches = OxygenBottle::query()->whereRaw('upper(serial_number) = ?', [$serial])->limit(2)->get();
+                $vulkain = $matches->count() === 1 ? $matches->first() : null;
+            }
+
+            $capacity = $bottle['capacity_l'] ?? $record?->data['capacity_l'] ?? $vulkain?->capacity_l;
+
+            return [
+                'capacity_l' => $capacity !== null && is_numeric($capacity) ? (float) $capacity : null,
+                'pressure_min' => $vulkain?->pressure_min ?? 0,
+                'pressure_max' => $vulkain?->pressure_max ?? ServiceChecklist::DEFAULT_PRESSURE_MAX,
+            ];
+        };
     }
 
     private function replayed(VehicleSession $s): JsonResponse

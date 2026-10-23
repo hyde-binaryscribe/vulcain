@@ -3,6 +3,7 @@
 namespace App\Domain\IntraChatel;
 
 use App\Domain\Support\Severity;
+use App\Models\OxygenBottle;
 
 /**
  * Formulaires de prise de poste et de fin de service d'intra-Chatel, traduits
@@ -17,6 +18,9 @@ class ServiceChecklist
     /** Niveau (carburant, oxygène, liquides) en dessous duquel une alerte est posée, en %. */
     public const LOW_LEVEL_PERCENT = 25;
 
+    /** Pression maximale par défaut d'une bouteille inconnue de Vulkain, en bar. */
+    public const DEFAULT_PRESSURE_MAX = 200;
+
     /** Bouteilles d'oxygène au plus, par formulaire. */
     public const MAX_BOTTLES = 4;
 
@@ -28,7 +32,9 @@ class ServiceChecklist
             'oxygen' => ['nullable', 'array', 'max:'.self::MAX_BOTTLES],
             'oxygen.*.position' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_BOTTLES],
             'oxygen.*.serial_number' => ['nullable', 'string', 'max:50'],
-            'oxygen.*.level_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'oxygen.*.pressure_bar' => ['nullable', 'numeric', 'min:0', 'max:400'],
+            'oxygen.*.volume_l' => ['nullable', 'numeric', 'min:0', 'max:20000'],
+            'oxygen.*.capacity_l' => ['nullable', 'numeric', 'gt:0', 'max:100'],
             'oxygen.*.sealed' => ['nullable', 'boolean'],
             'comments' => ['nullable', 'array', 'max:20'],
             'comments.*' => ['nullable', 'string', 'max:500'],
@@ -53,14 +59,14 @@ class ServiceChecklist
     }
 
     /** Contrôles de la prise de poste. */
-    public static function openRows(array $input): array
+    public static function openRows(array $input, ?callable $specs = null): array
     {
         $fluids = (array) ($input['fluids'] ?? []);
         $bag = (array) ($input['bag'] ?? []);
 
         return [
             self::gauge('fuel_percent', 'Niveau de carburant', $input['fuel_percent'] ?? null, 'Carburant bas'),
-            ...self::oxygenRows($input),
+            ...self::oxygenRows($input, $specs),
             self::checkbox('fluids.hot_engine', 'Véhicule chaud', $fluids['hot_engine'] ?? null),
             self::gauge('fluids.coolant_percent', 'Liquide de refroidissement', $fluids['coolant_percent'] ?? null, 'Liquide de refroidissement bas'),
             self::gauge('fluids.oil_percent', 'Niveau d’huile', $fluids['oil_percent'] ?? null, 'Niveau d’huile bas'),
@@ -72,9 +78,9 @@ class ServiceChecklist
     }
 
     /** Contrôles de la fin de service (oxygène). */
-    public static function closeRows(array $input): array
+    public static function closeRows(array $input, ?callable $specs = null): array
     {
-        return self::oxygenRows($input);
+        return self::oxygenRows($input, $specs);
     }
 
     /** Commentaires ajoutés un par un dans le formulaire, réunis en une note. */
@@ -88,8 +94,17 @@ class ServiceChecklist
         return $lines->isEmpty() ? null : mb_substr($lines->implode("\n"), 0, 2000);
     }
 
-    /** Bouteilles : n° de série (majuscules), niveau (jauge %), scellée. Position = rang dans la liste si absente. */
-    private static function oxygenRows(array $input): array
+    /**
+     * Bouteilles : n° de série (majuscules), niveau, scellée. Position = rang dans la liste si absente.
+     *
+     * Le curseur d'intra-Chatel donne la pression (pressure_bar) ou le volume de gaz restant
+     * (volume_l). Le pourcentage se calcule sur la plage de pression de la bouteille ; un volume
+     * est d'abord ramené en pression par la capacité en eau (volume ≈ capacité × pression).
+     * Sans capacité connue, un volume reste sans pourcentage ni alerte.
+     *
+     * @param  callable|null  $specs  fn (?string $serial, array $bottle): array{capacity_l: ?float, pressure_min: int, pressure_max: int}
+     */
+    private static function oxygenRows(array $input, ?callable $specs = null): array
     {
         $rows = [];
         foreach (array_values((array) ($input['oxygen'] ?? [])) as $i => $bottle) {
@@ -98,13 +113,41 @@ class ServiceChecklist
             $serial = isset($bottle['serial_number']) && trim((string) $bottle['serial_number']) !== ''
                 ? mb_strtoupper(trim((string) $bottle['serial_number']))
                 : null;
+            $spec = ($specs ?? fn () => [])($serial, $bottle) + ['capacity_l' => null, 'pressure_min' => 0, 'pressure_max' => self::DEFAULT_PRESSURE_MAX];
+
+            $pressure = self::number($bottle['pressure_bar'] ?? null);
+            $volume = self::number($bottle['volume_l'] ?? null);
+            $capacity = $spec['capacity_l'] !== null && (float) $spec['capacity_l'] > 0 ? (float) $spec['capacity_l'] : null;
+            $basis = $pressure ?? ($volume !== null && $capacity !== null ? $volume / $capacity : null);
+            $percent = $basis === null ? null : OxygenBottle::percentOf((int) round($basis), (int) $spec['pressure_min'], (int) $spec['pressure_max']);
+            $alert = $percent !== null && $percent <= self::LOW_LEVEL_PERCENT
+                ? ['severity' => Severity::WARNING->value, 'message' => "Bouteille O2 {$n} presque vide ({$percent} %)"]
+                : null;
 
             $rows[] = self::text("oxygen.{$n}.serial_number", "Bouteille O2 {$n} — n° de série", $serial);
-            $rows[] = self::gauge("oxygen.{$n}.level_percent", "Bouteille O2 {$n} — niveau", $bottle['level_percent'] ?? null, "Bouteille O2 {$n} presque vide", 'o2');
+            // Pression : relevée, ou ligne vide (« À SAISIR ») si le curseur n'a donné aucun niveau.
+            if ($pressure !== null || $volume === null) {
+                $rows[] = self::row("oxygen.{$n}.pressure_bar", "Bouteille O2 {$n} — pression", 'gauge', $pressure,
+                    ['percent' => $percent, 'unit' => 'bar', 'share' => 'o2', 'alert' => $alert]);
+            }
+            if ($volume !== null) {
+                $rows[] = self::row("oxygen.{$n}.volume_l", "Bouteille O2 {$n} — volume", 'gauge', $volume,
+                    ['percent' => $percent, 'unit' => 'L', 'share' => $pressure === null ? 'o2' : null, 'alert' => $pressure === null ? $alert : null]);
+            }
             $rows[] = self::checkbox("oxygen.{$n}.sealed", "Bouteille O2 {$n} — scellée", $bottle['sealed'] ?? null);
         }
 
         return $rows;
+    }
+
+    /** Nombre saisi (entier si possible), ou null. */
+    private static function number(mixed $value): int|float|null
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return (float) $value == (int) $value ? (int) $value : round((float) $value, 1);
     }
 
     private static function gauge(string $ref, string $label, mixed $value, string $alertMessage, ?string $share = null): array
