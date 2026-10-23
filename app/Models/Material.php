@@ -70,9 +70,11 @@ class Material extends Model
     }
 
     /**
-     * Identifiant auto « CODE_VEHICULE_NN » : code du type de matériel (ou dérivé
-     * du nom), code du véhicule (indicatif), puis numéro d'ordre par type et par
-     * véhicule. Renvoie null si indéterminable.
+     * Identifiant auto. Lié à un véhicule : « CODE_VEHICULE_NN » (ex. BRCD_A09_01)
+     * — code du type, indicatif du véhicule, puis numéro d'ordre par type et par
+     * véhicule. Non lié à un véhicule (dépôt, réserve, sans emplacement) : le
+     * segment véhicule est omis -> « CODE_NN », numéroté par type sur l'ensemble
+     * du matériel non embarqué. Renvoie null si indéterminable.
      */
     public static function buildIdentifier(Material $m): ?string
     {
@@ -87,22 +89,33 @@ class Material extends Model
             $vehicle = $m->location_id
                 ? Location::query()->whereKey($m->location_id)->with('vehicle:id,callsign,name')->first()?->vehicle
                 : null;
-            $veh = 'X';
+
             if ($vehicle !== null) {
                 $veh = strtoupper(preg_replace('/[^A-Z0-9]/', '', Str::ascii($vehicle->callsign ?: ($vehicle->name ?? '')))) ?: 'X';
-            }
-
-            $seq = 1;
-            if ($vehicle !== null) {
                 $locationIds = Location::query()->where('vehicle_id', $vehicle->id)->pluck('id');
                 $query = static::query()->whereIn('location_id', $locationIds);
                 $m->material_type_id
                     ? $query->where('material_type_id', $m->material_type_id)
                     : $query->where('name', $m->name);
                 $seq = $query->count() + 1;
+
+                return $code.'_'.$veh.'_'.str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
             }
 
-            return $code.'_'.$veh.'_'.str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
+            // Non lié à un véhicule : identifiant sans segment véhicule. Numéroté
+            // sur l'ensemble du matériel non embarqué (hors emplacement véhicule
+            // ou sans emplacement).
+            $vehicleLocationIds = Location::query()->whereNotNull('vehicle_id')->pluck('id')->all();
+            $query = static::query();
+            if ($vehicleLocationIds !== []) {
+                $query->where(fn ($q) => $q->whereNull('location_id')->orWhereNotIn('location_id', $vehicleLocationIds));
+            }
+            $m->material_type_id
+                ? $query->where('material_type_id', $m->material_type_id)
+                : $query->where('name', $m->name);
+            $seq = $query->count() + 1;
+
+            return $code.'_'.str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
         } catch (\Throwable) {
             return null;
         }

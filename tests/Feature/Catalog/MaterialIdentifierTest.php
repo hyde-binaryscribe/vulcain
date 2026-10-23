@@ -102,6 +102,68 @@ class MaterialIdentifierTest extends TestCase
         $this->assertSame('BRCD_A09_01', $identifier);
     }
 
+    public function test_material_without_a_vehicle_has_no_vehicle_segment(): void
+    {
+        [$org] = $this->orgWithRole(Rbac::ADMIN);
+
+        $identifier = $this->tenant()->runFor($org, function () use ($org) {
+            $type = MaterialType::factory()->create([
+                'organisation_id' => $org->id, 'name' => 'Brancard', 'code' => 'BRCD',
+            ]);
+            // Emplacement de dépôt, non rattaché à un véhicule.
+            $depot = Location::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => null]);
+
+            return Material::factory()->create([
+                'organisation_id' => $org->id,
+                'material_type_id' => $type->id,
+                'location_id' => $depot->id,
+                'name' => 'Brancard de réserve',
+            ])->identifier;
+        });
+
+        $this->assertSame('BRCD_01', $identifier);
+    }
+
+    public function test_material_with_no_location_has_no_vehicle_segment(): void
+    {
+        [$org] = $this->orgWithRole(Rbac::ADMIN);
+
+        $identifier = $this->tenant()->runFor($org, function () use ($org) {
+            $type = MaterialType::factory()->create([
+                'organisation_id' => $org->id, 'name' => 'Brancard', 'code' => 'BRCD',
+            ]);
+
+            return Material::factory()->create([
+                'organisation_id' => $org->id,
+                'material_type_id' => $type->id,
+                'location_id' => null,
+                'name' => 'Brancard non affecté',
+            ])->identifier;
+        });
+
+        $this->assertSame('BRCD_01', $identifier);
+    }
+
+    public function test_unassigned_sequence_increments_per_type(): void
+    {
+        [$org] = $this->orgWithRole(Rbac::ADMIN);
+
+        $identifiers = $this->tenant()->runFor($org, function () use ($org) {
+            $type = MaterialType::factory()->create([
+                'organisation_id' => $org->id, 'name' => 'Brancard', 'code' => 'BRCD',
+            ]);
+            $depot = Location::factory()->create(['organisation_id' => $org->id, 'vehicle_id' => null]);
+
+            return collect(range(1, 2))->map(fn () => Material::factory()->create([
+                'organisation_id' => $org->id,
+                'material_type_id' => $type->id,
+                'location_id' => $depot->id,
+            ])->identifier)->all();
+        });
+
+        $this->assertSame(['BRCD_01', 'BRCD_02'], $identifiers);
+    }
+
     public function test_identifier_sequence_increments_per_type_and_vehicle(): void
     {
         [$org] = $this->orgWithRole(Rbac::ADMIN);
