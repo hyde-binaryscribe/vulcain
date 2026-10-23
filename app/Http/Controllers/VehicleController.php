@@ -18,6 +18,7 @@ use App\Models\DisinfectionRecord;
 use App\Models\Location;
 use App\Models\MaintenanceRecord;
 use App\Models\Material;
+use App\Models\MaterialType;
 use App\Models\OxygenBottle;
 use App\Models\OxygenBottleType;
 use App\Models\Site;
@@ -239,6 +240,9 @@ class VehicleController extends Controller
                 ->limit(30)
                 ->get()
                 ->map(fn (ActivityLog $l) => ActivityController::format($l)),
+            'materialTypes' => MaterialType::query()->where('is_active', true)
+                ->orderBy('display_order')->orderBy('name')->get(['id', 'name', 'tracking_mode'])
+                ->map(fn (MaterialType $t) => ['id' => $t->id, 'name' => $t->name, 'tracking_mode' => $t->tracking_mode])->values(),
             'telematics' => $this->telematics($vehicle),
             'armament' => ArmamentConformity::for($vehicle),
             'oxygenExpected' => $this->oxygenExpected($vehicle),

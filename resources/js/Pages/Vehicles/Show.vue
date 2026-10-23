@@ -29,7 +29,34 @@ const props = defineProps({
     oxygenBottleTypes: { type: Array, default: () => [] },
     oxygenExpected: { type: Object, default: null },
     armament: { type: Object, default: null },
+    materialTypes: { type: Array, default: () => [] },
 });
+
+// --- Ajout de matériel par emplacement ---
+const addingLocation = ref(null);
+const matForm = useForm({ location_id: null, material_type_id: '', name: '', tracking_mode: 'quantity', theoretical_qty: 1, minimum_qty: 0, serial_number: '', status: 'conforme' });
+function openAddMaterial(loc) {
+    addingLocation.value = loc;
+    matForm.clearErrors();
+    matForm.location_id = loc.id;
+    matForm.material_type_id = '';
+    matForm.name = '';
+    matForm.tracking_mode = 'quantity';
+    matForm.theoretical_qty = 1;
+    matForm.minimum_qty = 0;
+    matForm.serial_number = '';
+}
+// Choisir un type du catalogue pré-remplit le nom et impose son mode de suivi.
+function onMatTypeChange() {
+    const t = props.materialTypes.find((x) => x.id === Number(matForm.material_type_id));
+    if (!t) return;
+    if (!matForm.name) matForm.name = t.name;
+    matForm.tracking_mode = t.tracking_mode;
+}
+function submitMaterial() {
+    matForm.transform((d) => ({ ...d, material_type_id: d.material_type_id || null }))
+        .post('/materials', { preserveScroll: true, onSuccess: () => { addingLocation.value = null; } });
+}
 
 function generateOxygen() {
     router.post(`/vehicles/${props.vehicle.id}/oxygen-bottles/generer`, {}, { preserveScroll: true });
@@ -875,6 +902,9 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                         </tbody>
                     </table>
                 </div>
+                <button type="button" class="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50" @click="openAddMaterial(loc)">
+                    <Icon name="plus" :size="14" /> Ajouter un matériel
+                </button>
             </section>
 
             <p v-if="locations.length === 0" class="rounded-2xl border border-dashed border-gray-300 p-10 text-center text-gray-500">
@@ -1087,6 +1117,51 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
                 </button>
                 <VehicleQr :vehicle-id="vehicle.id" :label="vehicle.callsign || vehicle.name" />
+            </div>
+        </div>
+
+        <!-- Modale : ajouter un matériel à un emplacement -->
+        <div v-if="addingLocation" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="addingLocation = null">
+            <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+                <h3 class="text-lg font-bold text-gray-900">Ajouter un matériel</h3>
+                <p class="mt-0.5 text-xs text-gray-500">Emplacement : <span class="font-medium text-gray-700">{{ addingLocation.name }}</span></p>
+
+                <label class="mt-4 block text-xs font-medium text-gray-600">Type du catalogue (optionnel)</label>
+                <select v-model="matForm.material_type_id" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" @change="onMatTypeChange">
+                    <option value="">— Aucun (saisie libre) —</option>
+                    <option v-for="t in materialTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+
+                <label class="mt-3 block text-xs font-medium text-gray-600">Nom</label>
+                <input v-model="matForm.name" type="text" placeholder="ex. Brancard principal" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                <p v-if="matForm.errors.name" class="mt-1 text-xs text-red-600">{{ matForm.errors.name }}</p>
+
+                <label class="mt-3 block text-xs font-medium text-gray-600">Mode de suivi</label>
+                <div class="mt-1 grid grid-cols-3 gap-2">
+                    <button v-for="m in [{v:'quantity',l:'Quantité'},{v:'lot',l:'Consommable (lot)'},{v:'serial',l:'Unitaire (n° série)'}]" :key="m.v" type="button" :disabled="!!matForm.material_type_id" class="rounded-lg border px-2 py-2 text-xs font-semibold disabled:opacity-50" :class="matForm.tracking_mode === m.v ? 'border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--brand)]' : 'border-gray-300 text-gray-600'" @click="matForm.tracking_mode = m.v">{{ m.l }}</button>
+                </div>
+                <p v-if="matForm.material_type_id" class="mt-1 text-[11px] text-gray-400">Mode imposé par le type du catalogue.</p>
+
+                <div class="mt-3 grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">Quantité théorique</label>
+                        <input v-model.number="matForm.theoretical_qty" type="number" min="0" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600">Seuil mini (alerte)</label>
+                        <input v-model.number="matForm.minimum_qty" type="number" min="0" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+                    </div>
+                </div>
+
+                <div v-if="matForm.tracking_mode === 'serial'" class="mt-3">
+                    <label class="block text-xs font-medium text-gray-600">N° de série (optionnel)</label>
+                    <input v-model="matForm.serial_number" type="text" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm uppercase focus:bg-white" />
+                </div>
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="addingLocation = null">Annuler</button>
+                    <button type="button" :disabled="matForm.processing || !matForm.name" class="flex-1 rounded-xl bg-[var(--brand)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitMaterial">Ajouter</button>
+                </div>
             </div>
         </div>
     </AppLayout>
