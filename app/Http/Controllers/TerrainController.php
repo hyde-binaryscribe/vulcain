@@ -283,6 +283,8 @@ class TerrainController extends Controller
                 'label' => $b->label,
                 'serial_number' => $b->serial_number,
                 'capacity_l' => $b->capacity_l !== null ? (float) $b->capacity_l : null,
+                'volume_l' => $b->volume_l,
+                'gas_volume' => $b->gasVolume(),
                 'pressure' => $b->current_pressure,
                 'pressure_min' => $b->pressure_min,
                 'pressure_max' => $b->pressure_max,

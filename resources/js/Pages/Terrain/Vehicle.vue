@@ -212,16 +212,29 @@ const oxyStatusPill = {
     a_remplacer: 'bg-red-100 text-red-700',
     hors_service: 'bg-gray-200 text-gray-600',
 };
-// Résumé pour la tuile : plus basse bouteille + alerte si une est à remplacer.
+// Total d'oxygène embarqué : volume de gaz courant / volume plein (pondéré par
+// bouteille), et non la moyenne brute des pourcentages.
+const oxygenTotal = computed(() => {
+    const bottles = props.oxygen?.bottles ?? [];
+    let cur = 0, full = 0;
+    bottles.forEach((b) => {
+        const f = b.gas_volume;
+        if (f == null || b.percent == null) return;
+        full += f;
+        cur += (f * b.percent) / 100;
+    });
+    if (full <= 0) return null;
+    return { percent: Math.round((cur / full) * 100), current: Math.round(cur), full: Math.round(full) };
+});
+// Résumé pour la tuile : total pondéré + alerte si une bouteille est à remplacer.
 const oxygenTile = computed(() => {
     const bottles = props.oxygen?.bottles ?? [];
     if (!bottles.length) return { dot: neutralClasses.dot, text: neutralClasses.text, label: 'À renseigner' };
     const needs = bottles.some((b) => b.status === 'a_remplacer' || b.status === 'hors_service');
-    const percents = bottles.map((b) => b.percent).filter((p) => p != null);
-    const lowest = percents.length ? Math.min(...percents) : null;
-    if (needs) return { dot: 'bg-red-500', text: 'text-red-700', label: 'À remplacer' };
-    const c = oxyClasses(lowest);
-    return { dot: c.dot, text: c.text, label: lowest != null ? `${lowest} %` : `${bottles.length} bouteille(s)` };
+    const total = oxygenTotal.value?.percent ?? null;
+    if (needs) return { dot: 'bg-red-500', text: 'text-red-700', label: total != null ? `${total} % · à remplacer` : 'À remplacer' };
+    const c = oxyClasses(total);
+    return { dot: c.dot, text: c.text, label: total != null ? `${total} %` : `${bottles.length} bouteille(s)` };
 });
 // Pourcentage en direct dans une modale (valeur ↔ plage min/max).
 function livePercent(bottle, pressure) {
@@ -656,6 +669,16 @@ function setConsent(v) {
                 Aucune bouteille déclarée pour ce véhicule.
                 <template v-if="oxygen.can_manage"><br />Déclarez la dotation sur la <Link :href="`/vehicles/${vehicle.id}#oxygen`" class="font-semibold text-[var(--brand,#C6362B)]">fiche véhicule</Link>.</template>
             </p>
+
+            <!-- Total embarqué (pondéré par le volume de chaque bouteille) -->
+            <div v-if="oxygen.bottles.length && oxygenTotal" class="flex items-center gap-2.5 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
+                <span class="text-sm font-semibold text-gray-700">Total O₂</span>
+                <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                    <div class="h-full rounded-full transition-all" :style="{ width: oxygenTotal.percent + '%', background: oxyBar(oxygenTotal.percent) }"></div>
+                </div>
+                <span class="text-sm font-bold" :style="{ color: oxyBar(oxygenTotal.percent) }">{{ oxygenTotal.percent }}%</span>
+                <span class="text-xs text-gray-400">{{ oxygenTotal.current }} / {{ oxygenTotal.full }} L</span>
+            </div>
             <div v-for="b in oxygen.bottles" :key="b.id" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
