@@ -8,8 +8,17 @@ const props = defineProps({
     stats: { type: Object, default: () => ({}) },
     availability: { type: Object, default: () => ({}) },
     alerts: { type: Object, default: () => ({}) },
+    conformity: { type: Object, default: () => ({}) },
     fleet: { type: Array, default: () => [] },
 });
+
+const armMap = {
+    non_conforme: { cls: 'bg-red-100 text-red-800', label: 'Non conforme' },
+    a_verifier: { cls: 'bg-gray-100 text-gray-600', label: 'À vérifier' },
+    conforme: { cls: 'bg-green-100 text-green-700', label: 'Conforme' },
+    none: { cls: 'bg-gray-50 text-gray-400', label: '—' },
+};
+const armChip = (v) => armMap[v.armament] || armMap.none;
 
 const section = ref('fleet');
 
@@ -35,6 +44,7 @@ const alertCards = computed(() => [
     { label: 'Entretiens en retard', value: props.alerts.maintenance_overdue ?? 0, tone: 'c' },
     { label: 'Désinfections à prévoir', value: props.alerts.disinfection_soon ?? 0, tone: 'w' },
     { label: 'Désinfections en retard', value: props.alerts.disinfection_overdue ?? 0, tone: 'c' },
+    { label: 'Armement non conforme', value: props.conformity.non_conforme ?? 0, tone: 'c' },
     { label: 'Parc à jour', value: props.alerts.up_to_date ?? 0, tone: 'g' },
 ]);
 const toneCard = {
@@ -134,6 +144,7 @@ const sections = computed(() => [
                                 <th class="px-3 py-2.5">Entretien</th>
                                 <th class="px-3 py-2.5">Documents</th>
                                 <th class="px-3 py-2.5">Consommables</th>
+                                <th class="px-3 py-2.5">Armement</th>
                                 <th class="px-3 py-2.5">Événements</th>
                             </tr>
                         </thead>
@@ -149,11 +160,14 @@ const sections = computed(() => [
                                 <td class="px-3 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="sevChip(v.documents).cls">{{ sevChip(v.documents).label }}</span></td>
                                 <td class="px-3 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="consoChip(v).cls">{{ consoChip(v).label }}</span></td>
                                 <td class="px-3 py-3">
+                                    <Link :href="`/vehicles/${v.id}#armament`" class="rounded-full px-2 py-0.5 text-xs font-medium" :class="armChip(v).cls">{{ armChip(v).label }}<template v-if="v.armament === 'non_conforme' && v.armament_missing"> ({{ v.armament_missing }})</template></Link>
+                                </td>
+                                <td class="px-3 py-3">
                                     <Link v-if="v.open_events > 0" href="/events" class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold" :class="v.worst >= 3 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700'">{{ v.open_events }}</Link>
                                     <span v-else class="text-xs text-gray-400">—</span>
                                 </td>
                             </tr>
-                            <tr v-if="fleet.length === 0"><td colspan="7" class="px-3 py-8 text-center text-gray-500">Aucun véhicule.</td></tr>
+                            <tr v-if="fleet.length === 0"><td colspan="8" class="px-3 py-8 text-center text-gray-500">Aucun véhicule.</td></tr>
                         </tbody>
                     </table>
                 </div>

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Billing\PlanLimits;
-use App\Domain\Fleet\ArmamentLevel;
+use App\Domain\Fleet\ArmamentConformity;
 use App\Domain\Fleet\DisinfectionStatus;
 use App\Domain\Fleet\DisinfectionType;
 use App\Domain\Fleet\FuelConsumption;
@@ -26,10 +26,8 @@ use App\Models\VehiclePosition;
 use App\Models\VehicleModel;
 use App\Models\VehicleMotorization;
 use App\Models\VehicleType;
-use App\Models\VehicleTypeEquipment;
 use App\Support\Sites\SiteScope;
 use App\Support\Tenancy\TenantContext;
-use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -240,7 +238,7 @@ class VehicleController extends Controller
                 ->get()
                 ->map(fn (ActivityLog $l) => ActivityController::format($l)),
             'telematics' => $this->telematics($vehicle),
-            'armament' => $this->armament($vehicle),
+            'armament' => ArmamentConformity::for($vehicle),
             'oxygen' => $vehicle->oxygenBottles()->get()->map(fn (OxygenBottle $b) => [
                 'id' => $b->id,
                 'label' => $b->label,
@@ -258,118 +256,6 @@ class VehicleController extends Controller
             ])->values(),
             'status' => session('status'),
         ]);
-    }
-
-    /**
-     * Conformité à l'armement de référence du type : liste attendue + état par
-     * rapprochement automatique (best-effort par nom) avec le matériel embarqué.
-     *
-     * @return array<string, mixed>|null
-     */
-    private function armament(Vehicle $vehicle): ?array
-    {
-        if ($vehicle->type === null || $vehicle->type === '') {
-            return null;
-        }
-
-        $type = VehicleType::query()->where('name', $vehicle->type)->first();
-        if ($type === null) {
-            return null;
-        }
-
-        $items = $type->equipment()->orderBy('display_order')->orderBy('id')->get();
-        if ($items->isEmpty()) {
-            return ['type' => $vehicle->type, 'type_id' => $type->id, 'defined' => false, 'items' => [], 'summary' => null];
-        }
-
-        // Stock embarqué agrégé par nom normalisé (pour le rapprochement).
-        $locationIds = Location::query()->where('vehicle_id', $vehicle->id)->pluck('id');
-        $stockByName = [];
-        foreach (Material::query()->whereIn('location_id', $locationIds)->with(['items', 'lots'])->get() as $m) {
-            $key = $this->normalize($m->name);
-            if ($key !== '') {
-                $stockByName[$key] = ($stockByName[$key] ?? 0) + $m->stockQuantity();
-            }
-        }
-
-        // Volume d'oxygène total embarqué (somme des bouteilles) pour la conformité O2.
-        $o2Total = (int) $vehicle->oxygenBottles()->where('is_active', true)->get()
-            ->sum(fn (OxygenBottle $b) => $b->gasVolume() ?? 0);
-
-        $rows = $items->map(function (VehicleTypeEquipment $e) use ($stockByName, $o2Total) {
-            // Ligne à volume (oxygène) : conformité calculée sur le volume total.
-            if ($e->volume_l !== null && $e->volume_l > 0) {
-                return [
-                    'category' => $e->category,
-                    'designation' => $e->designation,
-                    'quantity' => $e->quantity,
-                    'level' => $e->level->value,
-                    'note' => $e->note,
-                    'state' => $o2Total >= $e->volume_l ? 'present' : 'partiel',
-                    'stock' => null,
-                    'volume_required' => $e->volume_l,
-                    'volume_onboard' => $o2Total,
-                ];
-            }
-
-            $stock = $this->matchStock($e->designation, $stockByName);
-            $state = $stock === null ? 'inconnu' : ($stock >= $e->quantity ? 'present' : 'partiel');
-
-            return [
-                'category' => $e->category,
-                'designation' => $e->designation,
-                'quantity' => $e->quantity,
-                'level' => $e->level->value,
-                'note' => $e->note,
-                'state' => $state,
-                'stock' => $stock,
-                'volume_required' => null,
-                'volume_onboard' => null,
-            ];
-        })->values();
-
-        $missingObligatoire = $rows->filter(fn ($r) => $r['level'] === ArmamentLevel::OBLIGATOIRE->value && $r['state'] === 'partiel')->count();
-
-        return [
-            'type' => $vehicle->type,
-            'type_id' => $type->id,
-            'defined' => true,
-            'items' => $rows,
-            'summary' => [
-                'total' => $rows->count(),
-                'obligatoire' => $rows->where('level', ArmamentLevel::OBLIGATOIRE->value)->count(),
-                'present' => $rows->where('state', 'present')->count(),
-                'partiel' => $rows->where('state', 'partiel')->count(),
-                'inconnu' => $rows->where('state', 'inconnu')->count(),
-                'obligatoire_partiel' => $missingObligatoire,
-            ],
-        ];
-    }
-
-    /** Normalise un libellé pour le rapprochement (sans accents, minuscules, alphanum). */
-    private function normalize(string $s): string
-    {
-        return trim(preg_replace('/[^a-z0-9]+/', ' ', Str::ascii(mb_strtolower($s))));
-    }
-
-    /**
-     * Rapproche une désignation d'armement d'un stock embarqué par nom.
-     *
-     * @param  array<string, int>  $stockByName
-     */
-    private function matchStock(string $designation, array $stockByName): ?int
-    {
-        $needle = $this->normalize($designation);
-        if ($needle === '') {
-            return null;
-        }
-        foreach ($stockByName as $name => $stock) {
-            if (str_contains($name, $needle) || str_contains($needle, $name)) {
-                return $stock;
-            }
-        }
-
-        return null;
     }
 
     /**

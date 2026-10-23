@@ -137,4 +137,29 @@ class VehicleTypeArmamentTest extends TestCase
                 ->where('armament.items.0.volume_required', 3000)
                 ->where('armament.items.0.state', 'present')); // 4000 ≥ 3000
     }
+
+    public function test_parc_dashboard_flags_non_conforme_armament(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $admin = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $type = VehicleType::create(['name' => 'Ambulance type A', 'display_order' => 0]);
+            $type->equipment()->create(['category' => 'Ventilation / Oxygène', 'designation' => 'Oxygène — volume total', 'quantity' => 1, 'volume_l' => 3000, 'level' => 'obligatoire', 'display_order' => 0]);
+
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'type' => 'Ambulance type A']);
+            OxygenBottle::create(['vehicle_id' => $vehicle->id, 'label' => 'A', 'volume_l' => 1000, 'pressure_min' => 0, 'pressure_max' => 200]);
+
+            return $admin;
+        });
+
+        $this->actingAs($admin)->get('http://caserne.localhost/parc')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Fleet/Dashboard')
+                ->where('conformity.non_conforme', 1)
+                ->where('fleet.0.armament', 'non_conforme')
+                ->where('fleet.0.armament_missing', 1));
+    }
 }

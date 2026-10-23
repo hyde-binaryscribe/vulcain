@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Events\EventStatus;
+use App\Domain\Fleet\ArmamentConformity;
 use App\Domain\Fleet\MaintenanceStatus;
 use App\Domain\Fleet\VehicleDisinfection;
 use App\Domain\Fleet\VehicleStatus;
@@ -90,6 +91,12 @@ class DashboardController extends Controller
 
         $upToDate = collect($fleet)->filter(fn ($v) => ($v['worst'] ?? 0) === 0)->count();
 
+        $conformity = [
+            'non_conforme' => collect($fleet)->where('armament', 'non_conforme')->count(),
+            'a_verifier' => collect($fleet)->where('armament', 'a_verifier')->count(),
+            'conforme' => collect($fleet)->where('armament', 'conforme')->count(),
+        ];
+
         return Inertia::render('Fleet/Dashboard', [
             'stats' => [
                 'vehicles' => $availability['total'],
@@ -106,6 +113,7 @@ class DashboardController extends Controller
                 'disinfection_overdue' => $disinfection['overdue'],
                 'up_to_date' => $upToDate,
             ],
+            'conformity' => $conformity,
             'fleet' => $fleet,
         ]);
     }
@@ -184,7 +192,11 @@ class DashboardController extends Controller
             $conso = $consumables[$v->id] ?? ['missing' => 0, 'severity' => null];
             $consoSev = $conso['severity'];
 
-            $worst = collect([$disinfSev, $maint->severity, $docSev, $consoSev])
+            // Conformité à l'armement de référence du type (O2 exact, reste best-effort).
+            [$armState, $armPartiel] = $this->armamentState($v);
+            $armSev = $armState === 'non_conforme' ? Severity::CRITICAL : null;
+
+            $worst = collect([$disinfSev, $maint->severity, $docSev, $consoSev, $armSev])
                 ->filter()
                 ->map(fn (Severity $s) => $s->rank())
                 ->max() ?? 0;
@@ -202,12 +214,37 @@ class DashboardController extends Controller
                 'consumables' => $consoSev?->value,
                 'consumables_missing' => $conso['missing'],
                 'open_events' => $events,
+                'armament' => $armState,
+                'armament_missing' => $armPartiel,
                 'worst' => $worst,
             ];
         });
 
         // Retards / alertes en tête, puis par nom.
         return $rows->sortByDesc('worst')->values()->all();
+    }
+
+    /**
+     * État de conformité à l'armement de référence d'un véhicule.
+     *
+     * @return array{0:string,1:int}  [état, nombre d'obligatoires non conformes]
+     */
+    private function armamentState(Vehicle $vehicle): array
+    {
+        $arm = ArmamentConformity::for($vehicle);
+        if ($arm === null || empty($arm['defined'])) {
+            return ['none', 0];
+        }
+
+        $s = $arm['summary'];
+        if ($s['obligatoire_partiel'] > 0) {
+            return ['non_conforme', $s['obligatoire_partiel']];
+        }
+        if ($s['obligatoire_inconnu'] > 0) {
+            return ['a_verifier', 0];
+        }
+
+        return ['conforme', 0];
     }
 
     /**
