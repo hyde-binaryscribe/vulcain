@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SubTabs from '@/Components/SubTabs.vue';
 
@@ -9,7 +9,40 @@ const props = defineProps({
     bands: { type: Array, default: () => [] },
     attention: { type: Array, default: () => [] },
     recent: { type: Array, default: () => [] },
+    can_manage: { type: Boolean, default: false },
 });
+
+// Pourcentage en direct dans une modale (valeur ↔ plage min/max).
+function livePercent(b, pressure) {
+    if (!b || pressure === '' || pressure == null || isNaN(pressure)) return null;
+    if (b.pressure_max === b.pressure_min) return null;
+    return Math.round(Math.max(0, Math.min(100, (Number(pressure) - b.pressure_min) / (b.pressure_max - b.pressure_min) * 100)));
+}
+
+// Ajuster le niveau.
+const adjusting = ref(null);
+const readingForm = useForm({ pressure: null, note: '' });
+function openReading(b) { adjusting.value = b; readingForm.clearErrors(); readingForm.pressure = b.pressure ?? b.pressure_max; readingForm.note = ''; }
+const readingPercent = computed(() => livePercent(adjusting.value, readingForm.pressure));
+function submitReading() {
+    readingForm.post(`/vehicles/${adjusting.value.vehicle_id}/oxygen-bottles/${adjusting.value.id}/releve`, {
+        preserveScroll: true, onSuccess: () => { adjusting.value = null; },
+    });
+}
+
+// Changer la bouteille.
+const replacing = ref(null);
+const replaceForm = useForm({ serial_number: '', pressure: null, note: '' });
+function openReplace(b) { replacing.value = b; replaceForm.clearErrors(); replaceForm.serial_number = ''; replaceForm.pressure = b.pressure_max; replaceForm.note = ''; }
+const replacePercent = computed(() => livePercent(replacing.value, replaceForm.pressure));
+function submitReplace() {
+    replaceForm.post(`/vehicles/${replacing.value.vehicle_id}/oxygen-bottles/${replacing.value.id}/remplacer`, {
+        preserveScroll: true, onSuccess: () => { replacing.value = null; },
+    });
+}
+function setStatus(b, status) {
+    router.post(`/vehicles/${b.vehicle_id}/oxygen-bottles/${b.id}/statut`, { status }, { preserveScroll: true });
+}
 
 const section = ref('attention');
 const sections = computed(() => [
@@ -90,6 +123,7 @@ const barHeight = (count) => Math.round((count / maxBand.value) * 150);
                             <th class="px-2 py-2">Niveau</th>
                             <th class="px-2 py-2">État</th>
                             <th class="px-2 py-2">Dernier relevé</th>
+                            <th v-if="can_manage" class="px-2 py-2 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -112,8 +146,16 @@ const barHeight = (count) => Math.round((count / maxBand.value) * 150);
                                 <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="(statusChip[b.status] || statusChip.en_service).cls">{{ b.status_label }}</span>
                             </td>
                             <td class="px-2 py-2.5 tabular-nums text-xs text-gray-500">{{ b.last_checked_at ?? '—' }}</td>
+                            <td v-if="can_manage" class="px-2 py-2.5">
+                                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" @click="openReading(b)">Ajuster</button>
+                                    <button type="button" class="rounded-lg bg-[var(--brand)] px-2.5 py-1 text-xs font-semibold text-white hover:brightness-110" @click="openReplace(b)">Changer</button>
+                                    <button v-if="b.status !== 'a_remplacer'" type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50" @click="setStatus(b, 'a_remplacer')">À remplacer</button>
+                                    <button v-else type="button" class="rounded-lg border border-green-300 px-2.5 py-1 text-xs font-semibold text-green-700 hover:bg-green-50" @click="setStatus(b, 'en_service')">En service</button>
+                                </div>
+                            </td>
                         </tr>
-                        <tr v-if="attention.length === 0"><td colspan="6" class="py-6 text-center text-gray-500">Toutes les bouteilles sont au-dessus de 50 % et en service.</td></tr>
+                        <tr v-if="attention.length === 0"><td :colspan="can_manage ? 7 : 6" class="py-6 text-center text-gray-500">Toutes les bouteilles sont au-dessus de 50 % et en service.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -165,6 +207,61 @@ const barHeight = (count) => Math.round((count / maxBand.value) * 150);
                         <tr v-if="recent.length === 0"><td colspan="6" class="py-6 text-center text-gray-500">Aucune activité récente.</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Modale : ajuster le niveau -->
+        <div v-if="adjusting" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="adjusting = null">
+            <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+                <h3 class="text-lg font-bold text-gray-900">Ajuster le niveau</h3>
+                <p class="mt-0.5 text-xs text-gray-500">{{ adjusting.vehicle }} · {{ adjusting.label }} (plage {{ adjusting.pressure_min }}–{{ adjusting.pressure_max }} bar).</p>
+
+                <label class="mt-4 block text-xs font-medium text-gray-600">Pression (bar)</label>
+                <input v-model.number="readingForm.pressure" type="number" :min="0" :max="adjusting.pressure_max" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-lg font-semibold focus:bg-white" />
+                <p v-if="readingForm.errors.pressure" class="mt-1 text-xs text-red-600">{{ readingForm.errors.pressure }}</p>
+                <div class="mt-3 flex items-center gap-2">
+                    <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full transition-all" :style="{ width: (readingPercent ?? 0) + '%', background: fillColor(readingPercent) }"></div>
+                    </div>
+                    <span class="w-10 text-right text-sm font-bold" :style="{ color: fillColor(readingPercent) }">{{ readingPercent ?? '—' }}%</span>
+                </div>
+                <label class="mt-3 block text-xs font-medium text-gray-600">Note (optionnel)</label>
+                <input v-model="readingForm.note" type="text" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="adjusting = null">Annuler</button>
+                    <button type="button" :disabled="readingForm.processing || readingForm.pressure === '' || readingForm.pressure == null" class="flex-1 rounded-xl bg-[var(--brand)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitReading">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modale : changer la bouteille -->
+        <div v-if="replacing" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="replacing = null">
+            <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+                <h3 class="text-lg font-bold text-gray-900">Changer la bouteille</h3>
+                <p class="mt-0.5 text-xs text-gray-500">
+                    {{ replacing.vehicle }} · {{ replacing.label }}<template v-if="replacing.serial_number"> · sortie n° {{ replacing.serial_number }}</template>. Remise à plein par défaut.
+                </p>
+
+                <label class="mt-4 block text-xs font-medium text-gray-600">N° de série de la nouvelle bouteille</label>
+                <input v-model="replaceForm.serial_number" type="text" placeholder="ex. AB-12345" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm uppercase focus:bg-white" @input="replaceForm.serial_number = replaceForm.serial_number.toUpperCase()" />
+                <p v-if="replaceForm.errors.serial_number" class="mt-1 text-xs text-red-600">{{ replaceForm.errors.serial_number }}</p>
+
+                <label class="mt-3 block text-xs font-medium text-gray-600">Pression de la bouteille neuve (bar)</label>
+                <input v-model.number="replaceForm.pressure" type="number" :min="0" :max="replacing.pressure_max" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm focus:bg-white" />
+                <div class="mt-2 flex items-center gap-2">
+                    <div class="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full transition-all" :style="{ width: (replacePercent ?? 0) + '%', background: fillColor(replacePercent) }"></div>
+                    </div>
+                    <span class="w-10 text-right text-sm font-bold" :style="{ color: fillColor(replacePercent) }">{{ replacePercent ?? '—' }}%</span>
+                </div>
+                <label class="mt-3 block text-xs font-medium text-gray-600">Note (optionnel)</label>
+                <input v-model="replaceForm.note" type="text" class="mt-1 block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:bg-white" />
+
+                <div class="mt-5 flex gap-2">
+                    <button type="button" class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium" @click="replacing = null">Annuler</button>
+                    <button type="button" :disabled="replaceForm.processing" class="flex-1 rounded-xl bg-[var(--brand)] py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="submitReplace">Enregistrer le changement</button>
+                </div>
             </div>
         </div>
     </AppLayout>

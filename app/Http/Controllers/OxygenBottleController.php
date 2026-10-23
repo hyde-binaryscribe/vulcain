@@ -61,6 +61,8 @@ class OxygenBottleController extends Controller
             'label' => $b->label,
             'serial_number' => $b->serial_number,
             'pressure' => $b->current_pressure,
+            'pressure_min' => $b->pressure_min,
+            'pressure_max' => $b->pressure_max,
             'percent' => $b->percent(),
             'status' => $b->status,
             'status_label' => $b->statusLabel(),
@@ -100,6 +102,7 @@ class OxygenBottleController extends Controller
             'bands' => $bands,
             'attention' => $attention,
             'recent' => $recent,
+            'can_manage' => true, // page réservée aux gestionnaires (middleware)
         ]);
     }
 

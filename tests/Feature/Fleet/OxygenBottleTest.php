@@ -174,7 +174,34 @@ class OxygenBottleTest extends TestCase
                 ->where('kpis.low', 1)          // 40/200 = 20 %
                 ->where('kpis.to_replace', 1)
                 ->where('kpis.avg_fill', 60)     // moyenne des en service : (100 + 20) / 2
+                ->where('can_manage', true)
                 ->has('attention', 2));          // la basse + la « à remplacer »
+    }
+
+    public function test_manager_can_act_on_a_bottle_without_an_open_session(): void
+    {
+        // Les actions du dashboard sont déclenchées par un gestionnaire, hors service.
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicle, $bottleId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $bottle = OxygenBottle::create([
+                'vehicle_id' => $vehicle->id, 'label' => 'Principale',
+                'pressure_min' => 0, 'pressure_max' => 200, 'current_pressure' => 30,
+            ]);
+
+            return [$admin, $vehicle, $bottle->id];
+        });
+
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/oxygen-bottles/{$bottleId}/releve", [
+            'pressure' => 180,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($bottleId) {
+            $this->assertSame(180, OxygenBottle::findOrFail($bottleId)->current_pressure);
+        });
     }
 
     public function test_terrain_vehicle_page_exposes_oxygen_bottles(): void
