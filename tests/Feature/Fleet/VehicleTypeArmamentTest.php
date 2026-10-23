@@ -7,6 +7,7 @@ use App\Domain\Identity\Rbac;
 use App\Domain\Identity\RoleProvisioner;
 use App\Models\Organisation;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Models\VehicleType;
 use App\Models\VehicleTypeEquipment;
 use App\Support\Tenancy\TenantContext;
@@ -83,5 +84,30 @@ class VehicleTypeArmamentTest extends TestCase
             $this->assertSame('2B5', $items[0]->note);
             $this->assertSame(ArmamentLevel::CONDITIONNEL, $items[1]->level);
         });
+    }
+
+    public function test_vehicle_fiche_exposes_type_armament_conformity(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicleId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            $type = VehicleType::create(['name' => 'Ambulance type A', 'display_order' => 0]);
+            $type->equipment()->create(['category' => 'Relevage / brancardage', 'designation' => 'Brancard principal', 'quantity' => 1, 'level' => 'obligatoire', 'display_order' => 0]);
+
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id, 'type' => 'Ambulance type A']);
+
+            return [$admin, $vehicle->id];
+        });
+
+        $this->actingAs($admin)->get("http://caserne.localhost/vehicles/{$vehicleId}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Vehicles/Show')
+                ->where('armament.defined', true)
+                ->where('armament.type', 'Ambulance type A')
+                ->has('armament.items', 1)
+                ->where('armament.items.0.state', 'inconnu')); // aucun matériel embarqué → à vérifier
     }
 }

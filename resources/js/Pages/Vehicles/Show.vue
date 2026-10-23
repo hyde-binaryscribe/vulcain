@@ -26,6 +26,7 @@ const props = defineProps({
     history: { type: Array, default: () => [] },
     telematics: { type: Object, default: null },
     oxygen: { type: Array, default: () => [] },
+    armament: { type: Object, default: null },
 });
 
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
@@ -42,6 +43,7 @@ const tabs = computed(() => [
     { key: 'disinfection', label: 'Désinfection', dot: props.disinfection.severity === 'critical' },
     { key: 'maintenance', label: 'Entretien', dot: props.maintenance.severity === 'critical' },
     { key: 'materials', label: 'Matériel', badge: materialAlerts.value || null },
+    ...(props.armament ? [{ key: 'armament', label: 'Armement', dot: (props.armament.summary?.obligatoire_partiel || 0) > 0 }] : []),
     { key: 'oxygen', label: 'Oxygène' },
     ...(props.telematics ? [{ key: 'telematics', label: 'Télématique', dot: (props.telematics.last?.fault_count || 0) > 0 }] : []),
     { key: 'documents', label: 'Documents' },
@@ -79,6 +81,23 @@ function removeBottle(b) {
         router.delete(`/vehicles/${props.vehicle.id}/oxygen-bottles/${b.id}`, { preserveScroll: true });
     }
 }
+
+// --- Armement de référence (conformité) ---
+const armamentGroups = computed(() => {
+    const groups = {};
+    (props.armament?.items || []).forEach((it) => { (groups[it.category] ||= []).push(it); });
+    return Object.entries(groups).map(([category, items]) => ({ category, items }));
+});
+const armStateBadge = {
+    present: { cls: 'bg-green-100 text-green-700', label: 'Présent' },
+    partiel: { cls: 'bg-orange-100 text-orange-700', label: 'Partiel' },
+    inconnu: { cls: 'bg-gray-100 text-gray-500', label: 'À vérifier' },
+};
+const armLevelBadge = {
+    obligatoire: { cls: 'bg-red-50 text-red-700 ring-1 ring-red-200', label: 'Obligatoire' },
+    conditionnel: { cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200', label: 'Conditionnel' },
+    facultatif: { cls: 'bg-gray-50 text-gray-500 ring-1 ring-gray-200', label: 'Facultatif' },
+};
 
 // --- Documents véhicule ---
 const docCategories = ['Agrément', 'Contrôle technique', 'Carte grise', 'Assurance', 'Autre'];
@@ -842,6 +861,44 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
         </div>
 
         <!-- Télématique -->
+        <!-- Armement de référence (conformité) -->
+        <section v-if="armament" v-show="tab === 'armament'" class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-base font-semibold text-gray-900">Armement de référence — {{ armament.type }}</h2>
+                <Link v-if="armament.type_id" :href="`/vehicle-types/${armament.type_id}/armement`" class="text-xs font-semibold text-[var(--brand)] hover:underline">Modifier le modèle ›</Link>
+            </div>
+
+            <template v-if="armament.defined">
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span class="rounded-full bg-green-100 px-2 py-0.5 font-semibold text-green-700">{{ armament.summary.present }} présent(s)</span>
+                    <span v-if="armament.summary.partiel" class="rounded-full bg-orange-100 px-2 py-0.5 font-semibold text-orange-700">{{ armament.summary.partiel }} partiel(s)</span>
+                    <span v-if="armament.summary.inconnu" class="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">{{ armament.summary.inconnu }} à vérifier</span>
+                    <span class="text-gray-400">· {{ armament.summary.obligatoire }} obligatoire(s) sur {{ armament.summary.total }}</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-400">Rapprochement automatique (best-effort) avec le matériel embarqué, par nom. « À vérifier » = non rapproché automatiquement, à contrôler sur place.</p>
+
+                <div v-for="g in armamentGroups" :key="g.category" class="mt-5">
+                    <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500">{{ g.category }}</h3>
+                    <ul class="mt-2 divide-y divide-gray-100">
+                        <li v-for="(it, i) in g.items" :key="i" class="flex items-center gap-3 py-2 text-sm">
+                            <span class="min-w-0 flex-1">
+                                <span class="text-gray-900">{{ it.designation }}</span>
+                                <span v-if="it.quantity > 1" class="ml-1 text-xs text-gray-400">× {{ it.quantity }}</span>
+                                <span v-if="it.note" class="ml-1 text-xs text-gray-400">· {{ it.note }}</span>
+                            </span>
+                            <span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium" :class="armLevelBadge[it.level].cls">{{ armLevelBadge[it.level].label }}</span>
+                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="armStateBadge[it.state].cls">{{ armStateBadge[it.state].label }}<template v-if="it.stock != null"> ({{ it.stock }})</template></span>
+                        </li>
+                    </ul>
+                </div>
+            </template>
+
+            <p v-else class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                Aucun armement de référence défini pour le type « {{ armament.type }} ».
+                <Link v-if="armament.type_id" :href="`/vehicle-types/${armament.type_id}/armement`" class="font-semibold text-[var(--brand)]">Le définir ›</Link>
+            </p>
+        </section>
+
         <!-- Oxygène : dotation (gestionnaire) -->
         <section v-show="tab === 'oxygen'" class="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 class="flex items-center gap-2 text-base font-semibold text-gray-900">
