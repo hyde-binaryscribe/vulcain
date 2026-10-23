@@ -12,6 +12,7 @@ use App\Models\VehicleTypeOxygen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,6 +58,68 @@ class VehicleTypeEquipmentController extends Controller
             'templates' => ArmamentReference::templates(),
             'status' => session('status'),
         ]);
+    }
+
+    /**
+     * Crée les types de matériel manquants depuis les désignations de l'armement
+     * et relie chaque ligne, en réutilisant un type existant au nom équivalent
+     * (anti-doublon). Les lignes « volume » (oxygène) et sections sont ignorées.
+     */
+    public function linkMaterials(Request $request, VehicleType $vehicleType): RedirectResponse
+    {
+        $request->validate(['items' => ['array']]);
+        $validMaterialTypeIds = MaterialType::query()->pluck('id')->all();
+        $items = $this->sanitize($request->input('items', []), $validMaterialTypeIds);
+
+        // Index des types existants par nom normalisé (réutilisation = anti-doublon).
+        $byName = [];
+        foreach (MaterialType::query()->get(['id', 'name']) as $mt) {
+            $byName[$this->normalize($mt->name)] = $mt->id;
+        }
+
+        $created = 0;
+        $linked = 0;
+        $nextOrder = (int) MaterialType::query()->max('display_order');
+
+        foreach ($items as $k => $item) {
+            if ($item['material_type_id'] !== null || $item['volume_l'] !== null) {
+                continue; // déjà relié, ou ligne volume (oxygène)
+            }
+            $key = $this->normalize($item['designation']);
+            if ($key === '') {
+                continue;
+            }
+
+            if (isset($byName[$key])) {
+                $items[$k]['material_type_id'] = $byName[$key];
+            } else {
+                $mt = MaterialType::create([
+                    'name' => $item['designation'],
+                    'tracking_mode' => 'quantity',
+                    'display_order' => ++$nextOrder,
+                    'is_active' => true,
+                ]);
+                $byName[$key] = $mt->id;
+                $items[$k]['material_type_id'] = $mt->id;
+                $created++;
+            }
+            $linked++;
+        }
+
+        DB::transaction(function () use ($vehicleType, $items) {
+            $vehicleType->equipment()->delete();
+            foreach ($items as $order => $item) {
+                $vehicleType->equipment()->create($item + ['display_order' => $order]);
+            }
+        });
+
+        return back()->with('status', "{$created} type(s) de matériel créé(s), {$linked} ligne(s) reliée(s).");
+    }
+
+    /** Normalise un libellé pour détecter les doublons (sans accents, minuscules). */
+    private function normalize(string $s): string
+    {
+        return trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9]+/', ' ', Str::ascii(mb_strtolower($s)))));
     }
 
     /** Enregistre la dotation d'oxygène de référence (répartition en bouteilles). */

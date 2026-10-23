@@ -89,6 +89,38 @@ class VehicleTypeArmamentTest extends TestCase
         });
     }
 
+    public function test_link_materials_creates_missing_and_reuses_existing(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $typeId, $brancardId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            $brancard = MaterialType::create(['name' => 'Brancard principal', 'tracking_mode' => 'quantity', 'display_order' => 0]);
+            $type = VehicleType::create(['name' => 'Ambulance type A', 'display_order' => 0]);
+
+            return [$admin, $type->id, $brancard->id];
+        });
+
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicle-types/{$typeId}/armement/relier-materiels", [
+            'items' => [
+                ['category' => 'Relevage', 'designation' => 'Brancard principal', 'quantity' => 1, 'level' => 'obligatoire'], // réutilise
+                ['category' => 'Relevage', 'designation' => 'Portoir chaise', 'quantity' => 1, 'level' => 'obligatoire'],     // crée
+                ['category' => 'Ventilation / Oxygène', 'designation' => 'Oxygène — volume', 'quantity' => 1, 'volume_l' => 2000, 'level' => 'obligatoire'], // ignoré
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($typeId, $brancardId) {
+            // 2 types au total : Brancard (réutilisé) + Portoir chaise (créé) ; pas de doublon.
+            $this->assertSame(2, MaterialType::query()->count());
+
+            $equipment = VehicleTypeEquipment::query()->where('vehicle_type_id', $typeId)->orderBy('display_order')->get();
+            $this->assertSame($brancardId, $equipment[0]->material_type_id);        // réutilisé
+            $this->assertNotNull($equipment[1]->material_type_id);                   // créé
+            $this->assertNull($equipment[2]->material_type_id);                      // ligne volume O2 ignorée
+        });
+    }
+
     public function test_vehicle_fiche_exposes_type_armament_conformity(): void
     {
         $org = Organisation::factory()->slug('caserne')->create();

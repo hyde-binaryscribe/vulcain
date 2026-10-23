@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Icon from '@/Components/Icon.vue';
@@ -32,6 +32,8 @@ function saveOxygen() {
 }
 
 const current = reactive({ items: (props.equipment || []).map((e) => ({ ...e, note: e.note ?? '' })) });
+// Re-synchronise après une action serveur (liaison des matériels, p. ex.).
+watch(() => props.equipment, (v) => { current.items = (v || []).map((e) => ({ ...e, note: e.note ?? '' })); });
 const selTemplate = ref('');
 
 const levelChip = {
@@ -61,6 +63,11 @@ function loadTemplate() {
     if (current.items.length && !confirm(`Remplacer l'armement actuel par le modèle « ${t.label} » ?`)) return;
     current.items = t.items.map((it) => ({ ...it, material_type_id: it.material_type_id ?? null, note: it.note ?? '' }));
     selTemplate.value = '';
+}
+
+function linkMaterials() {
+    if (!confirm('Créer les types de matériel manquants depuis les désignations et les relier ? Les doublons (même nom) sont réutilisés, pas recréés.')) return;
+    router.post(`/vehicle-types/${props.type.id}/armement/relier-materiels`, { items: current.items }, { preserveScroll: true });
 }
 
 const saving = ref(false);
@@ -146,6 +153,9 @@ function save() {
             </button>
             <button type="button" :disabled="saving" class="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="save">
                 Enregistrer l'armement
+            </button>
+            <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-[var(--brand)]/40 px-4 py-2.5 text-sm font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/10" @click="linkMaterials">
+                <Icon name="tag" :size="15" /> Créer &amp; relier les matériels
             </button>
         </div>
 

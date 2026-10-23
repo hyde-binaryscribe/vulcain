@@ -211,6 +211,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Armement de référence (équipement obligatoire / facultatif) par type.
         Route::get('vehicle-types/{vehicleType}/armement', [VehicleTypeEquipmentController::class, 'index'])->name('vehicle-types.armament');
         Route::post('vehicle-types/{vehicleType}/armement', [VehicleTypeEquipmentController::class, 'save'])->name('vehicle-types.armament.save');
+        Route::post('vehicle-types/{vehicleType}/armement/relier-materiels', [VehicleTypeEquipmentController::class, 'linkMaterials'])->name('vehicle-types.armament.link-materials');
         Route::post('vehicle-types/{vehicleType}/dotation-oxygene', [VehicleTypeEquipmentController::class, 'saveOxygen'])->name('vehicle-types.oxygen.save');
 
         // Protocoles de service (ouverture / fermeture) par type de véhicule.
