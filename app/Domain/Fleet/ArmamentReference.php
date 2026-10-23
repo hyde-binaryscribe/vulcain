@@ -57,9 +57,10 @@ class ArmamentReference
             ['Ventilation / Oxygène', 'Insufflateur manuel pédiatrique', 1, self::O, null],
             ['Ventilation / Oxygène', 'Aspirateur de mucosités', 1, self::O, null],
             ['Ventilation / Oxygène', 'Canules oro-pharyngées (jeu de Guedel)', 1, self::O, null],
-            ['Ventilation / Oxygène', 'Oxygène — volume total embarqué', 1, self::O, 'Volume total obligatoire — réparti en bouteilles au niveau du véhicule (ex. Type A : ~3000 L)', null],
-            ['Monitorage / diagnostic', 'Tensiomètre', 1, self::O, null],
-            ['Monitorage / diagnostic', 'Oxymètre de pouls (SpO2)', 1, self::O, null],
+            ['Ventilation / Oxygène', 'Oxygène — volume total embarqué', 1, self::O, 'Type A : 2000 L mini, ≥1 bouteille 400 L, aucune > 1000 L (réparti en bouteilles au niveau du véhicule)', 2000],
+            ['Monitorage / diagnostic', 'Tensiomètre automatique', 1, self::O, 'Obligatoire type A depuis l\'arrêté du 20/04/2026'],
+            ['Monitorage / diagnostic', 'Oxymètre de pouls (SpO2)', 1, self::O, 'Obligatoire type A depuis l\'arrêté du 20/04/2026'],
+            ['Monitorage / diagnostic', 'Lecteur de glycémie', 1, self::O, 'Obligatoire type A depuis l\'arrêté du 20/04/2026'],
             ['Monitorage / diagnostic', 'Stéthoscope', 1, self::O, null],
             ['Monitorage / diagnostic', 'Thermomètre', 1, self::O, null],
             ['Hygiène / protection', 'Gants à usage unique (boîte)', 2, self::O, null],
@@ -90,18 +91,20 @@ class ArmamentReference
             ['DSA / DAE', 'Défibrillateur semi-automatique avec enregistrement ECG', 1, self::O, null],
             ['Relevage / brancardage', 'Matelas à dépression (matelas coquille)', 1, self::O, null],
             ['Immobilisation', 'Attelle cervico-thoracique (type KED)', 1, self::O, null],
-            ['Monitorage / diagnostic', 'Lecteur de glycémie', 1, self::O, null],
         ]);
     }
 
-    /** Type C = socle B + réanimation. */
+    /** Type C = socle B + réanimation ; oxygène renforcé (portable 1000 L + fixe ≥ 2000 L). */
     private static function typeC(): array
     {
-        return array_merge(self::typeB(), [
+        $base = array_values(array_filter(self::typeB(), fn ($r) => $r[1] !== 'Oxygène — volume total embarqué'));
+
+        return array_merge($base, [
             ['Réanimation', 'Respirateur de transport', 1, self::O, null],
             ['Réanimation', 'Scope multiparamétrique', 1, self::O, null],
             ['Réanimation', 'Pousse-seringues électriques', 2, self::O, null],
             ['Réanimation', 'Aspirateur électrique', 1, self::O, null],
+            ['Ventilation / Oxygène', 'Oxygène — volume total embarqué', 1, self::O, 'Type C : portable 1000 L + fixe ≥ 2000 L (≈ 3000 L au total)', 3000],
         ]);
     }
 
