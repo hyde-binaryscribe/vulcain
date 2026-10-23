@@ -241,6 +241,7 @@ class VehicleController extends Controller
                 ->map(fn (ActivityLog $l) => ActivityController::format($l)),
             'telematics' => $this->telematics($vehicle),
             'armament' => ArmamentConformity::for($vehicle),
+            'oxygenExpected' => $this->oxygenExpected($vehicle),
             'oxygenBottleTypes' => OxygenBottleType::query()->where('is_active', true)
                 ->orderBy('display_order')->orderBy('name')->get()
                 ->map(fn (OxygenBottleType $t) => [
@@ -269,6 +270,42 @@ class VehicleController extends Controller
             ])->values(),
             'status' => session('status'),
         ]);
+    }
+
+    /**
+     * Dotation d'oxygène attendue du type (répartition en bouteilles) + volume
+     * embarqué, pour la fiche. Null si le type n'a pas de dotation définie.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function oxygenExpected(Vehicle $vehicle): ?array
+    {
+        if ($vehicle->type === null || $vehicle->type === '') {
+            return null;
+        }
+        $type = VehicleType::query()->where('name', $vehicle->type)->first();
+        if ($type === null) {
+            return null;
+        }
+
+        $dotation = $type->oxygenDotation()->with('bottleType')->get();
+        if ($dotation->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'type_id' => $type->id,
+            'total' => (int) $dotation->sum(fn (\App\Models\VehicleTypeOxygen $d) => ($d->bottleType?->volume_l ?? 0) * $d->quantity),
+            'onboard' => (int) $vehicle->oxygenBottles()->where('is_active', true)->get()
+                ->sum(fn (OxygenBottle $b) => $b->gasVolume() ?? 0),
+            'can_generate' => $vehicle->oxygenBottles()->count() === 0,
+            'lines' => $dotation->map(fn (\App\Models\VehicleTypeOxygen $d) => [
+                'type' => $d->bottleType?->name,
+                'quantity' => $d->quantity,
+                'label' => $d->label,
+                'volume_l' => $d->bottleType?->volume_l,
+            ])->values(),
+        ];
     }
 
     /**

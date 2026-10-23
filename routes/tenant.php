@@ -183,6 +183,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::delete('vehicles/{vehicle}/fuel/{fuel}', [FuelController::class, 'destroy'])->name('vehicles.fuel.destroy');
 
         // Dotation d'oxygène : déclaration/édition/retrait des emplacements de bouteille.
+        Route::post('vehicles/{vehicle}/oxygen-bottles/generer', [OxygenBottleController::class, 'generate'])->name('vehicles.oxygen.generate');
         Route::post('vehicles/{vehicle}/oxygen-bottles', [OxygenBottleController::class, 'store'])->name('vehicles.oxygen.store');
         Route::patch('vehicles/{vehicle}/oxygen-bottles/{bottle}', [OxygenBottleController::class, 'update'])->name('vehicles.oxygen.update');
         Route::delete('vehicles/{vehicle}/oxygen-bottles/{bottle}', [OxygenBottleController::class, 'destroy'])->name('vehicles.oxygen.destroy');
@@ -210,6 +211,7 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Armement de référence (équipement obligatoire / facultatif) par type.
         Route::get('vehicle-types/{vehicleType}/armement', [VehicleTypeEquipmentController::class, 'index'])->name('vehicle-types.armament');
         Route::post('vehicle-types/{vehicleType}/armement', [VehicleTypeEquipmentController::class, 'save'])->name('vehicle-types.armament.save');
+        Route::post('vehicle-types/{vehicleType}/dotation-oxygene', [VehicleTypeEquipmentController::class, 'saveOxygen'])->name('vehicle-types.oxygen.save');
 
         // Protocoles de service (ouverture / fermeture) par type de véhicule.
         Route::get('protocoles-service', [ServiceProtocolController::class, 'index'])->name('service-protocols.index');

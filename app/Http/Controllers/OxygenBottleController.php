@@ -6,6 +6,7 @@ use App\Models\OxygenBottle;
 use App\Models\OxygenBottleLog;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
+use App\Models\VehicleType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -149,6 +150,46 @@ class OxygenBottleController extends Controller
         $bottle->delete();
 
         return back()->with('status', 'Bouteille retirée de la dotation.');
+    }
+
+    /** Génère les bouteilles du véhicule depuis la dotation O2 de son type. */
+    public function generate(Vehicle $vehicle): RedirectResponse
+    {
+        if ($vehicle->oxygenBottles()->exists()) {
+            return back()->with('status', 'Le véhicule a déjà des bouteilles — génération ignorée.');
+        }
+
+        $type = $vehicle->type ? VehicleType::query()->where('name', $vehicle->type)->first() : null;
+        $dotation = $type?->oxygenDotation()->with('bottleType')->get();
+        if ($dotation === null || $dotation->isEmpty()) {
+            return back()->with('status', 'Aucune dotation O2 définie pour ce type.');
+        }
+
+        $order = 0;
+        foreach ($dotation as $d) {
+            $bt = $d->bottleType;
+            for ($n = 1; $n <= $d->quantity; $n++) {
+                $label = $d->label ?: ($bt?->name ?? 'Bouteille');
+                if ($d->quantity > 1) {
+                    $label .= ' '.$n;
+                }
+                $vehicle->oxygenBottles()->create([
+                    'oxygen_bottle_type_id' => $bt?->id,
+                    'label' => $label,
+                    'capacity_l' => $bt?->capacity_l,
+                    'volume_l' => $bt?->volume_l,
+                    'pressure_min' => $bt?->pressure_min ?? 0,
+                    'pressure_max' => $bt?->pressure_max ?? 200,
+                    'current_pressure' => $bt?->pressure_max ?? 200,
+                    'status' => OxygenBottle::STATUS_EN_SERVICE,
+                    'is_active' => true,
+                    'display_order' => $order++,
+                    'last_checked_at' => now(),
+                ]);
+            }
+        }
+
+        return back()->with('status', 'Bouteilles générées depuis la dotation du type.');
     }
 
     // --- Terrain (équipage en service ou gestionnaire) ------------------------

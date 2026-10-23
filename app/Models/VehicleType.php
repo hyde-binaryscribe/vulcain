@@ -53,4 +53,10 @@ class VehicleType extends Model
     {
         return $this->hasMany(VehicleTypeEquipment::class);
     }
+
+    /** Dotation d'oxygène de référence (répartition en bouteilles) de ce type. */
+    public function oxygenDotation(): HasMany
+    {
+        return $this->hasMany(VehicleTypeOxygen::class)->orderBy('display_order')->orderBy('id');
+    }
 }

@@ -27,8 +27,13 @@ const props = defineProps({
     telematics: { type: Object, default: null },
     oxygen: { type: Array, default: () => [] },
     oxygenBottleTypes: { type: Array, default: () => [] },
+    oxygenExpected: { type: Object, default: null },
     armament: { type: Object, default: null },
 });
+
+function generateOxygen() {
+    router.post(`/vehicles/${props.vehicle.id}/oxygen-bottles/generer`, {}, { preserveScroll: true });
+}
 
 const viewLabels = { avant: 'Avant', arriere: 'Arrière', gauche: 'Côté gauche', droite: 'Côté droit', dessus: 'Dessus' };
 const viewLabel = (v) => viewLabels[v] ?? v;
@@ -924,6 +929,25 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 Oxygène — dotation
             </h2>
             <p class="mt-1 text-sm text-gray-500">Déclarez les bouteilles embarquées. En service, l'équipage ajuste les niveaux et pointe les changements de bouteille.</p>
+
+            <!-- Dotation O₂ attendue du type -->
+            <div v-if="oxygenExpected" class="mt-4 rounded-xl border p-3.5" :class="oxygenExpected.onboard >= oxygenExpected.total ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="min-w-0 text-sm">
+                        <span class="font-semibold text-gray-800">Dotation attendue ({{ armament ? armament.type : 'type' }})</span>
+                        <span class="text-gray-600">
+                            : <template v-for="(l, i) in oxygenExpected.lines" :key="i">{{ i ? ' + ' : '' }}{{ l.quantity }}× {{ l.type || '?' }}<template v-if="l.label"> ({{ l.label }})</template></template>
+                            = <strong>{{ oxygenExpected.total.toLocaleString('fr-FR') }} L</strong>
+                        </span>
+                    </div>
+                    <span class="text-sm font-semibold" :class="oxygenExpected.onboard >= oxygenExpected.total ? 'text-green-700' : 'text-amber-700'">
+                        Embarqué : {{ oxygenExpected.onboard.toLocaleString('fr-FR') }} L
+                    </span>
+                </div>
+                <button v-if="oxygenExpected.can_generate" type="button" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand)] px-4 py-2 text-xs font-semibold text-white hover:brightness-110" @click="generateOxygen">
+                    <Icon name="plus" :size="14" /> Générer ces bouteilles sur le véhicule
+                </button>
+            </div>
 
             <div v-if="oxygenRows.length" class="mt-4 space-y-3">
                 <div v-for="b in oxygenRows" :key="b.id" class="rounded-xl border border-gray-200 p-3">

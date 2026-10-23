@@ -9,8 +9,27 @@ const props = defineProps({
     equipment: { type: Array, default: () => [] },
     levels: { type: Array, default: () => [] },
     materialTypes: { type: Array, default: () => [] },
+    oxygenBottleTypes: { type: Array, default: () => [] },
+    oxygenDotation: { type: Array, default: () => [] },
     templates: { type: Object, default: () => ({}) },
 });
+
+// --- Dotation oxygène standard (répartition en bouteilles) ---
+const dotation = reactive({ items: (props.oxygenDotation || []).map((d) => ({ ...d })) });
+const bottleTypeById = computed(() => Object.fromEntries(props.oxygenBottleTypes.map((t) => [t.id, t])));
+const dotationTotal = computed(() => dotation.items.reduce((s, d) => {
+    const t = bottleTypeById.value[d.oxygen_bottle_type_id];
+    return s + (t?.volume_l ? t.volume_l * (d.quantity || 1) : 0);
+}, 0));
+function addDotation() { dotation.items.push({ oxygen_bottle_type_id: props.oxygenBottleTypes[0]?.id ?? null, quantity: 1, label: '' }); }
+function removeDotation(i) { dotation.items.splice(i, 1); }
+const savingOxygen = ref(false);
+function saveOxygen() {
+    savingOxygen.value = true;
+    router.post(`/vehicle-types/${props.type.id}/dotation-oxygene`, { items: dotation.items }, {
+        preserveScroll: true, preserveState: true, onFinish: () => { savingOxygen.value = false; },
+    });
+}
 
 const current = reactive({ items: (props.equipment || []).map((e) => ({ ...e, note: e.note ?? '' })) });
 const selTemplate = ref('');
@@ -128,6 +147,35 @@ function save() {
             <button type="button" :disabled="saving" class="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="save">
                 Enregistrer l'armement
             </button>
+        </div>
+
+        <!-- Dotation oxygène standard (répartition en bouteilles) -->
+        <div class="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="flex items-center gap-2 text-sm font-bold text-gray-900">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600"><Icon name="pharmacy" :size="15" /></span>
+                    Dotation oxygène standard
+                </h2>
+                <span class="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">Volume total : {{ dotationTotal.toLocaleString('fr-FR') }} L</span>
+            </div>
+            <p class="mt-1 text-sm text-gray-500">Répartition O₂ attendue pour ce type (ex. 2× B5). Le volume requis se calcule automatiquement et sert à la conformité ; tu pourras générer ces bouteilles sur un véhicule neuf.</p>
+
+            <div class="mt-3 space-y-2">
+                <div v-for="(d, i) in dotation.items" :key="i" class="grid grid-cols-1 items-center gap-2 sm:grid-cols-12">
+                    <select v-model.number="d.oxygen_bottle_type_id" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-4">
+                        <option v-for="t in oxygenBottleTypes" :key="t.id" :value="t.id">{{ t.name }}<template v-if="t.volume_l"> ({{ t.volume_l }} L)</template></option>
+                    </select>
+                    <div class="flex items-center gap-1 text-sm text-gray-500 sm:col-span-2">× <input v-model.number="d.quantity" type="number" min="1" class="w-16 rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                    <input v-model="d.label" type="text" placeholder="Emplacement (ex. Arrière)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-5" />
+                    <button type="button" class="justify-self-start rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 sm:col-span-1" title="Retirer" @click="removeDotation(i)"><Icon name="x" :size="15" /></button>
+                </div>
+                <p v-if="dotation.items.length === 0" class="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">Aucune dotation O₂ définie. Ajoutez des bouteilles pour fixer la répartition attendue.</p>
+            </div>
+
+            <div class="mt-3 flex items-center gap-2">
+                <button type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="addDotation"><Icon name="plus" :size="15" /> Ajouter une bouteille</button>
+                <button type="button" :disabled="savingOxygen" class="rounded-lg bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="saveOxygen">Enregistrer la dotation O₂</button>
+            </div>
         </div>
     </AppLayout>
 </template>

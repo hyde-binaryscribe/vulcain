@@ -8,6 +8,7 @@ use App\Domain\Identity\RoleProvisioner;
 use App\Models\MaterialType;
 use App\Models\Organisation;
 use App\Models\OxygenBottle;
+use App\Models\OxygenBottleType;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleType;
@@ -171,6 +172,48 @@ class VehicleTypeArmamentTest extends TestCase
         $this->tenant()->runFor($org, function () use ($typeId, $materialTypeId) {
             $this->assertSame($materialTypeId, VehicleTypeEquipment::query()->where('vehicle_type_id', $typeId)->value('material_type_id'));
         });
+    }
+
+    public function test_oxygen_dotation_drives_volume_and_generates_bottles(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicleId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            OxygenBottleType::ensureSeeded();
+            $b5 = OxygenBottleType::query()->where('name', 'B5')->firstOrFail();
+
+            $type = VehicleType::create(['name' => 'Ambulance type A', 'display_order' => 0]);
+            // Répartition : 2× B5 → volume requis = 2000 L.
+            $type->oxygenDotation()->create(['oxygen_bottle_type_id' => $b5->id, 'quantity' => 2, 'label' => 'Soute', 'display_order' => 0]);
+
+            return [$admin, Vehicle::factory()->create(['organisation_id' => $org->id, 'type' => 'Ambulance type A'])->id];
+        });
+
+        // La dotation attendue remonte sur la fiche (2000 L), rien à bord encore.
+        $this->actingAs($admin)->get("http://caserne.localhost/vehicles/{$vehicleId}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('oxygenExpected.total', 2000)
+                ->where('oxygenExpected.onboard', 0)
+                ->where('oxygenExpected.can_generate', true));
+
+        // Génération des bouteilles depuis la dotation du type.
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicleId}/oxygen-bottles/generer")
+            ->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($vehicleId) {
+            $bottles = OxygenBottle::query()->where('vehicle_id', $vehicleId)->get();
+            $this->assertCount(2, $bottles);
+            $this->assertSame(1000, $bottles->first()->volume_l);  // B5
+            $this->assertSame(200, $bottles->first()->current_pressure); // plein
+        });
+
+        // Après génération : 2000 L embarqués → conformité O2 atteinte.
+        $this->actingAs($admin)->get("http://caserne.localhost/vehicles/{$vehicleId}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('oxygenExpected.onboard', 2000)
+                ->where('armament.summary.obligatoire_partiel', 0));
     }
 
     public function test_parc_dashboard_flags_non_conforme_armament(): void
