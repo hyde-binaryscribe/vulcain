@@ -72,6 +72,7 @@ function remove(t) {
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
                                     <button class="rounded-lg border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50" @click="edit(t)">Modifier</button>
+                                    <button class="ml-1 rounded-lg border border-[var(--brand)]/40 px-2 py-1 text-xs font-semibold text-[var(--brand)] hover:bg-[var(--brand)]/10" @click="router.visit(`/vehicle-types/${t.id}/armement`)">Armement</button>
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50" @click="toggle(t)">Activer/désactiver</button>
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="remove(t)">Suppr.</button>
                                 </td>

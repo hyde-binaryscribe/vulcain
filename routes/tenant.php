@@ -39,6 +39,7 @@ use App\Http\Controllers\VehicleTaskController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
 use App\Http\Controllers\VehicleTypeController;
+use App\Http\Controllers\VehicleTypeEquipmentController;
 use App\Http\Controllers\WebhookEndpointController;
 use Illuminate\Support\Facades\Route;
 
@@ -197,6 +198,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::patch('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'update'])->name('vehicle-types.update');
         Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
         Route::delete('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'destroy'])->name('vehicle-types.destroy');
+
+        // Armement de référence (équipement obligatoire / facultatif) par type.
+        Route::get('vehicle-types/{vehicleType}/armement', [VehicleTypeEquipmentController::class, 'index'])->name('vehicle-types.armament');
+        Route::post('vehicle-types/{vehicleType}/armement', [VehicleTypeEquipmentController::class, 'save'])->name('vehicle-types.armament.save');
 
         // Protocoles de service (ouverture / fermeture) par type de véhicule.
         Route::get('protocoles-service', [ServiceProtocolController::class, 'index'])->name('service-protocols.index');

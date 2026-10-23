@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToOrganisation;
 use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -45,5 +46,11 @@ class VehicleType extends Model
         foreach ($organisation->profile()->vehicleTypes() as $order => $name) {
             static::create(['name' => $name, 'display_order' => $order]);
         }
+    }
+
+    /** Armement de référence (équipements attendus) de ce type. */
+    public function equipment(): HasMany
+    {
+        return $this->hasMany(VehicleTypeEquipment::class);
     }
 }
