@@ -91,7 +91,7 @@ function save() {
         <p class="mb-4 max-w-2xl text-sm text-gray-500">
             Définissez l'<span class="font-medium text-gray-700">armement de référence</span> de ce type : les équipements
             attendus, leur quantité et leur niveau (obligatoire, conditionnel, facultatif). Partez d'un
-            <span class="font-medium text-gray-700">modèle légal</span> puis affinez — l'oxygène est à préciser selon vos conditionnements.
+            <span class="font-medium text-gray-700">modèle légal</span> puis affinez. L'oxygène se définit plus bas dans la <span class="font-medium text-gray-700">dotation O₂</span> (répartition en bouteilles).
         </p>
 
         <!-- Barre : modèle + récap -->
@@ -114,19 +114,17 @@ function save() {
         <div class="space-y-2">
             <div class="hidden gap-2 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400 sm:grid sm:grid-cols-12">
                 <span class="sm:col-span-3">Catégorie</span>
-                <span class="sm:col-span-4">Désignation</span>
+                <span class="sm:col-span-5">Désignation</span>
                 <span class="sm:col-span-1">Qté</span>
-                <span class="sm:col-span-2">Vol. O₂ (L)</span>
-                <span class="sm:col-span-2">Niveau</span>
+                <span class="sm:col-span-3">Niveau</span>
             </div>
 
             <div v-for="(it, i) in current.items" :key="i" class="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
                 <div class="grid grid-cols-1 items-center gap-2 sm:grid-cols-12">
                     <input v-model="it.category" type="text" placeholder="Catégorie" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" />
-                    <input v-model="it.designation" type="text" placeholder="Désignation de l'équipement" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-4" />
+                    <input v-model="it.designation" type="text" placeholder="Désignation de l'équipement" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-5" />
                     <input v-model.number="it.quantity" type="number" min="1" title="Quantité" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-1" />
-                    <input v-model.number="it.volume_l" type="number" min="0" placeholder="ex. 3000" title="Volume d'oxygène obligatoire (litres)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
-                    <select v-model="it.level" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" :class="levelChip[it.level]">
+                    <select v-model="it.level" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" :class="levelChip[it.level]">
                         <option v-for="l in levels" :key="l.value" :value="l.value">{{ l.label }}</option>
                     </select>
                 </div>
