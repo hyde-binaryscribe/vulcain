@@ -77,7 +77,10 @@ const barHeight = (count) => Math.round((count / maxBand.value) * 150);
         <Head title="Oxygène — tableau de bord" />
         <template #title>Oxygène</template>
 
-        <p class="mb-4 text-sm text-gray-500">Dotation, niveaux et changements de bouteilles · vue flotte</p>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm text-gray-500">Dotation, niveaux et changements de bouteilles · vue flotte</p>
+            <Link href="/oxygene/types-bouteilles" class="text-xs font-semibold text-[var(--brand)] hover:underline">Types de bouteilles (B2, B5…) ›</Link>
+        </div>
 
         <!-- KPI -->
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -31,6 +31,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\BodyDamageController;
 use App\Http\Controllers\FuelController;
 use App\Http\Controllers\OxygenBottleController;
+use App\Http\Controllers\OxygenBottleTypeController;
 use App\Http\Controllers\MaterialConsumptionController;
 use App\Http\Controllers\ServiceProtocolController;
 use App\Http\Controllers\ServiceSessionController;
@@ -153,6 +154,13 @@ Route::middleware(['auth', 'tenant'])->group(function () {
 
         // Tableau de bord Oxygène (vue flotte).
         Route::get('oxygene/tableau-de-bord', [OxygenBottleController::class, 'dashboard'])->name('oxygen.dashboard');
+
+        // Catalogue des types de bouteilles d'oxygène (B2, B5, B11, B15…).
+        Route::get('oxygene/types-bouteilles', [OxygenBottleTypeController::class, 'index'])->name('oxygen.types.index');
+        Route::post('oxygene/types-bouteilles', [OxygenBottleTypeController::class, 'store'])->name('oxygen.types.store');
+        Route::patch('oxygene/types-bouteilles/{oxygenBottleType}', [OxygenBottleTypeController::class, 'update'])->name('oxygen.types.update');
+        Route::post('oxygene/types-bouteilles/{oxygenBottleType}/toggle', [OxygenBottleTypeController::class, 'toggle'])->name('oxygen.types.toggle');
+        Route::delete('oxygene/types-bouteilles/{oxygenBottleType}', [OxygenBottleTypeController::class, 'destroy'])->name('oxygen.types.destroy');
 
         Route::get('vehicles', [VehicleController::class, 'index'])->name('vehicles.index');
         Route::get('vehicles/{vehicle}', [VehicleController::class, 'show'])->name('vehicles.show');

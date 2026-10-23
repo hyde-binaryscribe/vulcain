@@ -272,6 +272,7 @@ class OxygenBottleController extends Controller
     {
         $validated = $request->validate([
             'label' => ['required', 'string', 'max:80'],
+            'oxygen_bottle_type_id' => ['nullable', 'integer', 'exists:oxygen_bottle_types,id'],
             'serial_number' => ['nullable', 'string', 'max:80'],
             'capacity_l' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'volume_l' => ['nullable', 'integer', 'min:0', 'max:1000000'],

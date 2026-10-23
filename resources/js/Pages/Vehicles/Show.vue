@@ -26,6 +26,7 @@ const props = defineProps({
     history: { type: Array, default: () => [] },
     telematics: { type: Object, default: null },
     oxygen: { type: Array, default: () => [] },
+    oxygenBottleTypes: { type: Array, default: () => [] },
     armament: { type: Object, default: null },
 });
 
@@ -60,14 +61,28 @@ watch(tab, (v) => {
 // --- Oxygène (dotation, gestionnaire) ---
 const oxygenRows = ref((props.oxygen ?? []).map((b) => ({ ...b })));
 watch(() => props.oxygen, (v) => { oxygenRows.value = (v ?? []).map((b) => ({ ...b })); });
-const newBottle = useForm({ label: '', serial_number: '', capacity_l: '', volume_l: '', pressure_min: 0, pressure_max: 200 });
+const newBottle = useForm({ oxygen_bottle_type_id: null, label: '', serial_number: '', capacity_l: '', volume_l: '', pressure_min: 0, pressure_max: 200 });
 const nullIfEmpty = (v) => (v === '' || v == null ? null : v);
+
+// Choix d'un type de bouteille : pré-remplit capacité, volume et pression.
+function applyBottleType(target, id) {
+    target.oxygen_bottle_type_id = id ? Number(id) : null;
+    const t = props.oxygenBottleTypes.find((x) => x.id === Number(id));
+    if (!t) return;
+    target.capacity_l = t.capacity_l ?? target.capacity_l;
+    target.volume_l = t.volume_l ?? target.volume_l;
+    target.pressure_min = t.pressure_min ?? target.pressure_min;
+    target.pressure_max = t.pressure_max ?? target.pressure_max;
+    if (!target.label) target.label = t.name;
+}
+
 function addBottle() {
     newBottle.transform((d) => ({ ...d, capacity_l: nullIfEmpty(d.capacity_l), volume_l: nullIfEmpty(d.volume_l), serial_number: d.serial_number || null }))
         .post(`/vehicles/${props.vehicle.id}/oxygen-bottles`, { preserveScroll: true, onSuccess: () => newBottle.reset() });
 }
 function saveBottle(b) {
     router.patch(`/vehicles/${props.vehicle.id}/oxygen-bottles/${b.id}`, {
+        oxygen_bottle_type_id: b.oxygen_bottle_type_id || null,
         label: b.label,
         serial_number: b.serial_number || null,
         capacity_l: nullIfEmpty(b.capacity_l),
@@ -913,9 +928,15 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             <div v-if="oxygenRows.length" class="mt-4 space-y-3">
                 <div v-for="b in oxygenRows" :key="b.id" class="rounded-xl border border-gray-200 p-3">
                     <div class="grid gap-2 sm:grid-cols-12">
-                        <div class="sm:col-span-3"><label class="text-xs text-gray-500">Libellé</label><input v-model="b.label" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
-                        <div class="sm:col-span-3"><label class="text-xs text-gray-500">N° de série</label><input v-model="b.serial_number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase" /></div>
-                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Volume O₂ (L)</label><input v-model="b.volume_l" type="number" placeholder="ex. 3000" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Type</label>
+                            <select :value="b.oxygen_bottle_type_id" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" @change="applyBottleType(b, $event.target.value)">
+                                <option :value="null">—</option>
+                                <option v-for="t in oxygenBottleTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Libellé</label><input v-model="b.label" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">N° de série</label><input v-model="b.serial_number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Volume O₂ (L)</label><input v-model="b.volume_l" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
                         <div class="sm:col-span-2"><label class="text-xs text-gray-500">Capacité (L)</label><input v-model="b.capacity_l" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
                         <div class="sm:col-span-1"><label class="text-xs text-gray-500">Min</label><input v-model.number="b.pressure_min" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
                         <div class="sm:col-span-1"><label class="text-xs text-gray-500">Max</label><input v-model.number="b.pressure_max" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
@@ -936,8 +957,12 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
             <div class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <p class="text-xs font-semibold text-gray-600">Ajouter une bouteille</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-12">
-                    <input v-model="newBottle.label" placeholder="Libellé (ex. Principale)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" />
-                    <input v-model="newBottle.serial_number" placeholder="N° de série" class="rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase sm:col-span-3" />
+                    <select :value="newBottle.oxygen_bottle_type_id" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" @change="applyBottleType(newBottle, $event.target.value)">
+                        <option :value="null">Type…</option>
+                        <option v-for="t in oxygenBottleTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                    </select>
+                    <input v-model="newBottle.label" placeholder="Libellé (ex. Principale)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
+                    <input v-model="newBottle.serial_number" placeholder="N° de série" class="rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase sm:col-span-2" />
                     <input v-model="newBottle.volume_l" type="number" placeholder="Volume O₂ (L)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
                     <input v-model="newBottle.capacity_l" type="number" placeholder="Capacité L" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
                     <input v-model.number="newBottle.pressure_min" type="number" placeholder="Min" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-1" />

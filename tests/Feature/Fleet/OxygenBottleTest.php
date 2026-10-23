@@ -7,6 +7,7 @@ use App\Domain\Identity\RoleProvisioner;
 use App\Models\Organisation;
 use App\Models\OxygenBottle;
 use App\Models\OxygenBottleLog;
+use App\Models\OxygenBottleType;
 use App\Models\ServiceProtocol;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -35,6 +36,50 @@ class OxygenBottleTest extends TestCase
     private function tenant(): TenantContext
     {
         return app(TenantContext::class);
+    }
+
+    public function test_bottle_types_catalog_is_seeded(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        $admin = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+
+            return $admin;
+        });
+
+        $this->actingAs($admin)->get('http://caserne.localhost/oxygene/types-bouteilles')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('OxygenBottleTypes/Index')
+                ->has('types', 4)                     // B2, B5, B11, B15
+                ->where('types.1.name', 'B5')
+                ->where('types.1.volume_l', 1000));
+    }
+
+    public function test_declaring_a_bottle_links_its_type(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$admin, $vehicle, $b5Id] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $admin = User::factory()->create(['organisation_id' => $org->id]);
+            $admin->assignRole(Rbac::ADMIN);
+            OxygenBottleType::ensureSeeded();
+            $b5 = OxygenBottleType::query()->where('name', 'B5')->firstOrFail();
+
+            return [$admin, Vehicle::factory()->create(['organisation_id' => $org->id]), $b5->id];
+        });
+
+        $this->actingAs($admin)->post("http://caserne.localhost/vehicles/{$vehicle->id}/oxygen-bottles", [
+            'label' => 'Principale', 'oxygen_bottle_type_id' => $b5Id,
+            'capacity_l' => 5, 'volume_l' => 1000, 'pressure_min' => 0, 'pressure_max' => 200,
+        ])->assertSessionHasNoErrors();
+
+        $this->tenant()->runFor($org, function () use ($vehicle, $b5Id) {
+            $bottle = OxygenBottle::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+            $this->assertSame($b5Id, $bottle->oxygen_bottle_type_id);
+            $this->assertSame(1000, $bottle->volume_l);
+        });
     }
 
     public function test_manager_declares_a_bottle_full_by_default(): void

@@ -19,6 +19,7 @@ use App\Models\Location;
 use App\Models\MaintenanceRecord;
 use App\Models\Material;
 use App\Models\OxygenBottle;
+use App\Models\OxygenBottleType;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -41,6 +42,7 @@ class VehicleController extends Controller
     public function show(Vehicle $vehicle): Response
     {
         $vehicle->load('users:id,name');
+        OxygenBottleType::ensureSeeded();
 
         $locations = Location::query()
             ->where('vehicle_id', $vehicle->id)
@@ -239,8 +241,19 @@ class VehicleController extends Controller
                 ->map(fn (ActivityLog $l) => ActivityController::format($l)),
             'telematics' => $this->telematics($vehicle),
             'armament' => ArmamentConformity::for($vehicle),
+            'oxygenBottleTypes' => OxygenBottleType::query()->where('is_active', true)
+                ->orderBy('display_order')->orderBy('name')->get()
+                ->map(fn (OxygenBottleType $t) => [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'capacity_l' => $t->capacity_l !== null ? (float) $t->capacity_l : null,
+                    'volume_l' => $t->volume_l,
+                    'pressure_min' => $t->pressure_min,
+                    'pressure_max' => $t->pressure_max,
+                ])->values(),
             'oxygen' => $vehicle->oxygenBottles()->get()->map(fn (OxygenBottle $b) => [
                 'id' => $b->id,
+                'oxygen_bottle_type_id' => $b->oxygen_bottle_type_id,
                 'label' => $b->label,
                 'serial_number' => $b->serial_number,
                 'capacity_l' => $b->capacity_l !== null ? (float) $b->capacity_l : null,

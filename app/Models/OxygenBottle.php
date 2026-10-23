@@ -23,6 +23,7 @@ class OxygenBottle extends Model
 
     protected $fillable = [
         'vehicle_id',
+        'oxygen_bottle_type_id',
         'label',
         'serial_number',
         'capacity_l',
@@ -69,6 +70,11 @@ class OxygenBottle extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function bottleType(): BelongsTo
+    {
+        return $this->belongsTo(OxygenBottleType::class, 'oxygen_bottle_type_id');
     }
 
     public function logs(): HasMany
