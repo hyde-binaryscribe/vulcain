@@ -26,7 +26,7 @@ const counts = computed(() => {
     return c;
 });
 
-function addItem() { current.items.push({ category: '', designation: '', quantity: 1, level: 'obligatoire', note: '' }); }
+function addItem() { current.items.push({ category: '', designation: '', quantity: 1, volume_l: null, level: 'obligatoire', note: '' }); }
 function removeItem(i) { current.items.splice(i, 1); }
 function move(i, dir) {
     const j = i + dir;
@@ -89,26 +89,25 @@ function save() {
                 <span class="sm:col-span-3">Catégorie</span>
                 <span class="sm:col-span-4">Désignation</span>
                 <span class="sm:col-span-1">Qté</span>
+                <span class="sm:col-span-2">Vol. O₂ (L)</span>
                 <span class="sm:col-span-2">Niveau</span>
-                <span class="sm:col-span-2">Note</span>
             </div>
 
             <div v-for="(it, i) in current.items" :key="i" class="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
                 <div class="grid grid-cols-1 items-center gap-2 sm:grid-cols-12">
                     <input v-model="it.category" type="text" placeholder="Catégorie" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" />
                     <input v-model="it.designation" type="text" placeholder="Désignation de l'équipement" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-4" />
-                    <input v-model.number="it.quantity" type="number" min="1" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-1" />
+                    <input v-model.number="it.quantity" type="number" min="1" title="Quantité" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-1" />
+                    <input v-model.number="it.volume_l" type="number" min="0" placeholder="ex. 3000" title="Volume d'oxygène obligatoire (litres)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
                     <select v-model="it.level" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" :class="levelChip[it.level]">
                         <option v-for="l in levels" :key="l.value" :value="l.value">{{ l.label }}</option>
                     </select>
-                    <div class="flex items-center gap-1 sm:col-span-2">
-                        <input v-model="it.note" type="text" placeholder="Note" class="min-w-0 flex-1 rounded-md border-gray-300 px-2 py-1.5 text-xs" />
-                        <div class="flex flex-col">
-                            <button type="button" class="text-gray-300 hover:text-gray-600" title="Monter" @click="move(i, -1)"><Icon name="arrow-left" :size="12" class="-rotate-90" /></button>
-                            <button type="button" class="text-gray-300 hover:text-gray-600" title="Descendre" @click="move(i, 1)"><Icon name="arrow-right" :size="12" class="-rotate-90" /></button>
-                        </div>
-                        <button type="button" class="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removeItem(i)"><Icon name="x" :size="14" /></button>
-                    </div>
+                </div>
+                <div class="mt-1.5 flex items-center gap-1">
+                    <input v-model="it.note" type="text" placeholder="Note (optionnel)" class="min-w-0 flex-1 rounded-md border-gray-300 px-2 py-1 text-xs" />
+                    <button type="button" class="rounded-md p-1 text-gray-300 hover:text-gray-600" title="Monter" @click="move(i, -1)"><Icon name="arrow-left" :size="13" class="-rotate-90" /></button>
+                    <button type="button" class="rounded-md p-1 text-gray-300 hover:text-gray-600" title="Descendre" @click="move(i, 1)"><Icon name="arrow-right" :size="13" class="-rotate-90" /></button>
+                    <button type="button" class="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Supprimer" @click="removeItem(i)"><Icon name="x" :size="14" /></button>
                 </div>
             </div>
 

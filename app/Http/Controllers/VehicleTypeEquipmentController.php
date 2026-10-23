@@ -27,6 +27,7 @@ class VehicleTypeEquipmentController extends Controller
                 'category' => $e->category,
                 'designation' => $e->designation,
                 'quantity' => $e->quantity,
+                'volume_l' => $e->volume_l,
                 'level' => $e->level->value,
                 'note' => $e->note,
             ])->values();
@@ -75,11 +76,13 @@ class VehicleTypeEquipmentController extends Controller
 
             $quantity = (int) ($item['quantity'] ?? 1);
             $level = in_array($item['level'] ?? null, $levels, true) ? $item['level'] : ArmamentLevel::OBLIGATOIRE->value;
+            $volume = isset($item['volume_l']) && is_numeric($item['volume_l']) ? max(0, (int) $item['volume_l']) : null;
 
             $out[] = [
                 'category' => mb_substr(trim((string) ($item['category'] ?? '')) ?: 'Divers', 0, 80),
                 'designation' => mb_substr($designation, 0, 160),
                 'quantity' => max(1, min(999, $quantity)),
+                'volume_l' => $volume ?: null,
                 'level' => $level,
                 'note' => ($note = trim((string) ($item['note'] ?? ''))) !== '' ? mb_substr($note, 0, 200) : null,
             ];

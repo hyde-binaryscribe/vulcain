@@ -246,6 +246,7 @@ class VehicleController extends Controller
                 'label' => $b->label,
                 'serial_number' => $b->serial_number,
                 'capacity_l' => $b->capacity_l !== null ? (float) $b->capacity_l : null,
+                'volume_l' => $b->volume_l,
                 'pressure_min' => $b->pressure_min,
                 'pressure_max' => $b->pressure_max,
                 'pressure' => $b->current_pressure,
@@ -291,7 +292,26 @@ class VehicleController extends Controller
             }
         }
 
-        $rows = $items->map(function (VehicleTypeEquipment $e) use ($stockByName) {
+        // Volume d'oxygène total embarqué (somme des bouteilles) pour la conformité O2.
+        $o2Total = (int) $vehicle->oxygenBottles()->where('is_active', true)->get()
+            ->sum(fn (OxygenBottle $b) => $b->gasVolume() ?? 0);
+
+        $rows = $items->map(function (VehicleTypeEquipment $e) use ($stockByName, $o2Total) {
+            // Ligne à volume (oxygène) : conformité calculée sur le volume total.
+            if ($e->volume_l !== null && $e->volume_l > 0) {
+                return [
+                    'category' => $e->category,
+                    'designation' => $e->designation,
+                    'quantity' => $e->quantity,
+                    'level' => $e->level->value,
+                    'note' => $e->note,
+                    'state' => $o2Total >= $e->volume_l ? 'present' : 'partiel',
+                    'stock' => null,
+                    'volume_required' => $e->volume_l,
+                    'volume_onboard' => $o2Total,
+                ];
+            }
+
             $stock = $this->matchStock($e->designation, $stockByName);
             $state = $stock === null ? 'inconnu' : ($stock >= $e->quantity ? 'present' : 'partiel');
 
@@ -303,6 +323,8 @@ class VehicleController extends Controller
                 'note' => $e->note,
                 'state' => $state,
                 'stock' => $stock,
+                'volume_required' => null,
+                'volume_onboard' => null,
             ];
         })->values();
 

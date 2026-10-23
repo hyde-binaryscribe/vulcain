@@ -38,7 +38,7 @@ class ArmamentReference
             ['Hygiène / protection', 'Draps à usage unique', 1, self::O, null],
             ['Soins', 'Trousse de premiers secours', 1, self::O, null],
             ['Divers', 'Couverture isotherme', 1, self::O, null],
-            ['Ventilation / Oxygène', 'Oxygène portable', 1, self::C, 'Selon département — à préciser'],
+            ['Ventilation / Oxygène', 'Oxygène — volume total embarqué', 1, self::C, 'Selon département — à préciser (réparti en bouteilles au niveau du véhicule)', null],
             ['Sécurité', 'Extincteur', 1, self::O, null],
             ['Sécurité', 'Gilet haute visibilité', 1, self::O, null],
             ['Sécurité', 'Triangle de présignalisation', 1, self::O, null],
@@ -57,8 +57,7 @@ class ArmamentReference
             ['Ventilation / Oxygène', 'Insufflateur manuel pédiatrique', 1, self::O, null],
             ['Ventilation / Oxygène', 'Aspirateur de mucosités', 1, self::O, null],
             ['Ventilation / Oxygène', 'Canules oro-pharyngées (jeu de Guedel)', 1, self::O, null],
-            ['Ventilation / Oxygène', 'Oxygène fixe', 1, self::O, 'Volume à préciser (ex. Type A : 2B5 ~3000 L)'],
-            ['Ventilation / Oxygène', 'Oxygène portable', 1, self::O, 'Volume à préciser'],
+            ['Ventilation / Oxygène', 'Oxygène — volume total embarqué', 1, self::O, 'Volume total obligatoire — réparti en bouteilles au niveau du véhicule (ex. Type A : ~3000 L)', null],
             ['Monitorage / diagnostic', 'Tensiomètre', 1, self::O, null],
             ['Monitorage / diagnostic', 'Oxymètre de pouls (SpO2)', 1, self::O, null],
             ['Monitorage / diagnostic', 'Stéthoscope', 1, self::O, null],
@@ -103,7 +102,6 @@ class ArmamentReference
             ['Réanimation', 'Scope multiparamétrique', 1, self::O, null],
             ['Réanimation', 'Pousse-seringues électriques', 2, self::O, null],
             ['Réanimation', 'Aspirateur électrique', 1, self::O, null],
-            ['Ventilation / Oxygène', 'Oxygène renforcé (station + portable)', 1, self::O, 'Ex. station ≥ 2000 L + portable avec bouteille 400 L — à préciser'],
         ]);
     }
 
@@ -119,6 +117,7 @@ class ArmamentReference
             'quantity' => $r[2],
             'level' => $r[3],
             'note' => $r[4],
+            'volume_l' => $r[5] ?? null,
         ], $rows);
     }
 }

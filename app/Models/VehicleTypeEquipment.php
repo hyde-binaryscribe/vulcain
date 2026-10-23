@@ -22,6 +22,7 @@ class VehicleTypeEquipment extends Model
         'category',
         'designation',
         'quantity',
+        'volume_l',
         'level',
         'note',
         'display_order',
@@ -31,6 +32,7 @@ class VehicleTypeEquipment extends Model
     {
         return [
             'quantity' => 'integer',
+            'volume_l' => 'integer',
             'level' => ArmamentLevel::class,
             'display_order' => 'integer',
         ];

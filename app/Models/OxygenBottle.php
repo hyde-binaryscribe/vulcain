@@ -26,6 +26,7 @@ class OxygenBottle extends Model
         'label',
         'serial_number',
         'capacity_l',
+        'volume_l',
         'pressure_min',
         'pressure_max',
         'current_pressure',
@@ -39,6 +40,7 @@ class OxygenBottle extends Model
     {
         return [
             'capacity_l' => 'decimal:2',
+            'volume_l' => 'integer',
             'pressure_min' => 'integer',
             'pressure_max' => 'integer',
             'current_pressure' => 'integer',
@@ -46,6 +48,22 @@ class OxygenBottle extends Model
             'last_checked_at' => 'datetime',
             'display_order' => 'integer',
         ];
+    }
+
+    /**
+     * Volume de gaz embarqué (litres) : volume renseigné, sinon estimé depuis la
+     * capacité en eau (L) × la pression de service (bar). Null si indéterminable.
+     */
+    public function gasVolume(): ?int
+    {
+        if ($this->volume_l !== null) {
+            return $this->volume_l;
+        }
+        if ($this->capacity_l !== null && $this->pressure_max > 0) {
+            return (int) round((float) $this->capacity_l * $this->pressure_max);
+        }
+
+        return null;
     }
 
     public function vehicle(): BelongsTo

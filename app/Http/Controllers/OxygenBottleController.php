@@ -274,6 +274,7 @@ class OxygenBottleController extends Controller
             'label' => ['required', 'string', 'max:80'],
             'serial_number' => ['nullable', 'string', 'max:80'],
             'capacity_l' => ['nullable', 'numeric', 'min:0', 'max:9999'],
+            'volume_l' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'pressure_min' => ['required', 'integer', 'min:0', 'max:999'],
             'pressure_max' => ['required', 'integer', 'min:1', 'max:1000', 'gt:pressure_min'],
             'current_pressure' => ['nullable', 'integer', 'min:0'],

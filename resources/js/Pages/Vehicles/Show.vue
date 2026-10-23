@@ -60,10 +60,10 @@ watch(tab, (v) => {
 // --- Oxygène (dotation, gestionnaire) ---
 const oxygenRows = ref((props.oxygen ?? []).map((b) => ({ ...b })));
 watch(() => props.oxygen, (v) => { oxygenRows.value = (v ?? []).map((b) => ({ ...b })); });
-const newBottle = useForm({ label: '', serial_number: '', capacity_l: '', pressure_min: 0, pressure_max: 200 });
+const newBottle = useForm({ label: '', serial_number: '', capacity_l: '', volume_l: '', pressure_min: 0, pressure_max: 200 });
 const nullIfEmpty = (v) => (v === '' || v == null ? null : v);
 function addBottle() {
-    newBottle.transform((d) => ({ ...d, capacity_l: nullIfEmpty(d.capacity_l), serial_number: d.serial_number || null }))
+    newBottle.transform((d) => ({ ...d, capacity_l: nullIfEmpty(d.capacity_l), volume_l: nullIfEmpty(d.volume_l), serial_number: d.serial_number || null }))
         .post(`/vehicles/${props.vehicle.id}/oxygen-bottles`, { preserveScroll: true, onSuccess: () => newBottle.reset() });
 }
 function saveBottle(b) {
@@ -71,6 +71,7 @@ function saveBottle(b) {
         label: b.label,
         serial_number: b.serial_number || null,
         capacity_l: nullIfEmpty(b.capacity_l),
+        volume_l: nullIfEmpty(b.volume_l),
         pressure_min: b.pressure_min,
         pressure_max: b.pressure_max,
         is_active: b.is_active,
@@ -887,7 +888,7 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                                 <span v-if="it.note" class="ml-1 text-xs text-gray-400">· {{ it.note }}</span>
                             </span>
                             <span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium" :class="armLevelBadge[it.level].cls">{{ armLevelBadge[it.level].label }}</span>
-                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="armStateBadge[it.state].cls">{{ armStateBadge[it.state].label }}<template v-if="it.stock != null"> ({{ it.stock }})</template></span>
+                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="armStateBadge[it.state].cls">{{ armStateBadge[it.state].label }}<template v-if="it.volume_required"> ({{ it.volume_onboard }} / {{ it.volume_required }} L)</template><template v-else-if="it.stock != null"> ({{ it.stock }})</template></span>
                         </li>
                     </ul>
                 </div>
@@ -912,9 +913,10 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                     <div class="grid gap-2 sm:grid-cols-12">
                         <div class="sm:col-span-3"><label class="text-xs text-gray-500">Libellé</label><input v-model="b.label" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
                         <div class="sm:col-span-3"><label class="text-xs text-gray-500">N° de série</label><input v-model="b.serial_number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase" /></div>
+                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Volume O₂ (L)</label><input v-model="b.volume_l" type="number" placeholder="ex. 3000" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
                         <div class="sm:col-span-2"><label class="text-xs text-gray-500">Capacité (L)</label><input v-model="b.capacity_l" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
-                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Min (bar)</label><input v-model.number="b.pressure_min" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
-                        <div class="sm:col-span-2"><label class="text-xs text-gray-500">Max (bar)</label><input v-model.number="b.pressure_max" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-1"><label class="text-xs text-gray-500">Min</label><input v-model.number="b.pressure_min" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
+                        <div class="sm:col-span-1"><label class="text-xs text-gray-500">Max</label><input v-model.number="b.pressure_max" type="number" class="mt-0.5 w-full rounded-md border-gray-300 px-2 py-1.5 text-sm" /></div>
                     </div>
                     <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
                         <span class="text-xs text-gray-400">Niveau : {{ b.pressure != null ? b.pressure + ' bar' : '—' }}<template v-if="b.percent != null"> ({{ b.percent }} %)</template> · {{ b.status_label }}<template v-if="b.last_checked_at"> · relevé {{ b.last_checked_at }}</template></span>
@@ -934,9 +936,10 @@ const modeLabels = { quantity: 'Quantité', serial: 'Unitaire', lot: 'Lot' };
                 <div class="mt-2 grid gap-2 sm:grid-cols-12">
                     <input v-model="newBottle.label" placeholder="Libellé (ex. Principale)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-3" />
                     <input v-model="newBottle.serial_number" placeholder="N° de série" class="rounded-md border-gray-300 px-2 py-1.5 text-sm uppercase sm:col-span-3" />
+                    <input v-model="newBottle.volume_l" type="number" placeholder="Volume O₂ (L)" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
                     <input v-model="newBottle.capacity_l" type="number" placeholder="Capacité L" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
-                    <input v-model.number="newBottle.pressure_min" type="number" placeholder="Min" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
-                    <input v-model.number="newBottle.pressure_max" type="number" placeholder="Max" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-2" />
+                    <input v-model.number="newBottle.pressure_min" type="number" placeholder="Min" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-1" />
+                    <input v-model.number="newBottle.pressure_max" type="number" placeholder="Max" class="rounded-md border-gray-300 px-2 py-1.5 text-sm sm:col-span-1" />
                 </div>
                 <p v-if="newBottle.errors.label || newBottle.errors.pressure_max" class="mt-1 text-xs text-red-600">{{ newBottle.errors.label || newBottle.errors.pressure_max }}</p>
                 <button type="button" :disabled="newBottle.processing || !newBottle.label" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60" @click="addBottle"><Icon name="plus" :size="15" /> Ajouter</button>
