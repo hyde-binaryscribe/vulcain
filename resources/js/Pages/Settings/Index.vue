@@ -8,6 +8,8 @@ const props = defineProps({
     kanbanColumns: { type: Array, default: () => [] },
     // Lien Itineris : null hors transport sanitaire.
     itineris: { type: Object, default: null },
+    // Notifications sortantes (lien intra-Chatel) : null hors transport sanitaire.
+    webhooks: { type: Object, default: null },
 });
 
 // Lien Itineris : jetons d'accès à l'API v1 (valeur montrée une seule fois).
@@ -23,6 +25,23 @@ function revokeToken(t) {
 async function copyToken() {
     await navigator.clipboard?.writeText(props.itineris.new_token);
     copied.value = true;
+}
+// Notifications sortantes : secret de signature montré une seule fois.
+const webhookForm = useForm({ name: 'intra-Chatel', url: '' });
+const secretCopied = ref(false);
+function createWebhook() {
+    webhookForm.post('/settings/webhooks', { preserveScroll: true, onSuccess: () => webhookForm.reset('url') });
+}
+function testWebhook(e) {
+    router.post(`/settings/webhooks/${e.id}/test`, {}, { preserveScroll: true });
+}
+function deleteWebhook(e) {
+    if (!confirm(`Supprimer l'adresse « ${e.name} » ? Elle ne recevra plus les prises et fins de service.`)) return;
+    router.delete(`/settings/webhooks/${e.id}`, { preserveScroll: true });
+}
+async function copySecret() {
+    await navigator.clipboard?.writeText(props.webhooks.new_secret);
+    secretCopied.value = true;
 }
 function fmt(iso) {
     return iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
@@ -302,6 +321,70 @@ function save() {
                     </button>
                 </div>
                 <p v-if="tokenForm.errors.name" class="mt-1 text-xs text-red-700">{{ tokenForm.errors.name }}</p>
+            </section>
+
+            <section v-if="webhooks" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="text-base font-semibold text-gray-900">Notifications sortantes</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Vulkain prévient une autre application (intra-Chatel…) à chaque prise et fin de service.
+                    Chaque envoi est signé avec le secret : collez-le dans l'application destinataire pour qu'elle vérifie la signature.
+                </p>
+
+                <div v-if="webhooks.new_secret" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                    <p class="text-sm font-semibold text-amber-900">Copiez ce secret maintenant : il ne sera plus affiché.</p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <code class="break-all rounded bg-white px-2 py-1 font-mono text-xs text-gray-900">{{ webhooks.new_secret }}</code>
+                        <button type="button" class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50" @click="copySecret">
+                            {{ secretCopied ? 'Copié' : 'Copier' }}
+                        </button>
+                    </div>
+                </div>
+
+                <table v-if="webhooks.endpoints.length" class="mt-5 w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-xs uppercase tracking-wide text-gray-500">
+                            <th class="py-2 pr-3 font-semibold">Nom</th>
+                            <th class="py-2 pr-3 font-semibold">Adresse</th>
+                            <th class="py-2 pr-3 font-semibold">Dernier envoi</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="e in webhooks.endpoints" :key="e.id" class="border-t border-gray-100 text-gray-800">
+                            <td class="py-2 pr-3">{{ e.name }}</td>
+                            <td class="max-w-xs truncate py-2 pr-3 font-mono text-xs" :title="e.url">{{ e.url }}</td>
+                            <td class="py-2 pr-3 text-xs">
+                                <span v-if="e.last_failure_at && (!e.last_success_at || e.last_failure_at > e.last_success_at)" class="text-red-700" :title="e.last_error">Échec {{ fmt(e.last_failure_at) }}</span>
+                                <span v-else-if="e.last_success_at" class="text-green-700">Reçu {{ fmt(e.last_success_at) }}</span>
+                                <span v-else class="text-gray-400">—</span>
+                            </td>
+                            <td class="whitespace-nowrap py-2 text-right">
+                                <button type="button" class="mr-3 text-xs font-semibold text-gray-700 hover:underline" @click="testWebhook(e)">Tester</button>
+                                <button type="button" class="text-xs font-semibold text-red-700 hover:underline" @click="deleteWebhook(e)">Supprimer</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-5 flex flex-wrap items-end gap-3">
+                    <label class="block">
+                        <span class="block text-sm font-medium text-gray-900">Nom</span>
+                        <input v-model="webhookForm.name" type="text" maxlength="100" class="mt-1 block w-48 rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                    </label>
+                    <label class="block min-w-0 flex-1">
+                        <span class="block text-sm font-medium text-gray-900">Adresse de réception</span>
+                        <input v-model="webhookForm.url" type="url" maxlength="500" placeholder="https://intra-chatel.fr/api/vulkain/webhook" class="mt-1 block w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm" />
+                    </label>
+                    <button
+                        type="button"
+                        :disabled="webhookForm.processing || !webhookForm.name.trim() || !webhookForm.url.trim()"
+                        class="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-60"
+                        @click="createWebhook"
+                    >
+                        Ajouter
+                    </button>
+                </div>
+                <p v-if="webhookForm.errors.url || webhookForm.errors.name" class="mt-1 text-xs text-red-700">{{ webhookForm.errors.url || webhookForm.errors.name }}</p>
             </section>
         </div>
     </AppLayout>

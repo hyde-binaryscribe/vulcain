@@ -38,6 +38,7 @@ use App\Http\Controllers\VehicleTaskController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleModelController;
 use App\Http\Controllers\VehicleTypeController;
+use App\Http\Controllers\WebhookEndpointController;
 use Illuminate\Support\Facades\Route;
 
 // Routes métier d'une organisation (sous-domaine résolu + authentification).
@@ -277,6 +278,10 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         // Lien Itineris : jetons d'accès à l'API v1.
         Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
         Route::delete('settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+        // Lien intra-Chatel : notifications sortantes signées (webhooks).
+        Route::post('settings/webhooks', [WebhookEndpointController::class, 'store'])->name('settings.webhooks.store');
+        Route::post('settings/webhooks/{endpoint}/test', [WebhookEndpointController::class, 'test'])->name('settings.webhooks.test');
+        Route::delete('settings/webhooks/{endpoint}', [WebhookEndpointController::class, 'destroy'])->name('settings.webhooks.destroy');
     });
 
     // Modèles de protocole.

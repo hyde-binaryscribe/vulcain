@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ApiToken;
 use App\Models\KanbanBoard;
 use App\Models\KanbanColumn;
+use App\Models\WebhookEndpoint;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,20 @@ class SettingsController extends Controller
                     ]),
                 'new_token' => session('api_token_plain'),
                 'api_url' => url('/api/v1'),
+            ] : null,
+            // Lien intra-Chatel : notifications sortantes, jamais le secret (sauf juste après création).
+            'webhooks' => ApiTokenController::available($this->tenant) ? [
+                'endpoints' => WebhookEndpoint::query()->latest()->get()
+                    ->map(fn (WebhookEndpoint $e) => [
+                        'id' => $e->id,
+                        'name' => $e->name,
+                        'url' => $e->url,
+                        'events' => $e->events ?: WebhookEndpoint::EVENTS,
+                        'last_success_at' => $e->last_success_at?->toIso8601String(),
+                        'last_failure_at' => $e->last_failure_at?->toIso8601String(),
+                        'last_error' => $e->last_error,
+                    ]),
+                'new_secret' => session('webhook_secret_plain'),
             ] : null,
             'status' => session('status'),
         ]);

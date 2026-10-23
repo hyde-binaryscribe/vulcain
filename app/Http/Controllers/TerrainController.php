@@ -119,7 +119,7 @@ class TerrainController extends Controller
                 'disinfection_severity' => $disinfection->severity?->value,
                 'maintenance_severity' => $maintenance->severity?->value,
                 'open_anomalies' => (int) ($openAnomalies[$v->id] ?? 0),
-                'session_holder' => $session?->user?->name,
+                'session_holder' => $session?->openerName(),
                 'session_is_mine' => $session !== null && $session->involves($user->id),
             ];
         });
@@ -326,11 +326,11 @@ class TerrainController extends Controller
             ],
             'oxygen' => $oxygen,
             'session' => $openSession === null ? null : [
-                'holder' => $openSession->user?->name,
+                'holder' => $openSession->openerName(),
                 'is_mine' => $mine,
                 'opened_at' => $openSession->opened_at?->fr('d/m/Y H:i'),
                 'partner_id' => $openSession->partner_user_id,
-                'partner' => $openSession->partner?->name,
+                'partner' => $openSession->partnerName(),
                 // Un équipier (ouvreur/binôme) ou un gestionnaire peut changer le binôme.
                 'can_change_partner' => $mine || $user->can('vehicles.manage'),
                 'crew' => ($mine || $user->can('vehicles.manage'))
@@ -542,7 +542,7 @@ class TerrainController extends Controller
             'fields' => $this->protocolFields($vehicle, ProtocolPhase::OUVERTURE),
             'body' => $this->bodyInspectionData($vehicle),
             // Détenteur actuel : sa session sera clôturée par la passation.
-            'current_holder' => $openSession?->user?->name,
+            'current_holder' => $openSession?->openerName(),
             'current_since' => $openSession?->opened_at?->fr('d/m/Y H:i'),
             // Équipiers proposés pour le binôme (agents actifs de l'organisation, sauf soi).
             'crew' => $this->crewOptions($user),

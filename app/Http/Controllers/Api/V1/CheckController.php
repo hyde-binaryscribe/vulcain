@@ -83,10 +83,10 @@ class CheckController extends Controller
                 'service' => $s ? [
                     'open' => $s->closed_at === null,
                     'opened_at' => $s->opened_at?->toIso8601String(),
-                    'opened_by' => $s->user?->name,
-                    'partner' => $s->partner?->name,
+                    'opened_by' => $s->openerName(),
+                    'partner' => $s->partnerName(),
                     'closed_at' => $s->closed_at?->toIso8601String(),
-                    'closed_by' => $s->closer?->name,
+                    'closed_by' => $s->closerName(),
                     'checks' => $checks,
                     'end_checks' => $endChecks,
                 ] : null,

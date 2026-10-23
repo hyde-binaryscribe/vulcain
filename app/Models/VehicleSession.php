@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Domain\Webhooks\ServicePayload;
+use App\Domain\Webhooks\Webhooks;
 use App\Models\Concerns\BelongsToOrganisation;
 use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,10 +23,20 @@ class VehicleSession extends Model
 
     public const REASON_HANDOVER = 'handover';
 
+    /** Origine de la session : terrain Vulkain, ou application externe (lien intra-Chatel). */
+    public const SOURCE_VULKAIN = 'vulkain';
+
+    public const SOURCE_INTRA_CHATEL = 'intra_chatel';
+
     protected $fillable = [
         'vehicle_id',
+        'source',
+        'external_id',
+        'close_external_id',
         'user_id',
+        'opened_by_name',
         'partner_user_id',
+        'partner_name',
         'opened_at',
         'open_mileage',
         'open_steps',
@@ -32,6 +44,7 @@ class VehicleSession extends Model
         'open_notes',
         'closed_at',
         'closed_by',
+        'closed_by_name',
         'close_mileage',
         'close_notes',
         'close_responses',
@@ -74,6 +87,36 @@ class VehicleSession extends Model
     public function isOpen(): bool
     {
         return $this->closed_at === null;
+    }
+
+    /**
+     * Notifications sortantes : prise de service (création) et fin de service
+     * (closed_at renseigné), quelle que soit l'origine de la session.
+     */
+    protected static function booted(): void
+    {
+        static::created(fn (self $s) => Webhooks::dispatch('service.opened', ServicePayload::of($s)));
+        static::updated(function (self $s) {
+            if ($s->wasChanged('closed_at') && $s->closed_at !== null) {
+                Webhooks::dispatch('service.closed', ServicePayload::of($s));
+            }
+        });
+    }
+
+    /** Agent ayant pris le service : compte Vulkain, sinon nom saisi dans l'application d'origine. */
+    public function openerName(): ?string
+    {
+        return $this->user?->name ?? $this->opened_by_name;
+    }
+
+    public function partnerName(): ?string
+    {
+        return $this->partner?->name ?? $this->partner_name;
+    }
+
+    public function closerName(): ?string
+    {
+        return $this->closer?->name ?? $this->closed_by_name;
     }
 
     public function vehicle(): BelongsTo

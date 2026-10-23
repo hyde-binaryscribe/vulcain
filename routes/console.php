@@ -14,3 +14,8 @@ Artisan::command('inspire', function () {
 Schedule::command('vulcain:generate-echeance-events')
     ->dailyAt('06:30')
     ->withoutOverlapping();
+
+// Notifications sortantes (lien intra-Chatel) : nouvelles tentatives des envois en échec.
+Schedule::command('vulcain:retry-webhooks')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();

@@ -29,7 +29,7 @@ const reasonLabel = { manual: 'Fin de service', handover: 'Passation' };
                         <span class="flex items-center gap-2 font-semibold text-gray-900"><span class="h-2 w-2 rounded-full bg-green-500"></span> {{ s.vehicle }}</span>
                         <button class="text-xs font-medium text-gray-500 hover:text-gray-800" @click="toggle('o' + s.id)">Détail</button>
                     </div>
-                    <p class="mt-1 text-sm text-gray-600"><Icon name="user" :size="14" class="mr-1 inline" />{{ s.agent }}</p>
+                    <p class="mt-1 text-sm text-gray-600"><Icon name="user" :size="14" class="mr-1 inline" />{{ s.agent }}<template v-if="s.partner"> / {{ s.partner }}</template><span v-if="s.source === 'intra_chatel'" class="ml-1.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800">intra-Chatel</span></p>
                     <p class="mt-0.5 text-xs text-gray-500">Depuis {{ s.opened_at }}<template v-if="s.open_mileage"> · {{ Number(s.open_mileage).toLocaleString('fr-FR') }} km</template></p>
 
                     <div v-if="expanded === 'o' + s.id && s.open_responses.length" class="mt-3 space-y-1 border-t border-green-200 pt-2">
@@ -62,7 +62,7 @@ const reasonLabel = { manual: 'Fin de service', handover: 'Passation' };
                         <template v-for="s in history" :key="s.id">
                             <tr class="hover:bg-gray-50/60">
                                 <td class="px-4 py-3 font-medium text-gray-900">{{ s.vehicle }}</td>
-                                <td class="px-4 py-3 text-gray-700">{{ s.agent }}</td>
+                                <td class="px-4 py-3 text-gray-700">{{ s.agent }}<template v-if="s.partner"> / {{ s.partner }}</template><span v-if="s.source === 'intra_chatel'" class="ml-1.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800">intra-Chatel</span></td>
                                 <td class="px-4 py-3 text-gray-600">{{ s.opened_at }}<span v-if="s.open_mileage" class="text-xs text-gray-400"> · {{ Number(s.open_mileage).toLocaleString('fr-FR') }} km</span></td>
                                 <td class="px-4 py-3 text-gray-600">{{ s.closed_at || '—' }}<span v-if="s.close_mileage" class="text-xs text-gray-400"> · {{ Number(s.close_mileage).toLocaleString('fr-FR') }} km</span></td>
                                 <td class="px-4 py-3">
