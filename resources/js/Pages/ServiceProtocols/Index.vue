@@ -246,6 +246,7 @@ const scopeTabs = [
                             <label class="flex items-center gap-1.5 text-gray-600"><input v-model="f.config.multiline" type="checkbox" class="rounded border-gray-300" /> Multiligne</label>
                             <label class="flex items-center gap-1.5 text-gray-600"><input v-model="f.config.uppercase" type="checkbox" class="rounded border-gray-300" /> Majuscules imposées</label>
                         </template>
+                        <span v-else-if="f.type === 'oxygen'" class="text-gray-400">→ liste automatiquement les bouteilles du véhicule (n° de série + niveau pré-remplis depuis la dotation)</span>
                     </div>
 
                     <!-- Alerte (hors section) -->

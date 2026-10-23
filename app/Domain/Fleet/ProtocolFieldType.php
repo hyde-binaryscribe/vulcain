@@ -11,6 +11,7 @@ enum ProtocolFieldType: string
     case TEXT = 'text';         // saisie libre
     case NUMBER = 'number';     // valeur chiffrée
     case GAUGE = 'gauge';       // jauge (curseur min/max, ex. niveau O2, carburant)
+    case OXYGEN = 'oxygen';     // bouteilles d'oxygène du véhicule (pré-remplies depuis la dotation)
     case TRISTATE = 'tristate'; // vide / OK / NOK
     case CHECKBOX = 'checkbox'; // case à cocher
     case PHOTO = 'photo';       // photo
@@ -22,6 +23,7 @@ enum ProtocolFieldType: string
             self::TEXT => 'Texte libre',
             self::NUMBER => 'Valeur chiffrée',
             self::GAUGE => 'Jauge',
+            self::OXYGEN => 'Oxygène (bouteilles du véhicule)',
             self::TRISTATE => 'Contrôle (vide / OK / NOK)',
             self::CHECKBOX => 'Case à cocher',
             self::PHOTO => 'Photo',

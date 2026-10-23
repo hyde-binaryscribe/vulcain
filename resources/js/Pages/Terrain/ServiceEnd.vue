@@ -13,13 +13,18 @@ const props = defineProps({
     rearm: { type: Array, default: () => [] },
 });
 
-function defaultValue(type) {
-    if (type === 'checkbox') return false;
-    if (type === 'tristate') return '';
+function defaultValue(f) {
+    if (f.type === 'checkbox') return false;
+    if (f.type === 'tristate') return '';
+    if (f.type === 'oxygen') {
+        const m = {};
+        (f.bottles || []).forEach((b) => { m[b.id] = { serial: b.serial_number ?? '', pressure: b.pressure ?? null }; });
+        return m;
+    }
     return null;
 }
 const initialResponses = {};
-props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f.type); });
+props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f); });
 
 const form = useForm({
     mileage: props.vehicle.mileage ?? '',

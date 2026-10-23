@@ -863,13 +863,31 @@ class TerrainController extends Controller
         $protocol = ServiceProtocol::resolveFor($vehicle, $phase);
 
         if ($protocol !== null) {
-            return $protocol->fields->map(fn (ServiceProtocolField $f) => [
-                'key' => (string) $f->id,
-                'label' => $f->label,
-                'type' => $f->type->value,
-                'required' => $f->required,
-                'config' => $f->config ?: [],
-            ])->all();
+            return $protocol->fields->map(function (ServiceProtocolField $f) use ($vehicle) {
+                $base = [
+                    'key' => (string) $f->id,
+                    'label' => $f->label,
+                    'type' => $f->type->value,
+                    'required' => $f->required,
+                    'config' => $f->config ?: [],
+                ];
+
+                // Champ Oxygène : on pré-charge les bouteilles déclarées du véhicule
+                // (n° de série et niveau courant), pré-remplis pour l'agent.
+                if ($f->type === ProtocolFieldType::OXYGEN) {
+                    $base['bottles'] = $vehicle->oxygenBottles()->get()->map(fn (OxygenBottle $b) => [
+                        'id' => $b->id,
+                        'label' => $b->label,
+                        'serial_number' => $b->serial_number,
+                        'pressure' => $b->current_pressure,
+                        'pressure_min' => $b->pressure_min,
+                        'pressure_max' => $b->pressure_max,
+                        'percent' => $b->percent(),
+                    ])->all();
+                }
+
+                return $base;
+            })->all();
         }
 
         // Repli (ouverture uniquement) : procédure par défaut en contrôles vide/OK/NOK.
@@ -904,6 +922,13 @@ class TerrainController extends Controller
 
                 $key = (string) $f->id;
                 $value = $inputs[$key] ?? null;
+
+                // Champ Oxygène : relevé par bouteille, met à jour la dotation + trace.
+                if ($f->type === ProtocolFieldType::OXYGEN) {
+                    $rows[] = $this->processOxygenField($request, $vehicle, $f, $value, $phase);
+
+                    continue;
+                }
 
                 // Majuscules imposées sur les champs texte configurés ainsi.
                 if ($f->type === ProtocolFieldType::TEXT && ! empty($f->config['uppercase']) && is_string($value)) {
@@ -943,6 +968,78 @@ class TerrainController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * Traite le champ Oxygène d'une prise/fin de service : pour chaque bouteille
+     * déclarée, enregistre le niveau saisi (et le n° de série éventuellement
+     * changé), met à jour la dotation et trace un relevé ou un changement.
+     *
+     * @return array<string, mixed>
+     */
+    private function processOxygenField(Request $request, Vehicle $vehicle, ServiceProtocolField $f, mixed $value, ProtocolPhase $phase): array
+    {
+        $entries = is_array($value) ? $value : [];
+        $summary = [];
+        $bottleRows = [];
+
+        foreach ($vehicle->oxygenBottles()->get() as $b) {
+            $entry = $entries[$b->id] ?? $entries[(string) $b->id] ?? null;
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $pressure = isset($entry['pressure']) && is_numeric($entry['pressure']) ? (int) $entry['pressure'] : null;
+            $serial = isset($entry['serial']) ? mb_strtoupper(trim((string) $entry['serial'])) : null;
+            $changed = $serial !== null && $serial !== '' && $serial !== (string) $b->serial_number;
+
+            $previousSerial = $b->serial_number;
+            $updates = ['last_checked_at' => now()];
+            if ($pressure !== null) {
+                $updates['current_pressure'] = $pressure;
+            }
+            if ($serial !== null && $serial !== '') {
+                $updates['serial_number'] = $serial;
+            }
+            $b->update($updates);
+
+            $effectivePressure = $pressure ?? $b->current_pressure;
+            $percent = OxygenBottle::percentOf($effectivePressure, $b->pressure_min, $b->pressure_max);
+
+            OxygenBottleLog::create([
+                'oxygen_bottle_id' => $b->id,
+                'vehicle_id' => $vehicle->id,
+                'user_id' => $request->user()?->id,
+                'action' => $changed ? OxygenBottleLog::ACTION_REMPLACEMENT : OxygenBottleLog::ACTION_RELEVE,
+                'pressure' => $effectivePressure,
+                'percent' => $percent,
+                'serial_number' => $changed ? $serial : null,
+                'previous_serial' => $changed ? $previousSerial : null,
+                'note' => '['.$phase->label().']',
+                'recorded_at' => now(),
+            ]);
+
+            $summary[] = $b->label.' : '
+                .($effectivePressure !== null ? $effectivePressure.' bar'.($percent !== null ? " ({$percent} %)" : '') : '—')
+                .($serial ? ' · '.$serial : '');
+            $bottleRows[] = [
+                'label' => $b->label,
+                'serial' => $serial ?: $b->serial_number,
+                'pressure' => $effectivePressure,
+                'percent' => $percent,
+                'changed' => $changed,
+            ];
+        }
+
+        return [
+            'field_id' => $f->id,
+            'label' => $f->label,
+            'type' => 'oxygen',
+            'value' => $summary === [] ? null : implode(' ; ', $summary),
+            'bottles' => $bottleRows,
+            'photo_path' => null,
+            'alert' => null,
+        ];
     }
 
     /** Crée un événement (anomalie) à partir d'une alerte de protocole déclenchée. */

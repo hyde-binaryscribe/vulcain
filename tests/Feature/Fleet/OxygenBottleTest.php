@@ -7,6 +7,7 @@ use App\Domain\Identity\RoleProvisioner;
 use App\Models\Organisation;
 use App\Models\OxygenBottle;
 use App\Models\OxygenBottleLog;
+use App\Models\ServiceProtocol;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleSession;
@@ -201,6 +202,49 @@ class OxygenBottleTest extends TestCase
 
         $this->tenant()->runFor($org, function () use ($bottleId) {
             $this->assertSame(180, OxygenBottle::findOrFail($bottleId)->current_pressure);
+        });
+    }
+
+    public function test_oxygen_protocol_field_prefills_and_updates_register_on_opening(): void
+    {
+        $org = Organisation::factory()->slug('caserne')->create();
+        [$agent, $vehicle, $bottleId, $fieldId] = $this->tenant()->runFor($org, function () use ($org) {
+            app(RoleProvisioner::class)->provision($org);
+            $agent = User::factory()->create(['organisation_id' => $org->id]);
+            $agent->assignRole(Rbac::VERIFIER);
+            $vehicle = Vehicle::factory()->create(['organisation_id' => $org->id]);
+            $bottle = OxygenBottle::create([
+                'vehicle_id' => $vehicle->id, 'label' => 'Principale', 'serial_number' => 'OLD-1',
+                'pressure_min' => 0, 'pressure_max' => 200, 'current_pressure' => 120,
+            ]);
+            $protocol = ServiceProtocol::create(['vehicle_type' => null, 'phase' => 'ouverture', 'is_active' => true]);
+            $field = $protocol->fields()->create(['label' => 'Contrôle oxygène', 'type' => 'oxygen', 'config' => [], 'alert' => ['enabled' => false], 'display_order' => 0]);
+
+            return [$agent, $vehicle, $bottle->id, $field->id];
+        });
+
+        // Prise de service : nouveau n° de série + niveau 180 bar pour la bouteille.
+        $this->actingAs($agent)->post("http://caserne.localhost/t/vehicules/{$vehicle->id}/prise-de-service", [
+            'responses' => [(string) $fieldId => [(string) $bottleId => ['serial' => 'new-9', 'pressure' => 180]]],
+        ])->assertRedirect("http://caserne.localhost/t/vehicules/{$vehicle->id}");
+
+        $this->tenant()->runFor($org, function () use ($bottleId, $vehicle) {
+            $bottle = OxygenBottle::findOrFail($bottleId);
+            $this->assertSame(180, $bottle->current_pressure);  // niveau mis à jour
+            $this->assertSame('NEW-9', $bottle->serial_number);  // n° changé (majuscules)
+            $this->assertSame(90, $bottle->percent());
+
+            // Changement de bouteille tracé (n° de série différent).
+            $log = OxygenBottleLog::query()->where('oxygen_bottle_id', $bottleId)
+                ->where('action', OxygenBottleLog::ACTION_REMPLACEMENT)->firstOrFail();
+            $this->assertSame('OLD-1', $log->previous_serial);
+            $this->assertSame('NEW-9', $log->serial_number);
+
+            // La réponse figure dans la session de service.
+            $session = VehicleSession::query()->where('vehicle_id', $vehicle->id)->firstOrFail();
+            $row = collect($session->open_responses)->firstWhere('type', 'oxygen');
+            $this->assertNotNull($row);
+            $this->assertStringContainsString('Principale', $row['value']);
         });
     }
 

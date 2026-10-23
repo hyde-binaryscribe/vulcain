@@ -15,14 +15,20 @@ const props = defineProps({
     shortage: { type: Array, default: () => [] },
 });
 
-// Valeurs par défaut selon le type de champ.
-function defaultValue(type) {
-    if (type === 'checkbox') return false;
-    if (type === 'tristate') return '';
+// Valeurs par défaut selon le type de champ (le champ Oxygène est pré-rempli
+// depuis la dotation du véhicule : n° de série + niveau courant par bouteille).
+function defaultValue(f) {
+    if (f.type === 'checkbox') return false;
+    if (f.type === 'tristate') return '';
+    if (f.type === 'oxygen') {
+        const m = {};
+        (f.bottles || []).forEach((b) => { m[b.id] = { serial: b.serial_number ?? '', pressure: b.pressure ?? null }; });
+        return m;
+    }
     return null;
 }
 const initialResponses = {};
-props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f.type); });
+props.fields.forEach((f) => { initialResponses[f.key] = defaultValue(f); });
 
 const form = useForm({
     mileage: props.vehicle.mileage ?? '',

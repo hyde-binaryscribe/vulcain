@@ -18,6 +18,29 @@ function onFile(e) {
 
 const cfg = props.field.config || {};
 
+// --- Champ Oxygène (bouteilles du véhicule, pré-remplies) ---
+function bottleVal(b) {
+    const m = props.modelValue || {};
+    return m[b.id] || { serial: b.serial_number ?? '', pressure: b.pressure ?? null };
+}
+function setBottle(b, key, v) {
+    const m = { ...(props.modelValue || {}) };
+    m[b.id] = { ...bottleVal(b), [key]: v };
+    emit('update:modelValue', m);
+}
+function bottlePercent(b) {
+    const p = bottleVal(b).pressure;
+    if (p == null || p === '' || isNaN(p)) return null;
+    if (b.pressure_max === b.pressure_min) return null;
+    return Math.round(Math.max(0, Math.min(100, ((Number(p) - b.pressure_min) / (b.pressure_max - b.pressure_min)) * 100)));
+}
+function oxyColor(p) {
+    if (p == null) return '#9ca3af';
+    if (p < 25) return '#d03b3b';
+    if (p < 50) return '#e08a2b';
+    return '#15a34a';
+}
+
 // Texte : majuscules imposées si configuré.
 function onText(e) {
     const raw = e.target.value;
@@ -77,6 +100,30 @@ const percentColor = computed(() => {
                     <div class="h-full rounded-full transition-all" :style="{ width: (percent ?? 0) + '%', background: percentColor }"></div>
                 </div>
                 <span class="w-10 text-right text-xs font-bold" :style="{ color: percentColor }">{{ percent ?? '—' }}%</span>
+            </div>
+        </div>
+
+        <!-- Oxygène : bouteilles du véhicule (n° série + niveau pré-remplis) -->
+        <div v-else-if="field.type === 'oxygen'" class="mt-1.5 space-y-2">
+            <p v-if="!field.bottles || !field.bottles.length" class="rounded-lg bg-gray-50 px-3 py-2.5 text-xs text-gray-400">Aucune bouteille déclarée sur ce véhicule.</p>
+            <div v-for="b in field.bottles" :key="b.id" class="rounded-lg border border-gray-200 p-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-gray-800">{{ b.label }}</span>
+                    <span class="text-xs font-bold" :style="{ color: oxyColor(bottlePercent(b)) }">{{ bottlePercent(b) ?? '—' }}%</span>
+                </div>
+                <div class="mt-1.5 grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-medium text-gray-500">N° série</label>
+                        <input type="text" :value="bottleVal(b).serial" class="mt-0.5 block w-full rounded-md border-gray-300 bg-gray-50 px-2 py-1.5 text-sm uppercase focus:bg-white" @input="setBottle(b, 'serial', $event.target.value.toUpperCase())" />
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-gray-500">Niveau (bar)</label>
+                        <input type="number" inputmode="numeric" :min="b.pressure_min" :max="b.pressure_max" :value="bottleVal(b).pressure" class="mt-0.5 block w-full rounded-md border-gray-300 bg-gray-50 px-2 py-1.5 text-sm focus:bg-white" @input="setBottle(b, 'pressure', $event.target.value === '' ? null : Number($event.target.value))" />
+                    </div>
+                </div>
+                <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div class="h-full rounded-full transition-all" :style="{ width: (bottlePercent(b) ?? 0) + '%', background: oxyColor(bottlePercent(b)) }"></div>
+                </div>
             </div>
         </div>
 
