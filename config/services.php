@@ -28,6 +28,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Notifications sortantes (webhooks) : adresses du réseau privé (localhost,
+    // 10.x, 192.168.x…) refusées par défaut, pour qu'une organisation ne puisse pas
+    // faire appeler un service interne de l'hébergement. À ouvrir pour un intranet.
+    'webhooks' => [
+        'allow_private_hosts' => (bool) env('WEBHOOKS_ALLOW_PRIVATE_HOSTS', false),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

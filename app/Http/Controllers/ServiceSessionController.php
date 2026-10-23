@@ -17,13 +17,15 @@ class ServiceSessionController extends Controller
         $format = fn (VehicleSession $s) => [
             'id' => $s->id,
             'vehicle' => $s->vehicle?->callsign ?: $s->vehicle?->name,
-            'agent' => $s->user?->name,
+            'agent' => $s->openerName(),
+            'partner' => $s->partnerName(),
+            'source' => $s->source,
             'opened_at' => $s->opened_at?->fr('d/m/Y H:i'),
             'closed_at' => $s->closed_at?->fr('d/m/Y H:i'),
             'open_mileage' => $s->open_mileage,
             'close_mileage' => $s->close_mileage,
             'close_reason' => $s->close_reason,
-            'closed_by' => $s->closer?->name,
+            'closed_by' => $s->closerName(),
             'open_responses' => $this->responses($s->open_responses),
             'close_responses' => $this->responses($s->close_responses),
             'open_notes' => $s->open_notes,
@@ -31,14 +33,14 @@ class ServiceSessionController extends Controller
         ];
 
         $open = VehicleSession::query()->open()
-            ->with(['vehicle:id,name,callsign', 'user:id,name'])
+            ->with(['vehicle:id,name,callsign', 'user:id,name', 'partner:id,name'])
             ->latest('opened_at')
             ->get()
             ->map($format);
 
         $history = VehicleSession::query()
             ->whereNotNull('closed_at')
-            ->with(['vehicle:id,name,callsign', 'user:id,name', 'closer:id,name'])
+            ->with(['vehicle:id,name,callsign', 'user:id,name', 'partner:id,name', 'closer:id,name'])
             ->latest('opened_at')
             ->limit(100)
             ->get()

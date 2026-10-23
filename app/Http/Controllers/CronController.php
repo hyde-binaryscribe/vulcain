@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Events\EcheanceEvents;
+use App\Domain\Webhooks\Webhooks;
 use App\Models\Organisation;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
@@ -32,6 +33,15 @@ class CronController extends Controller
         });
 
         return response("OK — {$created} créé(s), {$closed} clôturé(s).\n", 200)
+            ->header('Content-Type', 'text/plain; charset=UTF-8');
+    }
+
+    /** Nouvelles tentatives des notifications sortantes (webhooks) arrivées à échéance. */
+    public function webhooks(Request $request): Response
+    {
+        $this->authorizeToken($request);
+
+        return response('OK — '.Webhooks::retryDue()." notification(s) retentée(s).\n", 200)
             ->header('Content-Type', 'text/plain; charset=UTF-8');
     }
 

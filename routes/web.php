@@ -23,6 +23,10 @@ Route::get('/cron/echeances', [CronController::class, 'echeances'])
     ->middleware('throttle:12,1')->name('cron.echeances');
 Route::get('/cron/echeances/{token}', [CronController::class, 'echeances'])
     ->middleware('throttle:12,1')->name('cron.echeances.token');
+Route::get('/cron/webhooks', [CronController::class, 'webhooks'])
+    ->middleware('throttle:12,1')->name('cron.webhooks');
+Route::get('/cron/webhooks/{token}', [CronController::class, 'webhooks'])
+    ->middleware('throttle:12,1')->name('cron.webhooks.token');
 
 // Ingestion télématique (positions transférées par Traccar), tous hôtes.
 // Jeton dans le chemin ou en query. Débit élevé (une position par véhicule
