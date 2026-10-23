@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Material extends Model
 {
@@ -36,6 +37,7 @@ class Material extends Model
         'location_id',
         'reference',
         'name',
+        'identifier',
         'description',
         'tracking_mode',
         'theoretical_qty',
@@ -56,6 +58,54 @@ class Material extends Model
             'expiry_date' => 'date',
             'next_check_date' => 'date',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Material $m) {
+            if (empty($m->identifier)) {
+                $m->identifier = static::buildIdentifier($m);
+            }
+        });
+    }
+
+    /**
+     * Identifiant auto « CODE_VEHICULE_NN » : code du type de matériel (ou dérivé
+     * du nom), code du véhicule (indicatif), puis numéro d'ordre par type et par
+     * véhicule. Renvoie null si indéterminable.
+     */
+    public static function buildIdentifier(Material $m): ?string
+    {
+        try {
+            $code = $m->material_type_id
+                ? strtoupper((string) MaterialType::query()->whereKey($m->material_type_id)->value('code'))
+                : '';
+            if ($code === '') {
+                $code = MaterialType::generateCode((string) $m->name);
+            }
+
+            $vehicle = $m->location_id
+                ? Location::query()->whereKey($m->location_id)->with('vehicle:id,callsign,name')->first()?->vehicle
+                : null;
+            $veh = 'X';
+            if ($vehicle !== null) {
+                $veh = strtoupper(preg_replace('/[^A-Z0-9]/', '', Str::ascii($vehicle->callsign ?: ($vehicle->name ?? '')))) ?: 'X';
+            }
+
+            $seq = 1;
+            if ($vehicle !== null) {
+                $locationIds = Location::query()->where('vehicle_id', $vehicle->id)->pluck('id');
+                $query = static::query()->whereIn('location_id', $locationIds);
+                $m->material_type_id
+                    ? $query->where('material_type_id', $m->material_type_id)
+                    : $query->where('name', $m->name);
+                $seq = $query->count() + 1;
+            }
+
+            return $code.'_'.$veh.'_'.str_pad((string) $seq, 2, '0', STR_PAD_LEFT);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function category(): BelongsTo

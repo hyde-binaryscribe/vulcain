@@ -384,6 +384,7 @@ class VehicleController extends Controller
             'id' => $m->id,
             'location_id' => $m->location_id,
             'name' => $m->name,
+            'identifier' => $m->identifier,
             'brand' => $m->brand,
             'reference' => $m->reference,
             'type' => $m->type?->name,

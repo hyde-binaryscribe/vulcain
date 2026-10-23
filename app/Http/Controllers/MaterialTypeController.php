@@ -27,6 +27,7 @@ class MaterialTypeController extends Controller
             ->map(fn (MaterialType $t) => [
                 'id' => $t->id,
                 'name' => $t->name,
+                'code' => $t->code,
                 'category' => $t->category?->name,
                 'category_id' => $t->category_id,
                 'tracking_mode' => $t->tracking_mode,
@@ -86,6 +87,10 @@ class MaterialTypeController extends Controller
     {
         $orgId = $this->tenant->id();
 
+        if ($request->filled('code')) {
+            $request->merge(['code' => strtoupper(trim((string) $request->input('code')))]);
+        }
+
         $data = $request->validate([
             'name' => [
                 'required', 'string', 'max:150',
@@ -94,14 +99,29 @@ class MaterialTypeController extends Controller
                     ->whereNull('deleted_at')
                     ->ignore($current?->id),
             ],
+            'code' => [
+                'nullable', 'string', 'max:8', 'regex:/^[A-Z0-9]+$/',
+                Rule::unique('material_types', 'code')
+                    ->where('organisation_id', $orgId)
+                    ->whereNull('deleted_at')
+                    ->ignore($current?->id),
+            ],
             'category_id' => ['nullable', Rule::exists('material_categories', 'id')->where('organisation_id', $orgId)],
             'tracking_mode' => ['required', Rule::in(array_keys(Material::TRACKING_MODES))],
             'display_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+        ], [
+            'code.regex' => 'Le code ne doit contenir que des lettres majuscules et des chiffres.',
+            'code.unique' => 'Ce code est déjà utilisé par un autre type.',
         ]);
 
         $data['display_order'] ??= 0;
         $data['is_active'] = $request->boolean('is_active', true);
+
+        // Code vide : laissé au hook de génération (création) ou inchangé (édition).
+        if (empty($data['code'])) {
+            unset($data['code']);
+        }
 
         return $data;
     }

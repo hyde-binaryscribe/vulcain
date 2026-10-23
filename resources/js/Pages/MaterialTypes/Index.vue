@@ -12,7 +12,7 @@ const props = defineProps({
     trackingModes: { type: Array, default: () => [] },
 });
 
-const blank = { name: '', category_id: '', tracking_mode: 'serial', display_order: 0, is_active: true };
+const blank = { name: '', code: '', category_id: '', tracking_mode: 'serial', display_order: 0, is_active: true };
 const form = useForm({ ...blank });
 const editingId = ref(null);
 
@@ -25,7 +25,7 @@ function edit(t) {
     editingId.value = t.id;
     form.clearErrors();
     Object.assign(form, {
-        name: t.name, category_id: t.category_id ?? '', tracking_mode: t.tracking_mode,
+        name: t.name, code: t.code ?? '', category_id: t.category_id ?? '', tracking_mode: t.tracking_mode,
         display_order: t.display_order, is_active: t.is_active,
     });
 }
@@ -62,6 +62,7 @@ function remove(t) {
                         <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                             <tr>
                                 <th class="px-4 py-3">Type</th>
+                                <th class="px-4 py-3">Code</th>
                                 <th class="px-4 py-3">Catégorie</th>
                                 <th class="px-4 py-3">Suivi</th>
                                 <th class="px-4 py-3">Modèles</th>
@@ -72,6 +73,10 @@ function remove(t) {
                         <tbody class="divide-y divide-gray-100">
                             <tr v-for="t in types" :key="t.id">
                                 <td class="px-4 py-3 font-medium text-gray-900">{{ t.name }}</td>
+                                <td class="px-4 py-3">
+                                    <span v-if="t.code" class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-700">{{ t.code }}</span>
+                                    <span v-else class="text-gray-400">—</span>
+                                </td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.category ?? '—' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.tracking_label }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ t.models_count }}</td>
@@ -84,7 +89,7 @@ function remove(t) {
                                     <button class="ml-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" @click="remove(t)">Suppr.</button>
                                 </td>
                             </tr>
-                            <tr v-if="types.length === 0"><td colspan="6" class="px-4 py-8 text-center text-gray-500">Aucun type de matériel.</td></tr>
+                            <tr v-if="types.length === 0"><td colspan="7" class="px-4 py-8 text-center text-gray-500">Aucun type de matériel.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -97,6 +102,20 @@ function remove(t) {
                         <InputLabel value="Nom" />
                         <TextInput v-model="form.name" placeholder="Thermomètre, Compresse 5×5…" />
                         <InputError :message="form.errors.name" />
+                    </div>
+                    <div>
+                        <InputLabel value="Code (optionnel)" />
+                        <TextInput
+                            :model-value="form.code"
+                            placeholder="Auto (ex. BRCD)"
+                            class="font-mono uppercase"
+                            maxlength="8"
+                            @update:model-value="form.code = ($event || '').toUpperCase()"
+                        />
+                        <p class="mt-1 text-xs text-gray-400">
+                            Préfixe des identifiants (ex. <span class="font-mono">BRCD_A09_01</span>). Laissez vide pour une génération automatique.
+                        </p>
+                        <InputError :message="form.errors.code" />
                     </div>
                     <div>
                         <InputLabel value="Mode de suivi" />
