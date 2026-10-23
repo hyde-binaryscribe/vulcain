@@ -9,6 +9,7 @@ use App\Http\Controllers\FleetMapController;
 use App\Http\Controllers\DisinfectionProtocolController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\IntraChatelLinkController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MaintenanceController;
@@ -282,6 +283,9 @@ Route::middleware(['auth', 'tenant'])->group(function () {
         Route::post('settings/webhooks', [WebhookEndpointController::class, 'store'])->name('settings.webhooks.store');
         Route::post('settings/webhooks/{endpoint}/test', [WebhookEndpointController::class, 'test'])->name('settings.webhooks.test');
         Route::delete('settings/webhooks/{endpoint}', [WebhookEndpointController::class, 'destroy'])->name('settings.webhooks.destroy');
+        // Lien intra-Chatel : référentiels publiés (lecture seule) et association aux fiches Vulkain.
+        Route::get('settings/intra-chatel', [IntraChatelLinkController::class, 'index'])->name('settings.intra-chatel');
+        Route::patch('settings/intra-chatel/{record}', [IntraChatelLinkController::class, 'link'])->name('settings.intra-chatel.link');
     });
 
     // Modèles de protocole.

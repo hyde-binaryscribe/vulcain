@@ -1,6 +1,8 @@
 <?php
 
+use App\Domain\IntraChatel\Referentials;
 use App\Http\Controllers\Api\V1\CheckController;
+use App\Http\Controllers\Api\V1\IntraChatelReferentialController;
 use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\V1\VehicleController;
 use App\Http\Middleware\AuthenticateApiToken;
@@ -23,4 +25,9 @@ Route::prefix('v1')
         Route::get('services/current', [ServiceController::class, 'current']);
         Route::post('services/open', [ServiceController::class, 'open']);
         Route::post('services/close', [ServiceController::class, 'close']);
+
+        // Référentiels publiés par intra-Chatel (copie en lecture seule, associée aux fiches Vulkain).
+        $kinds = implode('|', array_keys(Referentials::KINDS));
+        Route::put('intra-chatel/{kind}', [IntraChatelReferentialController::class, 'update'])->where('kind', $kinds);
+        Route::get('intra-chatel/{kind}', [IntraChatelReferentialController::class, 'index'])->where('kind', $kinds);
     });

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { useForm, Head, router } from '@inertiajs/vue3';
+import { useForm, Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
@@ -385,6 +385,16 @@ function save() {
                     </button>
                 </div>
                 <p v-if="webhookForm.errors.url || webhookForm.errors.name" class="mt-1 text-xs text-red-700">{{ webhookForm.errors.url || webhookForm.errors.name }}</p>
+            </section>
+
+            <section v-if="webhooks" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 class="text-base font-semibold text-gray-900">Référentiels intra-Chatel</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Agents, véhicules, sacs et bouteilles publiés par intra-Chatel (lecture seule), et leur association aux fiches Vulkain.
+                </p>
+                <Link href="/settings/intra-chatel" class="mt-3 inline-block rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    Voir et associer
+                </Link>
             </section>
         </div>
     </AppLayout>

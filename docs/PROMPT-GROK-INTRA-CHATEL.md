@@ -4,7 +4,9 @@
 
 ---
 
-Tu travailles sur **intra-Chatel** (`https://intra-Chatel.fr`), notre application interne. Elle a deux formulaires : **PRISE DE POSTE** et **FIN DE SERVICE**. Je veux, **à des fins de test**, les partager avec **Vulkain** (notre logiciel de gestion de flotte) dans les deux sens. Le contrat ci-dessous est fixé côté Vulkain : ne le change pas, adapte intra-Chatel. Utilise la pile et les conventions déjà en place dans intra-Chatel. Ne mets aucun secret dans le code ou dans Git : passe par la configuration (variables d'environnement ou réglages admin).
+Tu travailles sur **intra-Chatel** (`https://intra-Chatel.fr`), notre application interne. Elle a deux formulaires : **PRISE DE POSTE** et **FIN DE SERVICE**. Je veux, **à des fins de test**, les partager avec **Vulkain** (notre logiciel de gestion de flotte) dans les deux sens. Le contrat ci-dessous est fixé côté Vulkain : ne le change pas, adapte intra-Chatel.
+
+**Règle absolue : intra-Chatel fait référence.** Vulkain lit nos données de base (agents, véhicules, sacs, bouteilles d'oxygène) et nous envoie des entrées (événements de service). **Aucun appel venant de Vulkain ne doit modifier nos données de base** : pas de route qui crée, modifie ou supprime un agent, un véhicule, un sac ou une bouteille à partir de Vulkain. Ce que Vulkain nous envoie est enregistré comme une saisie (journal), à part. Utilise la pile et les conventions déjà en place dans intra-Chatel. Ne mets aucun secret dans le code ou dans Git : passe par la configuration (variables d'environnement ou réglages admin).
 
 ## Configuration à ajouter
 
@@ -18,6 +20,31 @@ Tu travailles sur **intra-Chatel** (`https://intra-Chatel.fr`), notre applicatio
 Chaque appel : en-têtes `Authorization: Bearer ${VULKAIN_API_TOKEN}`, `Accept: application/json`, `Content-Type: application/json`, délai max 10 s. Limite : 120 requêtes/minute.
 
 ## 1. Sens intra-Chatel → Vulkain
+
+### 1.0 Publier nos référentiels (lecture seule pour Vulkain)
+
+Envoie la **liste complète** de chaque référentiel, depuis notre base, sans rien filtrer d'autre que l'organisation : au démarrage, toutes les heures (tâche planifiée), et après chaque modification d'une fiche dans intra-Chatel. La liste remplace la précédente ; une fiche qui n'y est plus est marquée « absente » chez Vulkain (jamais supprimée).
+
+| Route | Champs par fiche |
+|---|---|
+| `PUT {VULKAIN_API_URL}/intra-chatel/agents` | `id`*, `initials`*, `first_name`, `last_name`, `active` |
+| `PUT {VULKAIN_API_URL}/intra-chatel/vehicles` | `id`*, `callsign`* (« A9 »), `registration`, `name`, `active` |
+| `PUT {VULKAIN_API_URL}/intra-chatel/bags` | `id`*, `name`*, `vehicle_id` (notre id de véhicule), `seal_number`, `active` |
+| `PUT {VULKAIN_API_URL}/intra-chatel/oxygen-bottles` | `id`*, `serial_number`*, `capacity_l`, `vehicle_id` (notre id de véhicule), `active` |
+
+\* obligatoire. `id` = notre identifiant interne, stable. Exemple :
+
+```json
+PUT {VULKAIN_API_URL}/intra-chatel/agents
+{ "data": [
+  { "id": 12, "initials": "AJ", "first_name": "Alice", "last_name": "Jourdan", "active": true },
+  { "id": 13, "initials": "MJM", "first_name": "Marie-Jeanne", "last_name": "Martin", "active": true }
+] }
+```
+
+Réponse 200 : `{ "data": { "received": 2, "created": 2, "updated": 0, "missing": 0, "linked": 1 } }` (`linked` = fiches que Vulkain a associées automatiquement à ses propres fiches). 2 000 fiches au plus par envoi. 422 `validation_failed` : corriger la donnée, ne pas renvoyer en boucle. `GET` sur la même route montre ce que Vulkain détient et à quoi chaque fiche est associée : utile pour un écran de contrôle, jamais pour modifier nos fiches.
+
+Une fois les véhicules publiés, envoie de préférence **`vehicle_ref`** (notre id de véhicule) au lieu de `vehicle_callsign` dans les formulaires ci-dessous. Vulkain renvoie 422 `vehicle_not_linked` si ce véhicule n'est pas encore associé chez lui (l'admin Vulkain l'associe dans Réglages › Référentiels intra-Chatel).
 
 ### 1.a Préremplir le formulaire (à la sélection du véhicule)
 
@@ -74,7 +101,7 @@ Usage :
 ```
 
 Correspondance des champs du formulaire :
-- **Véhicule** → `vehicle_callsign` (« A9 »). Si tu as l'uuid Vulkain, envoie plutôt `vehicle_uuid`. La liste des véhicules avec leurs uuid : `GET {VULKAIN_API_URL}/vehicles` (`data[].uuid`, `data[].callsign`).
+- **Véhicule** → `vehicle_ref` (notre id de véhicule, publié en 1.0). À défaut `vehicle_callsign` (« A9 »).
 - **Créateur de la session** → `opened_by` (initiales, obligatoire). **Équipier (binôme)** → `partner` (initiales ou nom, `null` si aucun).
 - **Kilométrage** → `mileage` (entier, km).
 - **Niveau de carburant** → `fuel_percent`, entier de 0 à 100 (le curseur en huitièmes : 1/8 → 13, 1/4 → 25, 1/2 → 50, 1 → 100).
@@ -121,11 +148,11 @@ Réponse **201** :
 
 1. **`external_id`** : un identifiant unique par formulaire validé (préfixe `pdp-` ou `fds-` + UUID v4), **généré une fois** et enregistré avec le formulaire. Un renvoi avec le même `external_id` ne crée rien de plus (réponse 200, `replayed: true`).
 2. **Ne jamais bloquer l'agent** : la validation est d'abord enregistrée dans intra-Chatel, puis envoyée à Vulkain. L'envoi se fait en tâche de fond (file ou tâche planifiée), pas dans la requête du clic si ta pile le permet.
-3. **Nouvelles tentatives** : en cas d'erreur réseau, de délai dépassé, de 429 ou de 5xx, renvoyer **le même corps avec le même `external_id`** après 1, 5, 15, 60 min, puis signaler à un admin. Ne pas renvoyer en cas de 401, 404 ou 422 : journaliser `code` et `errors` et signaler à un admin.
+3. **Nouvelles tentatives** : en cas d'erreur réseau, de délai dépassé, de 429, de 5xx ou de `vehicle_not_linked`, renvoyer **le même corps avec le même `external_id`** après 1, 5, 15, 60 min, puis signaler à un admin. Ne pas renvoyer en cas de 401, 404 ou 422 : journaliser `code` et `errors` et signaler à un admin.
 4. **Ordre** : n'envoie une fin de service qu'après le succès de la prise de poste du même véhicule si les deux sont en attente.
 5. Journalise chaque appel (route, `external_id`, statut HTTP, `code`), **sans le jeton**.
 
-Codes d'erreur : 401 `unauthorized` (jeton absent ou révoqué), 404 `vehicle_not_found`, 409 `no_open_service`, 422 `validation_failed` (détail dans `errors`) ou `ambiguous_vehicle` (deux véhicules ont cet indicatif : utiliser `vehicle_uuid`), 429 trop de requêtes.
+Codes d'erreur : 401 `unauthorized` (jeton absent ou révoqué), 404 `vehicle_not_found`, 409 `no_open_service`, 422 `validation_failed` (détail dans `errors`), `ambiguous_vehicle` (deux véhicules ont cet indicatif : utiliser `vehicle_ref`) ou `vehicle_not_linked` (véhicule pas encore associé chez Vulkain : prévenir un admin, renvoyer plus tard avec le même `external_id`), 429 trop de requêtes.
 
 ## 2. Sens Vulkain → intra-Chatel (notifications signées)
 
@@ -151,7 +178,7 @@ Traitement, dans cet ordre :
 3. Dédoublonner par `X-Vulkain-Delivery` : déjà traité → **200** sans rien refaire.
 4. `event == "ping"` → **200**.
 5. `data.source == "intra_chatel"` → c'est notre propre envoi qui revient : **200** sans rien faire (pas de boucle).
-6. Sinon enregistrer : `service.opened` = un agent a pris le véhicule `data.vehicle.callsign` dans Vulkain (mettre à jour l'état « session ouverte » utilisé par le bandeau « Session de … non clôturée ») ; `service.closed` = le service est fini (retirer cet état, garder kilométrage et niveaux).
+6. Sinon enregistrer l'événement **dans une table à part** (journal des services Vulkain : véhicule, agents, heures, kilométrage, niveaux). `service.opened` = un agent a pris le véhicule dans Vulkain : le bandeau « Session de … non clôturée » peut le lire dans ce journal ; `service.closed` = le service est fini. **Ne modifie aucune fiche de base** (véhicule, agent, sac, bouteille) à partir de ces événements, pas même le kilométrage du véhicule.
 7. Répondre **2xx en moins de 5 secondes** (traitement lourd en tâche de fond). Sinon Vulkain retente après 1, 5, 15, 60 et 240 min.
 
 Exemple de vérification en PHP :
@@ -175,7 +202,7 @@ const ok = t && Math.abs(Date.now() / 1000 - Number(t)) <= 300
 
 ## 3. Tests à me livrer
 
-1. `curl` : `GET /vehicles` puis `GET /services/current?vehicle_callsign=A9` répondent 200 avec le jeton, 401 sans.
+1. `curl` : les 4 `PUT /intra-chatel/…` répondent 200 avec le jeton, 401 sans ; dans Vulkain › Réglages › Référentiels intra-Chatel, les fiches apparaissent et la plupart sont associées automatiquement. `GET /services/current?vehicle_callsign=A9` répond 200.
 2. Une prise de poste réelle apparaît dans Vulkain › Suivi de service avec le badge « intra-Chatel », les niveaux et les initiales.
 3. Le même formulaire renvoyé deux fois → une seule session (`replayed: true` au second envoi).
 4. Fin de service → la session est clôturée dans Vulkain avec le kilométrage.
@@ -183,5 +210,6 @@ const ok = t && Math.abs(Date.now() / 1000 - Number(t)) <= 300
 6. Une prise de service faite sur le terrain Vulkain → intra-Chatel affiche le bandeau « Session de … non clôturée » pour ce véhicule.
 7. Signature modifiée d'un caractère → 401.
 8. Vulkain coupé ou jeton faux → le formulaire intra-Chatel s'enregistre quand même, l'envoi est retenté puis signalé.
+9. Aucune de nos fiches de base (agents, véhicules, sacs, bouteilles) n'a changé après tous ces tests : vérifie-le en comparant la base avant et après.
 
 Livre : la liste des fichiers modifiés, l'URL finale du webhook, et les points où tu as dû supposer quelque chose (notamment l'unité du curseur des bouteilles).

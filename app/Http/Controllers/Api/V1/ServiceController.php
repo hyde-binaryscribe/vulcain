@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\IntraChatel\ServiceChecklist;
 use App\Domain\Webhooks\ServicePayload;
 use App\Http\Controllers\Controller;
+use App\Models\IntraChatelRecord;
 use App\Models\OxygenBottle;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -85,6 +86,7 @@ class ServiceController extends Controller
             'external_id' => ['required', 'string', 'max:100'],
             'vehicle_uuid' => ['nullable', 'uuid'],
             'vehicle_callsign' => ['nullable', 'string', 'max:50'],
+            'vehicle_ref' => ['nullable', 'string', 'max:100'],
             'opened_by' => ['required', 'string', 'max:100'],
             'partner' => ['nullable', 'string', 'max:100'],
             'opened_at' => ['nullable', 'date'],
@@ -157,6 +159,7 @@ class ServiceController extends Controller
             'external_id' => ['required', 'string', 'max:100'],
             'vehicle_uuid' => ['nullable', 'uuid'],
             'vehicle_callsign' => ['nullable', 'string', 'max:50'],
+            'vehicle_ref' => ['nullable', 'string', 'max:100'],
             'closed_by' => ['required', 'string', 'max:100'],
             'closed_at' => ['nullable', 'date'],
         ] + ServiceChecklist::sharedRules());
@@ -202,25 +205,35 @@ class ServiceController extends Controller
     }
 
     /**
-     * Véhicule désigné par son uuid (de préférence) ou son indicatif (« A9 »).
+     * Véhicule désigné par son uuid Vulkain (de préférence), par son identifiant
+     * intra-Chatel (vehicle_ref, via l'association) ou par son indicatif (« A9 » :
+     * celui de Vulkain, sinon celui publié par intra-Chatel et associé).
      *
      * @return array{0: ?Vehicle, 1: ?JsonResponse}
      */
     private function resolveVehicle(array $input): array
     {
         $uuid = $input['vehicle_uuid'] ?? null;
+        $ref = isset($input['vehicle_ref']) ? trim((string) $input['vehicle_ref']) : '';
         $callsign = isset($input['vehicle_callsign']) ? trim((string) $input['vehicle_callsign']) : '';
 
         if ($uuid) {
             $vehicle = Vehicle::query()->where('uuid', $uuid)->first();
+        } elseif ($ref !== '') {
+            $record = IntraChatelRecord::query()->where('kind', IntraChatelRecord::KIND_VEHICLE)->where('external_id', $ref)->first();
+            if ($record !== null && $record->linked_id === null) {
+                return [null, response()->json(['error' => "Le véhicule intra-Chatel « {$record->label} » n'est associé à aucun véhicule Vulkain.", 'code' => 'vehicle_not_linked'], 422)];
+            }
+            $vehicle = $record ? Vehicle::query()->find($record->linked_id) : null;
         } elseif ($callsign !== '') {
             $matches = Vehicle::query()->whereRaw('lower(callsign) = ?', [mb_strtolower($callsign)])->limit(2)->get();
             if ($matches->count() > 1) {
                 return [null, response()->json(['error' => "Plusieurs véhicules portent l'indicatif « {$callsign} » : utilisez vehicle_uuid.", 'code' => 'ambiguous_vehicle'], 422)];
             }
-            $vehicle = $matches->first();
+            $linkedId = $matches->isEmpty() ? IntraChatelRecord::linkedIdBy(IntraChatelRecord::KIND_VEHICLE, 'callsign', $callsign) : null;
+            $vehicle = $matches->first() ?? ($linkedId ? Vehicle::query()->find($linkedId) : null);
         } else {
-            return [null, $this->invalid(['vehicle_uuid' => ['vehicle_uuid ou vehicle_callsign est obligatoire.']])];
+            return [null, $this->invalid(['vehicle_uuid' => ['vehicle_uuid, vehicle_ref ou vehicle_callsign est obligatoire.']])];
         }
 
         if (! $vehicle) {
@@ -231,12 +244,18 @@ class ServiceController extends Controller
     }
 
     /**
-     * Agent Vulkain correspondant aux initiales saisies dans intra-Chatel : celui dont
+     * Agent Vulkain correspondant aux initiales saisies dans intra-Chatel : celui associé
+     * à l'agent intra-Chatel de ces initiales (référentiel publié), sinon celui dont
      * l'identifiant interne (username) est identique, s'il est seul. Sinon null :
      * le nom saisi reste affiché tel quel.
      */
     private function userIdFor(string $name, ?int $except = null): ?int
     {
+        $linked = IntraChatelRecord::linkedIdBy(IntraChatelRecord::KIND_AGENT, 'initials', $name);
+        if ($linked !== null && $linked !== $except && User::query()->where('is_active', true)->whereKey($linked)->exists()) {
+            return $linked;
+        }
+
         $ids = User::query()->where('is_active', true)
             ->whereRaw('lower(username) = ?', [mb_strtolower($name)])
             ->when($except, fn ($q) => $q->whereKeyNot($except))

@@ -7,11 +7,15 @@ intra-Chatel (application interne, `https://intra-Chatel.fr`) a ses propres form
 
 Le prompt de configuration côté intra-Chatel est dans `docs/PROMPT-GROK-INTRA-CHATEL.md`.
 
+## Règle du lien (décision du porteur)
+
+**intra-Chatel fait référence partout.** Vulkain **lit** les données de base d'intra-Chatel (agents, véhicules, sacs, bouteilles), les **associe** à ses propres fiches et **saisit des entrées** (prises et fins de service, notifications). Strictement rien de plus : Vulkain ne modifie jamais les données de base d'intra-Chatel, et ne réécrit pas non plus ses propres fiches à partir d'elles.
+
 ## Décisions
 
 - Même socle que le lien Itineris (`docs/LIEN-ITINERIS.md`) : jeton `vk_…` par organisation (Réglages › Lien Itineris), réservé au secteur transport sanitaire, 120 requêtes par minute.
-- Un véhicule est désigné par son **uuid** (`vehicle_uuid`) ; l'**indicatif** (`vehicle_callsign`, « A9 ») est accepté pour le test, à condition d'être unique dans l'organisation (sinon 422 `ambiguous_vehicle`).
-- Les agents sont connus par leurs **initiales** dans intra-Chatel. Vulkain garde le nom saisi (`opened_by_name`, `partner_name`, `closed_by_name`) et relie la session au compte dont l'**identifiant interne** (`username`) est identique, s'il n'y en a qu'un. Pour relier un agent : mettre ses initiales comme identifiant interne dans Utilisateurs.
+- Un véhicule est désigné par son **uuid** (`vehicle_uuid`), par son **id intra-Chatel** (`vehicle_ref`, via l'association) ou par son **indicatif** (`vehicle_callsign`, « A9 »), à condition d'être unique dans l'organisation (sinon 422 `ambiguous_vehicle`).
+- Les agents sont connus par leurs **initiales** dans intra-Chatel. Vulkain garde le nom saisi (`opened_by_name`, `partner_name`, `closed_by_name`) et relie la session au compte associé (référentiel des agents), sinon à celui dont l'**identifiant interne** (`username`) est identique, s'il n'y en a qu'un.
 - Une seule session ouverte par véhicule : une prise de poste clôture la session en cours (passation, `close_reason: handover`), comme sur le terrain. La réponse le signale (`handover`), de quoi afficher « Session de HT non clôturée ».
 - **Idempotence** : chaque formulaire porte un `external_id` choisi par intra-Chatel. Le renvoyer ne crée rien de plus (200, `replayed: true`). Unique par organisation, séparément pour les prises de poste et les fins de service.
 - Le kilométrage passe par `Vehicle::recordMileage()` (le compteur ne recule jamais, saut de plus de 2 000 km signalé), sources `prise_de_service` / `fin_de_service`, auteur = initiales.
@@ -54,11 +58,30 @@ Authentification : `Authorization: Bearer vk_…`, corps JSON. Erreurs : `{ erro
 | `POST /api/v1/services/close` | Fin de service | 200 `{ data: Service, replayed }` ; 409 `no_open_service` |
 | `GET /api/v1/services?since=ISO8601&vehicle_uuid=&limit=` | Rattrapage (polling) | `{ data: Service[] }`, modifiés depuis `since` (24 h par défaut), max 200 |
 
-Codes : 401 `unauthorized`, 404 `vehicle_not_found`, 409 `no_open_service`, 422 `validation_failed` / `ambiguous_vehicle`, 429 trop de requêtes.
+Codes : 401 `unauthorized`, 404 `vehicle_not_found`, 409 `no_open_service`, 422 `validation_failed` / `ambiguous_vehicle` / `vehicle_not_linked`, 429 trop de requêtes.
 
 `current` : `vehicle` (`uuid`, `callsign`, `name`, `mileage`, `mileage_at`) ; `open_service` = service en cours ou `null` ; `last_oxygen` = bouteilles du dernier service intra-Chatel (`source: "service"`), sinon de la dotation Oxygène embarqué (`source: "dotation"`) : `position`, `serial_number`, `level_percent`.
 
 `Service` : `vehicle` (`uuid`, `callsign`, `name`), `source` (`vulkain` | `intra_chatel`), `external_id`, `close_external_id`, `open`, `opened_at`, `opened_by`, `partner`, `open_mileage`, `open_checks`, `open_notes`, `closed_at`, `closed_by`, `close_reason` (`manual` | `handover`), `close_mileage`, `close_checks`, `close_notes`, `updated_at`. Contrôle : `ref`, `label`, `type`, `value`, `percent`, `unit`, `alert` (`severity`, `message`) ou `null`. Jamais de photo ni d'id interne.
+
+## Référentiels intra-Chatel (lecture seule)
+
+intra-Chatel publie la **liste complète** de chaque référentiel ; Vulkain en garde une copie (`intra_chatel_records`) et l'associe à ses fiches. Une fiche absente d'une publication est marquée « absente », jamais supprimée, et garde son association.
+
+| Route | Champs de chaque fiche (`data[]`) | Associée à |
+|---|---|---|
+| `PUT /api/v1/intra-chatel/agents` | `id`*, `initials`*, `first_name`, `last_name`, `active` | agent Vulkain (Utilisateurs) |
+| `PUT /api/v1/intra-chatel/vehicles` | `id`*, `callsign`*, `registration`, `name`, `active` | véhicule |
+| `PUT /api/v1/intra-chatel/bags` | `id`*, `name`*, `vehicle_id` (id intra-Chatel), `seal_number`, `active` | sac (emplacement de type sac) |
+| `PUT /api/v1/intra-chatel/oxygen-bottles` | `id`*, `serial_number`*, `capacity_l`, `vehicle_id` (id intra-Chatel), `active` | bouteille de la dotation Oxygène embarqué |
+
+\* obligatoire. Corps : `{ "data": [ … ] }`, 2 000 fiches au plus, `id` uniques. Réponse : `{ data: { received, created, updated, missing, linked } }`. Les autres champs envoyés sont conservés tels quels. `GET` sur la même route renvoie la copie détenue par Vulkain : `id`, `label`, `present`, `synced_at`, `vulkain` (fiche associée : `uuid`/`callsign`/`name` pour un véhicule, `name` sinon, `serial_number` pour une bouteille) et `link_mode`.
+
+Association :
+- **automatique** à la publication, si une seule fiche Vulkain correspond exactement : initiales = identifiant interne de l'agent ; indicatif, sinon immatriculation (sans tirets ni espaces) ; nom du sac ; n° de série de la bouteille. Une association existante n'est jamais remplacée.
+- **manuelle** dans Réglages › Référentiels intra-Chatel (journalisée). Seule l'association change, jamais les fiches.
+
+Usage dans l'API de service : `vehicle_ref` (id intra-Chatel du véhicule) désigne le véhicule associé (422 `vehicle_not_linked` s'il ne l'est pas) ; un `vehicle_callsign` inconnu de Vulkain est cherché parmi les indicatifs publiés par intra-Chatel ; des initiales (`opened_by`, `partner`, `closed_by`) désignent d'abord l'agent associé à l'agent intra-Chatel de ces initiales, puis l'identifiant interne.
 
 ## Notifications sortantes
 
@@ -74,5 +97,5 @@ Réglages › Notifications sortantes : nom, adresse de réception ; le **secret
 ## Étapes suivantes
 
 - Ouvrir une anomalie Vulkain sur alerte (carburant, oxygène, liquides bas).
-- Mettre à jour la dotation Oxygène embarqué (n° de série, changement de bouteille) depuis les relevés intra-Chatel, une fois l'unité du curseur confirmée (% ou bar).
-- Lister les sacs Vulkain pour le menu « Sac assigné ».
+- Signaler dans Vulkain les écarts entre une fiche intra-Chatel et la fiche associée (immatriculation, n° de série), sans rien corriger automatiquement.
+- Planning des services (non retenu pour l'instant).
